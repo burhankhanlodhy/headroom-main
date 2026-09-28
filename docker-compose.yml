@@ -25,19 +25,20 @@ services:
       context: .
       args:
         HORIZON_BUILD_VERSION: ${HORIZON_BUILD_VERSION:-source-build}
-    # Bind to all interfaces inside the container so the published port is
-    # reachable; the published port below confines it to host loopback.
-    command: ["--host", "0.0.0.0"]
+    # Host networking (Linux): the proxy binds host loopback directly, so
+    # SSH-tunneled clients present as 127.0.0.1 and pass the loopback trust
+    # boundary (auth gate, dashboard fields) without a token. In a bridge
+    # network the DNAT'd peer is the gateway IP, which the gate treats as
+    # untrusted and 401s every tunnelled request. The loopback bind itself
+    # is the confinement - nothing off-box can reach the port.
+    network_mode: host
+    command: ["--host", "127.0.0.1"]
     environment:
-      - HORIZON_HOST=0.0.0.0
+      - HORIZON_HOST=127.0.0.1
       - HORIZON_PROXY_TOKEN=${HORIZON_PROXY_TOKEN:?set HORIZON_PROXY_TOKEN (see .env.example; e.g. openssl rand -hex 32)}
       - HOME=/home/nonroot
       - HORIZON_WORKSPACE_DIR=/home/nonroot/.horizon
       - HORIZON_CONFIG_DIR=/home/nonroot/.horizon/config
-    ports:
-      # Loopback-only. The container listens on 0.0.0.0 (above) so port
-      # forwarding works; this line controls which host interfaces publish it.
-      - "127.0.0.1:8787:8787"
     volumes:
       - horizon_workspace:/home/nonroot/.horizon
     healthcheck:
@@ -48,6 +49,9 @@ services:
       start_period: 20s
 
   # Optional TLS front. Activated with: docker compose --profile tls up -d
+  # NOTE: with horizon-proxy in host-network mode, caddy must also use
+  # network_mode: host and target 127.0.0.1:8787 (adjust the Caddyfile
+  # upstream) when you enable this profile.
   caddy:
     image: caddy:2-alpine
     profiles: ["tls"]

@@ -1,9 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from headroom.proxy.models import ProxyConfig
-from headroom.proxy.server import create_app
-from headroom.transforms import kompress_compressor
+from horizon.proxy.models import ProxyConfig
+from horizon.proxy.server import create_app
+from horizon.transforms import kompress_compressor
 
 
 class _ReadyCompressor:
@@ -25,7 +25,7 @@ class _ReadyCompressor:
 
 
 def _health_app(monkeypatch, compressor=None, *, disabled=False, **config_kwargs):
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
     app = create_app(
         ProxyConfig(
             optimize=False,
@@ -45,7 +45,7 @@ def _health_app(monkeypatch, compressor=None, *, disabled=False, **config_kwargs
 
 
 def test_readyz_excludes_kompress_from_aggregate_readiness(monkeypatch):
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
 
     app = create_app(
         ProxyConfig(

@@ -2,7 +2,7 @@
 
 The buffered-CCR path is the one place the Anthropic handler changes the
 request *for its own benefit*: it flips ``stream`` to False so the reply comes
-back as one JSON document it can inspect for ``headroom_retrieve`` calls, then
+back as one JSON document it can inspect for ``horizon_retrieve`` calls, then
 resynthesizes SSE for the client.
 
 That only works if the flip reaches the wire. When conversation history carries
@@ -26,11 +26,11 @@ httpx = pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.models import CacheEntry  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.models import CacheEntry  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 RETRIEVE_TOOL = {
-    "name": "headroom_retrieve",
+    "name": "horizon_retrieve",
     "description": "Retrieve original content",
     "input_schema": {"type": "object", "properties": {}},
 }
@@ -67,11 +67,11 @@ def ccr_marker() -> str:
     """A marker this proxy actually owns, so retrieval could really fire.
 
     The buffered path is only taken when the outgoing body carries a redeemable
-    marker (#3071) — ``headroom_retrieve`` has nothing to expand otherwise. These
+    marker (#3071) — ``horizon_retrieve`` has nothing to expand otherwise. These
     tests are about what happens *on* that path, so they have to earn it.
     """
-    from headroom.cache.backends import InMemoryBackend
-    from headroom.cache.compression_store import get_compression_store, reset_compression_store
+    from horizon.cache.backends import InMemoryBackend
+    from horizon.cache.compression_store import get_compression_store, reset_compression_store
 
     reset_compression_store()
     store = get_compression_store(backend=InMemoryBackend())
@@ -131,7 +131,7 @@ def test_signed_thinking_history_skips_the_buffered_ccr_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The buffered path is only chosen when the stream:false flip can land."""
-    monkeypatch.setenv("HEADROOM_THINKING_PRESERVING_MUTATIONS", "1" if relaxation_enabled else "0")
+    monkeypatch.setenv("HORIZON_THINKING_PRESERVING_MUTATIONS", "1" if relaxation_enabled else "0")
     calls: dict[str, object] = {}
 
     async def fake_stream_response(url, headers, body, *args, **kwargs):  # noqa: ANN001
@@ -225,7 +225,7 @@ def test_buffered_ccr_relays_an_unexpected_sse_reply_and_does_not_cache_it(
 def test_buffering_is_gated_on_a_redeemable_marker(
     marker_kind: str, expect_buffered: bool, ccr_marker: str
 ) -> None:
-    """A resident ``headroom_retrieve`` is not on its own a reason to buffer (#3071).
+    """A resident ``horizon_retrieve`` is not on its own a reason to buffer (#3071).
 
     The tool is injected once and kept resident so the tools array stays
     byte-stable for the prompt cache. Buffering on its presence alone meant

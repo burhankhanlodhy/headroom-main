@@ -1,4 +1,4 @@
-"""Tests for `headroom wrap omp` / `headroom unwrap omp`.
+"""Tests for `horizon wrap omp` / `horizon unwrap omp`.
 
 Covers the omp runtime override contract (fresh-create vs merge-preserving
 injection, pristine backups, re-injection idempotency, restore statuses) and
@@ -16,8 +16,8 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from headroom.cli.main import main
-from headroom.providers.omp import (
+from horizon.cli.main import main
+from horizon.providers.omp import (
     MANAGED_MARKER,
     backup_path,
     build_launch_env,
@@ -184,7 +184,7 @@ def test_build_launch_env_passes_env_through_and_emits_display(omp_home: Path) -
 
 
 def test_wrap_omp_missing_binary_exits_with_install_hint(runner: CliRunner, omp_home: Path) -> None:
-    with patch("headroom.cli.wrap.shutil.which", return_value=None):
+    with patch("horizon.cli.wrap.shutil.which", return_value=None):
         result = runner.invoke(main, ["wrap", "omp"])
 
     assert result.exit_code == 1
@@ -204,8 +204,8 @@ def test_wrap_omp_happy_path_injects_before_launch(runner: CliRunner, omp_home: 
         )
 
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="omp"),
-        patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool),
+        patch("horizon.cli.wrap.shutil.which", return_value="omp"),
+        patch("horizon.cli.wrap._launch_tool", side_effect=fake_launch_tool),
     ):
         result = runner.invoke(main, ["wrap", "omp", "--", "-p", "fix the bug"])
 
@@ -230,8 +230,8 @@ def test_wrap_omp_does_not_write_agents_md(
 ) -> None:
     """`wrap omp` redirects via models.yml only; it never authors AGENTS.md."""
     with (
-        patch("headroom.cli.wrap.shutil.which", return_value="omp"),
-        patch("headroom.cli.wrap._launch_tool"),
+        patch("horizon.cli.wrap.shutil.which", return_value="omp"),
+        patch("horizon.cli.wrap._launch_tool"),
     ):
         result = runner.invoke(main, ["wrap", "omp"])
 
@@ -251,7 +251,7 @@ def test_unwrap_omp_restores_pristine_and_stops_proxy(runner: CliRunner, omp_hom
 
     stopped: list[int] = []
     with patch(
-        "headroom.cli.wrap._stop_local_proxy_for_unwrap",
+        "horizon.cli.wrap._stop_local_proxy_for_unwrap",
         side_effect=lambda port: stopped.append(port) or "not_running",
     ):
         result = runner.invoke(main, ["unwrap", "omp"])
@@ -270,7 +270,7 @@ def test_unwrap_omp_removes_wrap_created_file(runner: CliRunner, omp_home: Path)
 
     stopped: list[int] = []
     with patch(
-        "headroom.cli.wrap._stop_local_proxy_for_unwrap",
+        "horizon.cli.wrap._stop_local_proxy_for_unwrap",
         side_effect=lambda port: stopped.append(port) or "not_running",
     ):
         result = runner.invoke(main, ["unwrap", "omp", "--port", "9191"])
@@ -287,7 +287,7 @@ def test_unwrap_omp_noop_leaves_unmanaged_and_skips_proxy_stop(
     user_content = "providers:\n  anthropic:\n    apiKey: sk-user-secret\n"
     omp_home.write_bytes(user_content.encode("utf-8"))
 
-    with patch("headroom.cli.wrap._stop_local_proxy_for_unwrap") as stop_proxy:
+    with patch("horizon.cli.wrap._stop_local_proxy_for_unwrap") as stop_proxy:
         result = runner.invoke(main, ["unwrap", "omp"])
 
     assert result.exit_code == 0, result.output

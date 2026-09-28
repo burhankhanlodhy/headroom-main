@@ -1,4 +1,4 @@
-"""Tests for `headroom wrap openclaw` command."""
+"""Tests for `horizon wrap openclaw` command."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli import wrap as wrap_cli
-from headroom.cli.main import main
+from horizon.cli import wrap as wrap_cli
+from horizon.cli.main import main
 
 
 @pytest.fixture
@@ -23,8 +23,8 @@ def plugin_dir(tmp_path: Path) -> Path:
     """Create a minimal OpenClaw plugin directory fixture."""
     plugin = tmp_path / "plugins" / "openclaw"
     plugin.mkdir(parents=True)
-    (plugin / "package.json").write_text('{"name":"headroom-openclaw"}\n')
-    (plugin / "openclaw.plugin.json").write_text('{"id":"headroom"}\n')
+    (plugin / "package.json").write_text('{"name":"horizon-openclaw"}\n')
+    (plugin / "openclaw.plugin.json").write_text('{"id":"horizon"}\n')
     hook_shim = plugin / "hook-shim"
     hook_shim.mkdir()
     (hook_shim / "index.js").write_text("export default {};\n")
@@ -63,7 +63,7 @@ def test_wrap_openclaw_retries_deprecated_install_flag(
                 return MagicMock(
                     returncode=1,
                     stdout="",
-                    stderr='Plugin "headroom" requires capability consent. Use --accept-capabilities.',
+                    stderr='Plugin "horizon" requires capability consent. Use --accept-capabilities.',
                 )
         return MagicMock(returncode=0, stdout="", stderr="")
 
@@ -73,8 +73,8 @@ def test_wrap_openclaw_retries_deprecated_install_flag(
     if source == "copy":
         args.append("--copy")
     with (
-        patch("headroom.cli.wrap.shutil.which", side_effect=lambda name: name),
-        patch("headroom.cli.wrap.subprocess.run", side_effect=run),
+        patch("horizon.cli.wrap.shutil.which", side_effect=lambda name: name),
+        patch("horizon.cli.wrap.subprocess.run", side_effect=run),
     ):
         result = runner.invoke(main, args)
 
@@ -114,8 +114,8 @@ def test_wrap_openclaw_does_not_override_install_policy(
         return MagicMock(returncode=0, stdout="", stderr="")
 
     with (
-        patch("headroom.cli.wrap.shutil.which", side_effect=lambda name: name),
-        patch("headroom.cli.wrap.subprocess.run", side_effect=run),
+        patch("horizon.cli.wrap.shutil.which", side_effect=lambda name: name),
+        patch("horizon.cli.wrap.subprocess.run", side_effect=run),
     ):
         result = runner.invoke(main, ["wrap", "openclaw"])
 
@@ -136,8 +136,8 @@ def test_wrap_openclaw_default_installs_from_npm_and_restarts(runner: CliRunner)
         }
         return mapping.get(name)
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
             result = runner.invoke(main, ["wrap", "openclaw"])
 
     assert result.exit_code == 0, result.output
@@ -148,16 +148,16 @@ def test_wrap_openclaw_default_installs_from_npm_and_restarts(runner: CliRunner)
         "plugins",
         "install",
         "--dangerously-force-unsafe-install",
-        "headroom-openclaw",
+        "horizon-openclaw",
     ] in cmds
     assert ["openclaw", "config", "validate"] in cmds
     assert ["openclaw", "gateway", "restart"] in cmds
-    assert ["openclaw", "plugins", "inspect", "headroom"] in cmds
+    assert ["openclaw", "plugins", "inspect", "horizon"] in cmds
 
     config_set_index = next(
         i
         for i, cmd in enumerate(cmds)
-        if cmd[:4] == ["openclaw", "config", "set", "plugins.entries.headroom"]
+        if cmd[:4] == ["openclaw", "config", "set", "plugins.entries.horizon"]
     )
     install_index = next(
         i
@@ -165,7 +165,7 @@ def test_wrap_openclaw_default_installs_from_npm_and_restarts(runner: CliRunner)
         if cmd[:4] == ["openclaw", "plugins", "install", "--dangerously-force-unsafe-install"]
     )
     # Config must be written only after a successful install so a failed
-    # install leaves no stale plugins.entries.headroom entry (issue #1969).
+    # install leaves no stale plugins.entries.horizon entry (issue #1969).
     assert install_index < config_set_index
 
     # Verify plugin install in npm mode does not set cwd
@@ -184,7 +184,7 @@ def test_wrap_openclaw_default_installs_from_npm_and_restarts(runner: CliRunner)
     set_entry = next(
         c
         for c in calls
-        if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.headroom"]
+        if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.horizon"]
     )
     payload = json.loads(set_entry["cmd"][4])
     assert payload["enabled"] is True
@@ -205,8 +205,8 @@ def test_wrap_openclaw_skip_build_and_no_restart(runner: CliRunner, plugin_dir: 
         }
         return mapping.get(name)
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
             result = runner.invoke(
                 main,
                 [
@@ -238,8 +238,8 @@ def test_wrap_openclaw_local_source_mode_builds_and_links(
         }
         return mapping.get(name)
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
             result = runner.invoke(
                 main,
                 ["wrap", "openclaw", "--plugin-path", str(plugin_dir)],
@@ -263,7 +263,7 @@ def test_wrap_openclaw_fails_when_openclaw_missing(runner: CliRunner, plugin_dir
     def which(name: str) -> str | None:
         return None if name == "openclaw" else "npm"
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
         result = runner.invoke(main, ["wrap", "openclaw", "--plugin-path", str(plugin_dir)])
 
     assert result.exit_code != 0
@@ -273,7 +273,7 @@ def test_wrap_openclaw_fails_when_openclaw_missing(runner: CliRunner, plugin_dir
 def test_wrap_openclaw_fails_when_plugin_path_invalid(runner: CliRunner, tmp_path: Path) -> None:
     invalid = tmp_path / "missing-plugin"
 
-    with patch("headroom.cli.wrap.shutil.which", return_value="openclaw"):
+    with patch("horizon.cli.wrap.shutil.which", return_value="openclaw"):
         result = runner.invoke(main, ["wrap", "openclaw", "--plugin-path", str(invalid)])
 
     assert result.exit_code != 0
@@ -302,11 +302,11 @@ def test_wrap_openclaw_uses_extension_fallback_on_linked_install_bug(
             )
         return MagicMock(returncode=0, stdout="", stderr="")
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=run):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=run):
             with patch(
-                "headroom.cli.wrap._copy_openclaw_plugin_into_extensions",
-                return_value=Path("C:/Users/test/.openclaw/extensions/headroom"),
+                "horizon.cli.wrap._copy_openclaw_plugin_into_extensions",
+                return_value=Path("C:/Users/test/.openclaw/extensions/horizon"),
             ) as copy_fallback:
                 result = runner.invoke(main, ["wrap", "openclaw", "--plugin-path", str(plugin_dir)])
 
@@ -331,19 +331,19 @@ def test_wrap_openclaw_continues_when_plugin_already_exists(
         if cmd[:3] == ["openclaw", "plugins", "install"]:
             return MagicMock(
                 returncode=1,
-                stdout="plugin already exists: C:\\Users\\test\\.openclaw\\extensions\\headroom",
+                stdout="plugin already exists: C:\\Users\\test\\.openclaw\\extensions\\horizon",
                 stderr="",
             )
         return MagicMock(returncode=0, stdout="", stderr="")
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=run):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=run):
             result = runner.invoke(main, ["wrap", "openclaw", "--no-restart"])
 
     assert result.exit_code == 0, result.output
     cmds = [c["cmd"] for c in calls]
     assert ["openclaw", "config", "validate"] in cmds
-    assert ["openclaw", "plugins", "inspect", "headroom"] in cmds
+    assert ["openclaw", "plugins", "inspect", "horizon"] in cmds
 
 
 def test_wrap_openclaw_verbose_prints_install_restart_and_inspect_output(
@@ -365,8 +365,8 @@ def test_wrap_openclaw_verbose_prints_install_restart_and_inspect_output(
             return MagicMock(returncode=0, stdout="inspect-ok", stderr="")
         return MagicMock(returncode=0, stdout="", stderr="")
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=run):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=run):
             result = runner.invoke(main, ["wrap", "openclaw", "--verbose"])
 
     assert result.exit_code == 0, result.output
@@ -389,8 +389,8 @@ def test_wrap_openclaw_starts_gateway_when_restart_fails(runner: CliRunner) -> N
             return MagicMock(returncode=0, stdout="started-ok", stderr="")
         return MagicMock(returncode=0, stdout="", stderr="")
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=run):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=run):
             result = runner.invoke(main, ["wrap", "openclaw", "--verbose"])
 
     assert result.exit_code == 0, result.output
@@ -407,8 +407,8 @@ def test_wrap_openclaw_accepts_repeatable_gateway_provider_ids(runner: CliRunner
     def which(name: str) -> str | None:
         return {"openclaw": "openclaw", "npm": "npm"}.get(name)
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
             result = runner.invoke(
                 main,
                 [
@@ -426,7 +426,7 @@ def test_wrap_openclaw_accepts_repeatable_gateway_provider_ids(runner: CliRunner
     set_entry = next(
         c
         for c in calls
-        if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.headroom"]
+        if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.horizon"]
     )
     payload = json.loads(set_entry["cmd"][4])
     assert payload["config"]["gatewayProviderIds"] == ["openai-codex", "anthropic"]
@@ -443,11 +443,11 @@ def test_read_openclaw_config_value_handles_missing_and_raw_strings() -> None:
     missing = MagicMock(returncode=1, stdout="", stderr="missing")
     raw_string = MagicMock(returncode=0, stdout="plain-text-value\n", stderr="")
 
-    with patch("headroom.cli.wrap.subprocess.run", side_effect=[missing, raw_string]):
-        assert wrap_cli._read_openclaw_config_value("openclaw", "plugins.entries.headroom") is None
+    with patch("horizon.cli.wrap.subprocess.run", side_effect=[missing, raw_string]):
+        assert wrap_cli._read_openclaw_config_value("openclaw", "plugins.entries.horizon") is None
         assert (
             wrap_cli._read_openclaw_config_value(
-                "openclaw", "plugins.entries.headroom.config.pythonPath"
+                "openclaw", "plugins.entries.horizon.config.pythonPath"
             )
             == "plain-text-value"
         )
@@ -481,7 +481,7 @@ def test_build_openclaw_plugin_entry_sets_and_clears_python_path() -> None:
 def test_build_openclaw_unwrap_entry_preserves_top_level_metadata() -> None:
     entry = wrap_cli._build_openclaw_unwrap_entry(
         {
-            "source": "headroom-ai/openclaw",
+            "source": "horizon-ai/openclaw",
             "enabled": True,
             "config": {
                 "pythonPath": "C:\\Python312\\python.exe",
@@ -491,7 +491,7 @@ def test_build_openclaw_unwrap_entry_preserves_top_level_metadata() -> None:
         }
     )
 
-    assert entry["source"] == "headroom-ai/openclaw"
+    assert entry["source"] == "horizon-ai/openclaw"
     assert entry["enabled"] is False
     assert entry["config"] == {"customFlag": True}
 
@@ -502,10 +502,10 @@ def test_unwrap_openclaw_stops_proxy_by_default(runner: CliRunner) -> None:
     def which(name: str) -> str | None:
         return "openclaw" if name == "openclaw" else None
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
             with patch(
-                "headroom.cli.wrap._stop_local_proxy_for_unwrap",
+                "horizon.cli.wrap._stop_local_proxy_for_unwrap",
                 return_value="stopped",
             ) as stop_proxy:
                 result = runner.invoke(
@@ -515,7 +515,7 @@ def test_unwrap_openclaw_stops_proxy_by_default(runner: CliRunner) -> None:
 
     assert result.exit_code == 0, result.output
     stop_proxy.assert_called_once_with(9999)
-    assert "Stopped local Headroom proxy on port 9999" in result.output
+    assert "Stopped local Horizon proxy on port 9999" in result.output
 
 
 def test_wrap_openclaw_no_auto_start_does_not_default_python_path(
@@ -526,8 +526,8 @@ def test_wrap_openclaw_no_auto_start_does_not_default_python_path(
     def which(name: str) -> str | None:
         return {"openclaw": "openclaw", "npm": "npm"}.get(name)
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
             result = runner.invoke(
                 main,
                 [
@@ -545,7 +545,7 @@ def test_wrap_openclaw_no_auto_start_does_not_default_python_path(
     set_entry = next(
         c
         for c in calls
-        if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.headroom"]
+        if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.horizon"]
     )
     payload = json.loads(set_entry["cmd"][4])
     assert payload["config"]["autoStart"] is False
@@ -571,8 +571,8 @@ def test_wrap_openclaw_fails_for_npm_mode_hook_pack_bug_without_local_fallback(
             )
         return MagicMock(returncode=0, stdout="", stderr="")
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=run):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=run):
             result = runner.invoke(main, ["wrap", "openclaw"])
 
     assert result.exit_code != 0
@@ -581,13 +581,13 @@ def test_wrap_openclaw_fails_for_npm_mode_hook_pack_bug_without_local_fallback(
 
 def test_wrap_openclaw_default_plugin_spec_matches_published_package() -> None:
     """The --plugin-spec default must be the real published npm package name."""
-    from headroom.providers.openclaw import OPENCLAW_NPM_PACKAGE
+    from horizon.providers.openclaw import OPENCLAW_NPM_PACKAGE
 
-    assert OPENCLAW_NPM_PACKAGE == "headroom-openclaw"
+    assert OPENCLAW_NPM_PACKAGE == "horizon-openclaw"
 
     command = wrap_cli.wrap.commands["openclaw"]
     plugin_spec_option = next(p for p in command.params if p.name == "plugin_spec")
-    assert plugin_spec_option.default == "headroom-openclaw"
+    assert plugin_spec_option.default == "horizon-openclaw"
 
 
 def test_wrap_openclaw_failed_install_writes_no_config_entry(runner: CliRunner) -> None:
@@ -603,8 +603,8 @@ def test_wrap_openclaw_failed_install_writes_no_config_entry(runner: CliRunner) 
             return MagicMock(returncode=1, stdout="", stderr="npm 404 not found")
         return MagicMock(returncode=0, stdout="", stderr="")
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=run):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=run):
             result = runner.invoke(main, ["wrap", "openclaw"])
 
     assert result.exit_code != 0
@@ -613,7 +613,7 @@ def test_wrap_openclaw_failed_install_writes_no_config_entry(runner: CliRunner) 
     cmds = [c["cmd"] for c in calls]
     # No plugin config entry should be written when the install hard-fails.
     assert not any(
-        cmd[:4] == ["openclaw", "config", "set", "plugins.entries.headroom"] for cmd in cmds
+        cmd[:4] == ["openclaw", "config", "set", "plugins.entries.horizon"] for cmd in cmds
     )
 
 
@@ -627,8 +627,8 @@ def test_wrap_openclaw_copy_mode_uses_path_install(runner: CliRunner, plugin_dir
         }
         return mapping.get(name)
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=_make_successful_run(calls)):
             result = runner.invoke(
                 main,
                 [
@@ -663,7 +663,7 @@ def test_wrap_openclaw_fails_when_npm_missing_for_local_build(
         }
         return mapping.get(name)
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
         result = runner.invoke(main, ["wrap", "openclaw", "--plugin-path", str(plugin_dir)])
 
     assert result.exit_code != 0
@@ -676,20 +676,20 @@ def test_wrap_openclaw_fails_when_local_path_missing_manifest_files(
     plugin = tmp_path / "plugins" / "openclaw"
     plugin.mkdir(parents=True)
 
-    with patch("headroom.cli.wrap.shutil.which", return_value="openclaw"):
+    with patch("horizon.cli.wrap.shutil.which", return_value="openclaw"):
         result = runner.invoke(main, ["wrap", "openclaw", "--plugin-path", str(plugin)])
     assert result.exit_code != 0
     assert "missing package.json" in result.output
 
     (plugin / "package.json").write_text("{}\n")
-    with patch("headroom.cli.wrap.shutil.which", return_value="openclaw"):
+    with patch("horizon.cli.wrap.shutil.which", return_value="openclaw"):
         result = runner.invoke(main, ["wrap", "openclaw", "--plugin-path", str(plugin)])
     assert result.exit_code != 0
     assert "missing openclaw.plugin.json" in result.output
 
 
 def test_run_checked_raises_click_exception_on_command_errors() -> None:
-    with patch("headroom.cli.wrap.subprocess.run", side_effect=FileNotFoundError()):
+    with patch("horizon.cli.wrap.subprocess.run", side_effect=FileNotFoundError()):
         with pytest.raises(Exception, match="command not found"):
             wrap_cli._run_checked(["missing"], action="demo")
 
@@ -698,7 +698,7 @@ def test_run_checked_raises_click_exception_on_command_errors() -> None:
         cmd=["x"],
         stderr="bad-stderr",
     )
-    with patch("headroom.cli.wrap.subprocess.run", side_effect=cpe_stderr):
+    with patch("horizon.cli.wrap.subprocess.run", side_effect=cpe_stderr):
         with pytest.raises(Exception, match="bad-stderr"):
             wrap_cli._run_checked(["x"], action="demo")
 
@@ -708,14 +708,14 @@ def test_run_checked_raises_click_exception_on_command_errors() -> None:
         output="bad-stdout",
         stderr="",
     )
-    with patch("headroom.cli.wrap.subprocess.run", side_effect=cpe_stdout):
+    with patch("horizon.cli.wrap.subprocess.run", side_effect=cpe_stdout):
         with pytest.raises(Exception, match="bad-stdout"):
             wrap_cli._run_checked(["x"], action="demo")
 
 
 def test_resolve_openclaw_extensions_dir_empty_output_raises() -> None:
     with patch(
-        "headroom.cli.wrap._run_checked",
+        "horizon.cli.wrap._run_checked",
         return_value=MagicMock(stdout="   \n", stderr="", returncode=0),
     ):
         with pytest.raises(Exception, match="Unable to resolve OpenClaw config path"):
@@ -737,7 +737,7 @@ def test_copy_openclaw_plugin_into_extensions_handles_missing_and_existing_dist(
     (plugin / "package.json").write_text("{}\n")
     (plugin / "openclaw.plugin.json").write_text("{}\n")
 
-    with patch("headroom.cli.wrap._resolve_openclaw_extensions_dir", return_value=tmp_path):
+    with patch("horizon.cli.wrap._resolve_openclaw_extensions_dir", return_value=tmp_path):
         with pytest.raises(Exception, match="Plugin hook-shim folder missing"):
             wrap_cli._copy_openclaw_plugin_into_extensions(
                 plugin_dir=plugin, openclaw_bin="openclaw"
@@ -748,20 +748,20 @@ def test_copy_openclaw_plugin_into_extensions_handles_missing_and_existing_dist(
     (hook_shim / "index.js").write_text("shim\n")
 
     ext_root = tmp_path / ".openclaw" / "extensions"
-    target_headroom = ext_root / "headroom"
-    target_dist = target_headroom / "dist"
-    target_hook_shim = target_headroom / "hook-shim"
+    target_horizon = ext_root / "horizon"
+    target_dist = target_horizon / "dist"
+    target_hook_shim = target_horizon / "hook-shim"
     target_dist.mkdir(parents=True)
     (target_dist / "old.js").write_text("old\n")
     target_hook_shim.mkdir(parents=True)
     (target_hook_shim / "old.js").write_text("old-shim\n")
 
-    with patch("headroom.cli.wrap._resolve_openclaw_extensions_dir", return_value=ext_root):
+    with patch("horizon.cli.wrap._resolve_openclaw_extensions_dir", return_value=ext_root):
         out = wrap_cli._copy_openclaw_plugin_into_extensions(
             plugin_dir=plugin, openclaw_bin="openclaw"
         )
 
-    assert out == target_headroom
+    assert out == target_horizon
     assert (target_dist / "index.js").exists()
     assert not (target_dist / "old.js").exists()
     assert (target_hook_shim / "index.js").exists()
@@ -776,7 +776,7 @@ def test_unwrap_openclaw_disables_plugin_and_restores_legacy_slot(runner: CliRun
 
     def run(cmd, **kwargs):  # noqa: ANN001
         calls.append({"cmd": list(cmd), **kwargs})
-        if cmd[:4] == ["openclaw", "config", "get", "plugins.entries.headroom"]:
+        if cmd[:4] == ["openclaw", "config", "get", "plugins.entries.horizon"]:
             return MagicMock(
                 returncode=0,
                 stdout=json.dumps(
@@ -793,15 +793,15 @@ def test_unwrap_openclaw_disables_plugin_and_restores_legacy_slot(runner: CliRun
             )
         return MagicMock(returncode=0, stdout="", stderr="")
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=run):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=run):
             result = runner.invoke(main, ["unwrap", "openclaw"])
 
     assert result.exit_code == 0, result.output
     set_entry = next(
         c
         for c in calls
-        if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.headroom"]
+        if c["cmd"][:4] == ["openclaw", "config", "set", "plugins.entries.horizon"]
     )
     payload = json.loads(set_entry["cmd"][4])
     assert payload == {"enabled": False, "config": {"customFlag": True}}
@@ -825,8 +825,8 @@ def test_unwrap_openclaw_no_restart_skips_gateway_restart(runner: CliRunner) -> 
         calls.append({"cmd": list(cmd), **kwargs})
         return MagicMock(returncode=0, stdout="", stderr="")
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=run):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=run):
             result = runner.invoke(main, ["unwrap", "openclaw", "--no-restart"])
 
     assert result.exit_code == 0, result.output
@@ -834,7 +834,7 @@ def test_unwrap_openclaw_no_restart_skips_gateway_restart(runner: CliRunner) -> 
 
 
 def test_unwrap_openclaw_fails_when_openclaw_missing(runner: CliRunner) -> None:
-    with patch("headroom.cli.wrap.shutil.which", return_value=None):
+    with patch("horizon.cli.wrap.shutil.which", return_value=None):
         result = runner.invoke(main, ["unwrap", "openclaw"])
 
     assert result.exit_code != 0
@@ -846,7 +846,7 @@ def test_unwrap_openclaw_verbose_prints_gateway_and_inspect_output(runner: CliRu
         return {"openclaw": "openclaw"}.get(name)
 
     def run(cmd, **kwargs):  # noqa: ANN001
-        if cmd[:4] == ["openclaw", "config", "get", "plugins.entries.headroom"]:
+        if cmd[:4] == ["openclaw", "config", "get", "plugins.entries.horizon"]:
             return MagicMock(
                 returncode=0,
                 stdout=json.dumps({"enabled": True, "config": {"proxyPort": 8787}}),
@@ -858,8 +858,8 @@ def test_unwrap_openclaw_verbose_prints_gateway_and_inspect_output(runner: CliRu
             return MagicMock(returncode=0, stdout="inspect-disabled", stderr="")
         return MagicMock(returncode=0, stdout="", stderr="")
 
-    with patch("headroom.cli.wrap.shutil.which", side_effect=which):
-        with patch("headroom.cli.wrap.subprocess.run", side_effect=run):
+    with patch("horizon.cli.wrap.shutil.which", side_effect=which):
+        with patch("horizon.cli.wrap.subprocess.run", side_effect=run):
             result = runner.invoke(main, ["unwrap", "openclaw", "--verbose"])
 
     assert result.exit_code == 0, result.output

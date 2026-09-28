@@ -9,13 +9,13 @@ Covers:
 
 from __future__ import annotations
 
-from headroom.proxy.models import ProxyConfig
-from headroom.transforms.content_router import (
+from horizon.proxy.models import ProxyConfig
+from horizon.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
 )
-from headroom.transforms.lossless_compaction import (
+from horizon.transforms.lossless_compaction import (
     collapse_runs,
     compact_lossless,
     diff_strip_index,
@@ -52,7 +52,7 @@ def test_router_lossless_forces_marker_free_config() -> None:
 def test_cli_proxy_option_parses_lossless() -> None:
     from click.testing import CliRunner
 
-    from headroom.cli.proxy import proxy
+    from horizon.cli.proxy import proxy
 
     runner = CliRunner()
     result = runner.invoke(proxy, ["--help"])
@@ -252,7 +252,7 @@ def test_router_lossless_search_no_marker_and_recoverable() -> None:
     router = ContentRouter(ContentRouterConfig(lossless=True))
     grep = (
         "\n".join(
-            f"headroom/transforms/content_router.py:{i}:    identifier_{i} = compute()"
+            f"horizon/transforms/content_router.py:{i}:    identifier_{i} = compute()"
             for i in range(1, 60)
         )
         + "\n"
@@ -288,14 +288,14 @@ def test_router_apply_accepts_lossless_search_token_measured() -> None:
     _apply_strategy_to_content bypass this gate, which is why unit tests above
     never caught it — the bug only appears through the full apply() path.)
     """
-    from headroom.providers import OpenAIProvider
-    from headroom.tokenizer import Tokenizer
-    from headroom.transforms.lossless_compaction import search_heading
+    from horizon.providers import OpenAIProvider
+    from horizon.tokenizer import Tokenizer
+    from horizon.transforms.lossless_compaction import search_heading
 
     tok = Tokenizer(OpenAIProvider().get_token_counter("gpt-4o"), "gpt-4o")
     router = ContentRouter(ContentRouterConfig(lossless=True))
     grep = "".join(
-        f"headroom/transforms/content_router.py:{i}:    identifier_{i} = compute(value)\n"
+        f"horizon/transforms/content_router.py:{i}:    identifier_{i} = compute(value)\n"
         for i in range(1, 60)
     )
     # The fold does NOT reduce word count (the heading even adds one) — this is
@@ -326,7 +326,7 @@ def test_measure_token_deltas(capsys) -> None:  # type: ignore[no-untyped-def]
     )
     grep = (
         "\n".join(
-            f"headroom/proxy/server.py:{i}:    router_config.value_{i} = {i}" for i in range(1, 80)
+            f"horizon/proxy/server.py:{i}:    router_config.value_{i} = {i}" for i in range(1, 80)
         )
         + "\n"
     )
@@ -355,8 +355,8 @@ def test_lossless_mode_builds_kompress_marker_free(monkeypatch) -> None:
     the agent has no MCP tool to redeem it. Kompress still runs (lossy); only
     the marker/store is suppressed. Verified WITHOUT loading the model.
     """
-    import headroom.transforms.kompress_compressor as kc
-    from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+    import horizon.transforms.kompress_compressor as kc
+    from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
 
     captured: dict[str, object] = {}
 

@@ -13,13 +13,13 @@ from pathlib import Path
 
 import pytest
 
-from headroom.backends.litellm import (
+from horizon.backends.litellm import (
     DEFAULT_UPSTREAM_TIMEOUT,
     UPSTREAM_TIMEOUT_ENV,
     _upstream_timeout,
 )
 
-_SRC = Path(__file__).resolve().parents[1] / "headroom" / "backends" / "litellm.py"
+_SRC = Path(__file__).resolve().parents[1] / "horizon" / "backends" / "litellm.py"
 
 
 def test_every_acompletion_call_is_bounded():

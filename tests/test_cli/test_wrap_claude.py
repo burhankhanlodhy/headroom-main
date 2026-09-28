@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.cli.wrap import (
+from horizon.cli.wrap import (
     _TOOL_SEARCH_DEFAULT,
     _TOOL_SEARCH_ENV,
     _configure_tool_search_env,

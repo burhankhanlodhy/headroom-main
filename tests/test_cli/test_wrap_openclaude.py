@@ -1,4 +1,4 @@
-"""Tests for `headroom wrap openclaude` command (issue #1411)."""
+"""Tests for `horizon wrap openclaude` command (issue #1411)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from urllib.parse import quote
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli.main import main
+from horizon.cli.main import main
 
 OPENCLAUDE_BINARY = "openclaude"
 OPENCLAUDE_MODEL_ARG = "gpt-4o"
@@ -33,8 +33,8 @@ def test_wrap_openclaude_routes_proxy_envs(
     def fake_launch_tool(**kwargs):  # noqa: ANN003
         captured.update(kwargs)
 
-    with patch("headroom.cli.wrap.shutil.which", return_value=OPENCLAUDE_BINARY):
-        with patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool):
+    with patch("horizon.cli.wrap.shutil.which", return_value=OPENCLAUDE_BINARY):
+        with patch("horizon.cli.wrap._launch_tool", side_effect=fake_launch_tool):
             result = runner.invoke(
                 main,
                 ["wrap", "openclaude", "--", "--model", OPENCLAUDE_MODEL_ARG],
@@ -55,7 +55,7 @@ def test_wrap_openclaude_missing_binary_errors(
     runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    with patch("headroom.cli.wrap.shutil.which", return_value=None):
+    with patch("horizon.cli.wrap.shutil.which", return_value=None):
         result = runner.invoke(main, ["wrap", "openclaude"])
     assert result.exit_code == 1
     assert "openclaude" in result.output.lower()

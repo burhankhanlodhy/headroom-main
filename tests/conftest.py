@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for Headroom tests."""
+"""Shared pytest fixtures for Horizon tests."""
 
 # CRITICAL: Must be set before ANY imports that could trigger sentence_transformers
 # The Rust tokenizers use parallelism that deadlocks with pytest-asyncio
@@ -19,7 +19,7 @@ import pytest
 from tests._skip_helpers import external_model_skip_reason
 
 
-# A live `headroom` dev session exports HEADROOM_* into the shell (and the
+# A live `horizon` dev session exports HORIZON_* into the shell (and the
 # Claude wrap adds ANTHROPIC_CUSTOM_HEADERS). Click `envvar=` options pick
 # those up inside CliRunner, so assertions would see the developer's proxy
 # config instead of the test's. Scrub them so local runs match CI; tests
@@ -28,33 +28,33 @@ from tests._skip_helpers import external_model_skip_reason
 def _skip_proxy_dependency_gate_unless_exercised(
     request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Most CLI tests run without headroom-ai[proxy] extras installed."""
+    """Most CLI tests run without horizon-ai[proxy] extras installed."""
     if request.node.get_closest_marker("proxy_dependency_gate") is not None:
         return
     try:
-        from headroom.cli import proxy
+        from horizon.cli import proxy
     except ModuleNotFoundError:
         # Native-wrapper jobs intentionally install only pytest and exercise the
-        # installer scripts without importing Headroom's runtime dependencies.
+        # installer scripts without importing Horizon's runtime dependencies.
         return
     monkeypatch.setattr(proxy, "ensure_proxy_dependencies", lambda: None)
 
 
 @pytest.fixture(autouse=True)
-def _scrub_developer_headroom_env(monkeypatch, tmp_path):
+def _scrub_developer_horizon_env(monkeypatch, tmp_path):
     for key in list(os.environ):
-        if key.startswith("HEADROOM_"):
+        if key.startswith("HORIZON_"):
             monkeypatch.delenv(key, raising=False)
     monkeypatch.delenv("ANTHROPIC_CUSTOM_HEADERS", raising=False)
-    # Clearing HEADROOM_* alone leaves file-backed settings active. Give every
+    # Clearing HORIZON_* alone leaves file-backed settings active. Give every
     # test its own store so proxy/CLI startup cannot load developer settings and
     # saves cannot rewrite them. Tests of path precedence can override this.
-    monkeypatch.setenv("HEADROOM_SETTINGS_PATH", str(tmp_path / "headroom-settings.json"))
+    monkeypatch.setenv("HORIZON_SETTINGS_PATH", str(tmp_path / "horizon-settings.json"))
 
 
-# The scrub above deletes every HEADROOM_* var — which includes HEADROOM_BEACON,
+# The scrub above deletes every HORIZON_* var — which includes HORIZON_BEACON,
 # and the beacon defaults to ON. So scrubbing for hermeticity is precisely what
-# switches it on, and with HEADROOM_TELEMETRY_ENDPOINT scrubbed too it falls back
+# switches it on, and with HORIZON_TELEMETRY_ENDPOINT scrubbed too it falls back
 # to the real production endpoint. Every test that reaches the outcome funnel
 # then POSTs a session event for real: observed writing into the live corpus
 # during a local run, and CI would do the same on every push.
@@ -63,16 +63,16 @@ def _scrub_developer_headroom_env(monkeypatch, tmp_path):
 # relying on declaration order. A test that wants the beacon on just sets the
 # var itself — monkeypatch inside the test wins over this.
 @pytest.fixture(autouse=True)
-def _disable_telemetry_beacon(monkeypatch, _scrub_developer_headroom_env):
-    monkeypatch.setenv("HEADROOM_BEACON", "off")
+def _disable_telemetry_beacon(monkeypatch, _scrub_developer_horizon_env):
+    monkeypatch.setenv("HORIZON_BEACON", "off")
 
 
-# The MCP install ledger defaults to ``~/.headroom/mcp_installs.json``, so any
+# The MCP install ledger defaults to ``~/.horizon/mcp_installs.json``, so any
 # test that registers a server (directly or through `wrap`) writes into the
 # developer's REAL ledger — observed adding a live `claude/serena` entry during a
-# local run. Since the scrub above deletes HEADROOM_WORKSPACE_DIR, the default is
+# local run. Since the scrub above deletes HORIZON_WORKSPACE_DIR, the default is
 # always the real home. Redirect the ledger per-test instead: every writer
-# (`record_install` / `clear_install` / `headroom_installed_matching`) resolves it
+# (`record_install` / `clear_install` / `horizon_installed_matching`) resolves it
 # through this module-global, so one patch covers them all. Patched here rather
 # than pointing workspace_dir() at a tmp path, which would break the tests that
 # assert the default workspace layout.
@@ -80,10 +80,10 @@ def _disable_telemetry_beacon(monkeypatch, _scrub_developer_headroom_env):
 def _isolate_mcp_ledger(monkeypatch, tmp_path_factory):
     # Same guard as _reset_copilot_routing_flag below: the macos/windows-native-
     # wrapper CI jobs install only pytest and drive the installer shell scripts
-    # via subprocess, so headroom isn't importable and there is no ledger to
+    # via subprocess, so horizon isn't importable and there is no ledger to
     # redirect. Skip there instead of erroring at setup.
     try:
-        from headroom.mcp_registry import ledger
+        from horizon.mcp_registry import ledger
     except ModuleNotFoundError:
         return
 
@@ -99,11 +99,11 @@ def _isolate_mcp_ledger(monkeypatch, tmp_path_factory):
 @pytest.fixture(autouse=True)
 def _reset_copilot_routing_flag():
     # The macos/windows-native-wrapper CI jobs run the installer tests with only
-    # pytest installed (no headroom): they drive the installer shell scripts via
-    # subprocess, so headroom isn't importable and there's no routing flag to
+    # pytest installed (no horizon): they drive the installer shell scripts via
+    # subprocess, so horizon isn't importable and there's no routing flag to
     # reset. Skip the reset there instead of erroring at setup.
     try:
-        from headroom.copilot_auth import reset_request_routed_to_copilot
+        from horizon.copilot_auth import reset_request_routed_to_copilot
     except ModuleNotFoundError:
         yield
         return
@@ -126,7 +126,7 @@ def _reset_copilot_routing_flag():
 @pytest.fixture(autouse=True)
 def _reset_litellm_model_resolution_cache():
     try:
-        from headroom.proxy.savings_tracker import _resolve_litellm_model
+        from horizon.proxy.savings_tracker import _resolve_litellm_model
     except ModuleNotFoundError:
         yield
         return
@@ -179,7 +179,7 @@ def _null_binary_pins():
     Verification tests delenv it in their own fixture.
     """
     try:
-        from headroom import binaries
+        from horizon import binaries
     except Exception:
         # Lean CI environments (e.g. the native-installer jobs) omit heavy deps
         # such as opentelemetry that importing `binaries` pulls in. There are no
@@ -194,44 +194,44 @@ def _null_binary_pins():
     ]
     for asset, _original in saved:
         asset["sha256"] = None
-    previous = os.environ.get("HEADROOM_BINARIES_ALLOW_UNVERIFIED")
-    os.environ["HEADROOM_BINARIES_ALLOW_UNVERIFIED"] = "1"
+    previous = os.environ.get("HORIZON_BINARIES_ALLOW_UNVERIFIED")
+    os.environ["HORIZON_BINARIES_ALLOW_UNVERIFIED"] = "1"
     try:
         yield
     finally:
         if previous is None:
-            os.environ.pop("HEADROOM_BINARIES_ALLOW_UNVERIFIED", None)
+            os.environ.pop("HORIZON_BINARIES_ALLOW_UNVERIFIED", None)
         else:
-            os.environ["HEADROOM_BINARIES_ALLOW_UNVERIFIED"] = previous
+            os.environ["HORIZON_BINARIES_ALLOW_UNVERIFIED"] = previous
         for asset, original in saved:
             asset["sha256"] = original
 
 
 @pytest.fixture(autouse=True)
-def _reset_headroom_logger_propagation():
-    """Keep `headroom.*` log records flowing to pytest's caplog handler.
+def _reset_horizon_logger_propagation():
+    """Keep `horizon.*` log records flowing to pytest's caplog handler.
 
-    Two sources disable propagation on the headroom logger tree and never
+    Two sources disable propagation on the horizon logger tree and never
     restore it, which then makes later `caplog`-based assertions flaky in
     full-suite runs (caplog attaches to root, so a `propagate=False` anywhere
     on the chain silently drops the records):
 
-    - ``headroom.proxy.helpers._setup_file_logging`` sets
-      ``getLogger("headroom").propagate = False`` on proxy startup.
-    - ``benchmarks.claude_session_mode_benchmark._disable_headroom_benchmark_logging``
+    - ``horizon.proxy.helpers._setup_file_logging`` sets
+      ``getLogger("horizon").propagate = False`` on proxy startup.
+    - ``benchmarks.claude_session_mode_benchmark._disable_horizon_benchmark_logging``
       (exercised by ``test_claude_session_mode_benchmark``) sets
-      ``propagate = False`` + ``CRITICAL`` on ``headroom``, ``headroom.proxy``,
-      ``headroom.transforms``, ``headroom.cache`` (and children).
+      ``propagate = False`` + ``CRITICAL`` on ``horizon``, ``horizon.proxy``,
+      ``horizon.transforms``, ``horizon.cache`` (and children).
 
-    Resetting only ``"headroom"`` is not enough — a child like
-    ``"headroom.proxy"`` left non-propagating blocks the record before it
+    Resetting only ``"horizon"`` is not enough — a child like
+    ``"horizon.proxy"`` left non-propagating blocks the record before it
     reaches root. Reset the whole subtree before every test so capture is
     deterministic regardless of run order.
     """
     import logging as _logging
 
-    for _name in ("headroom", *list(_logging.root.manager.loggerDict)):
-        if _name == "headroom" or _name.startswith("headroom."):
+    for _name in ("horizon", *list(_logging.root.manager.loggerDict)):
+        if _name == "horizon" or _name.startswith("horizon."):
             logger = _logging.getLogger(_name)
             logger.disabled = False
             # The benchmark also raises the level to CRITICAL; children
@@ -383,7 +383,7 @@ def temp_jsonl_file():
 @pytest.fixture
 def openai_provider():
     """OpenAI provider instance."""
-    from headroom.providers.openai import OpenAIProvider
+    from horizon.providers.openai import OpenAIProvider
 
     return OpenAIProvider()
 
@@ -391,7 +391,7 @@ def openai_provider():
 @pytest.fixture
 def openai_tokenizer():
     """OpenAI token counter for gpt-4o."""
-    from headroom.providers.openai import OpenAITokenCounter
+    from horizon.providers.openai import OpenAITokenCounter
 
     return OpenAITokenCounter("gpt-4o")
 
@@ -399,16 +399,16 @@ def openai_tokenizer():
 # Config fixtures
 @pytest.fixture
 def default_config():
-    """Default HeadroomConfig."""
-    from headroom.config import HeadroomConfig
+    """Default HorizonConfig."""
+    from horizon.config import HorizonConfig
 
-    return HeadroomConfig()
+    return HorizonConfig()
 
 
 @pytest.fixture
 def smart_crusher_config():
     """SmartCrusher config for testing."""
-    from headroom.config import SmartCrusherConfig
+    from horizon.config import SmartCrusherConfig
 
     return SmartCrusherConfig(
         enabled=True,
@@ -422,7 +422,7 @@ def smart_crusher_config():
 @pytest.fixture
 def sample_request_metrics():
     """Sample RequestMetrics for storage tests."""
-    from headroom.config import RequestMetrics
+    from horizon.config import RequestMetrics
 
     return RequestMetrics(
         request_id="test-123",
@@ -470,7 +470,7 @@ def _isolate_kompress_model_cache():
     Costs nothing for the ~13k tests that never touch ML: the module is only
     consulted through ``sys.modules``, so this never imports it.
     """
-    module_name = "headroom.transforms.kompress_compressor"
+    module_name = "horizon.transforms.kompress_compressor"
     before = sys.modules.get(module_name)
     # None when the module has not been imported yet, so anything found at
     # teardown was put there by this test.
@@ -493,7 +493,7 @@ def _isolate_kompress_model_cache():
 def _detach_leaked_proxy_log_handler():
     """Stop one test's proxy file logger from following the whole session around.
 
-    ``_setup_file_logging`` attaches a named handler to the ``headroom`` logger
+    ``_setup_file_logging`` attaches a named handler to the ``horizon`` logger
     and nothing detaches it, so any test that builds a proxy app leaves it in
     place for every later test. That broke
     ``test_runtime_log_refuses_a_symlinked_path``, which asserts no such handler
@@ -501,7 +501,7 @@ def _detach_leaked_proxy_log_handler():
     ``tests/gateway/test_compress_turn_seam.py``, not one the refused call
     created, so the test reported a security regression that had not happened.
 
-    The leaked handler also pointed at ``~/.headroom/logs/proxy-8787.log`` --
+    The leaked handler also pointed at ``~/.horizon/logs/proxy-8787.log`` --
     the developer's real home directory, not a tmp_path -- so the leak was
     writing outside the test sandbox as well. That part is worth fixing at the
     source; this only stops it leaking forward.
@@ -512,11 +512,11 @@ def _detach_leaked_proxy_log_handler():
     """
     yield
 
-    helpers = sys.modules.get("headroom.proxy.helpers")
+    helpers = sys.modules.get("horizon.proxy.helpers")
     handler_name = getattr(helpers, "_PROXY_LOG_HANDLER_NAME", None)
     if handler_name is None:
         return
-    logger = logging.getLogger("headroom")
+    logger = logging.getLogger("horizon")
     for handler in list(logger.handlers):
         if getattr(handler, "name", None) == handler_name:
             logger.removeHandler(handler)

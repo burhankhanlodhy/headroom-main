@@ -4,9 +4,9 @@ Algorithm (spec section 5, ``access``/``body_filter``/``log`` phases collapsed
 into one synchronous ``turn``):
 
 1. POST ``{...body, config: {session_id, ...}, gateway: {...}}`` to
-   ``<headroom>/v1/compress``. ``can_redrive`` is ``allow_redrive and not
+   ``<horizon>/v1/compress``. ``can_redrive`` is ``allow_redrive and not
    body.stream`` - a streaming client cannot be re-driven.
-2. Any transport error, non-200, or malformed answer from headroom -> FAIL OPEN:
+2. Any transport error, non-200, or malformed answer from horizon -> FAIL OPEN:
    forward the ORIGINAL body to the provider, no relay.
 3. Otherwise the provider-bound body is ``compress["body"]`` (legacy answers
    without ``body`` fall back to ``{...body, messages: compress["messages"]}``).
@@ -21,11 +21,11 @@ into one synchronous ``turn``):
    ``body_filter`` does).
 
 Headers: the client headers handed to ``turn(..., headers=...)`` travel to
-headroom, and the ones headroom may need to merge (``anthropic-beta``) are
+horizon, and the ones horizon may need to merge (``anthropic-beta``) are
 echoed as ``gateway.request_headers``. The provider-bound headers are the
 constructor's ``provider_headers``, then the client's passthrough set
 (``authorization``, ``x-api-key``, ``anthropic-version``, ``anthropic-beta``,
-``openai-organization``, ``openai-project``), then whatever headroom returned
+``openai-organization``, ``openai-project``), then whatever horizon returned
 in ``compress["headers"]`` - which wins on the same name, on both paths.
 
 Both clients need only ``.post(path, json=..., headers=...)`` returning an
@@ -45,7 +45,7 @@ from tests.gateway.fake_provider import ANTHROPIC_MESSAGES_PATH, OPENAI_CHAT_PAT
 COMPRESS_PATH = "/v1/compress"
 RESPONSE_HALF_PATH = "/v1/compress/response"
 
-# Client headers echoed to headroom as ``gateway.request_headers`` (the Lua
+# Client headers echoed to horizon as ``gateway.request_headers`` (the Lua
 # plugin's ``GATEWAY_REQUEST_HEADERS``).
 GATEWAY_REQUEST_HEADERS = ("anthropic-beta",)
 # Client headers copied onto the provider call (the plugin's
@@ -73,7 +73,7 @@ def request_headers_block(client_headers: dict[str, str] | None) -> dict[str, st
 
 def required_provider_headers(compress: Any) -> dict[str, str]:
     """The ``headers`` object of a /v1/compress answer, lower-cased; ``{}`` when
-    absent or malformed (older headroom)."""
+    absent or malformed (older horizon)."""
     if not isinstance(compress, dict):
         return {}
     raw = compress.get("headers")
@@ -137,7 +137,7 @@ class GatewayTurnResult:
 
     @property
     def required_headers(self) -> dict[str, str]:
-        """Headers headroom asked the gateway to set (``compress["headers"]``)."""
+        """Headers horizon asked the gateway to set (``compress["headers"]``)."""
         return required_provider_headers(self.compress_response)
 
     @property
@@ -177,7 +177,7 @@ def provider_path_for(body: dict[str, Any]) -> str:
 class FakeGateway:
     def __init__(
         self,
-        headroom_client: Any,
+        horizon_client: Any,
         provider_client: Any,
         *,
         can_redrive: bool,
@@ -185,20 +185,20 @@ class FakeGateway:
         session_affinity: bool = True,
         relay: bool = True,
         plugin_version: str = "fake-gateway/0.1.0",
-        headroom_headers: dict[str, str] | None = None,
+        horizon_headers: dict[str, str] | None = None,
         provider_headers: dict[str, str] | None = None,
         provider_path: str | None = None,
         compress_mode: str | None = None,
         max_redrives: int = 8,
     ) -> None:
-        self.headroom = headroom_client
+        self.horizon = horizon_client
         self.provider = provider_client
         self.can_redrive = can_redrive
         self.can_relay_response = can_relay_response
         self.session_affinity = session_affinity
         self.relay = relay
         self.plugin_version = plugin_version
-        self.headroom_headers = dict(headroom_headers or {})
+        self.horizon_headers = dict(horizon_headers or {})
         self.provider_headers = dict(provider_headers or {})
         self.provider_path = provider_path
         self.compress_mode = compress_mode
@@ -241,7 +241,7 @@ class FakeGateway:
         required: dict[str, str] | None = None,
     ) -> dict[str, str]:
         """Provider-bound headers: constructor set, client passthrough, then
-        headroom's ``headers`` (which win on the same name)."""
+        horizon's ``headers`` (which win on the same name)."""
         out = _lower(self.provider_headers)
         lowered = _lower(client_headers)
         for name in PROVIDER_PASSTHROUGH_HEADERS:
@@ -280,8 +280,8 @@ class FakeGateway:
         self, result: GatewayTurnResult, payload: dict[str, Any]
     ) -> ResponseHalfExchange:
         try:
-            resp = self.headroom.post(
-                RESPONSE_HALF_PATH, json=payload, headers=self.headroom_headers or None
+            resp = self.horizon.post(
+                RESPONSE_HALF_PATH, json=payload, headers=self.horizon_headers or None
             )
             try:
                 parsed = resp.json()
@@ -324,14 +324,14 @@ class FakeGateway:
         headers: dict[str, str] | None = None,
     ) -> GatewayTurnResult:
         """Run one client request through the gateway; see the module docstring."""
-        req_headers = {**self.headroom_headers, **(headers or {})}
+        req_headers = {**self.horizon_headers, **(headers or {})}
         compress_body = self.compress_request(body, session_id, config, headers)
         # Fail-open and pre-contract answers send the client's own headers only.
         client_provider_headers = self.provider_call_headers(headers)
 
         # --- request half ------------------------------------------------------
         try:
-            resp = self.headroom.post(
+            resp = self.horizon.post(
                 COMPRESS_PATH, json=compress_body, headers=req_headers or None
             )
             status = resp.status_code
@@ -339,7 +339,7 @@ class FakeGateway:
                 compress = resp.json()
             except ValueError:
                 compress = None
-        except Exception as exc:  # headroom unreachable -> fail open
+        except Exception as exc:  # horizon unreachable -> fail open
             status, compress = None, None
             reason = f"transport: {exc!r}"
         else:
@@ -365,7 +365,7 @@ class FakeGateway:
         obligations = (
             compress.get("obligations") if isinstance(compress.get("obligations"), list) else []
         )
-        # ``headers``: what headroom needs on the provider request (today the
+        # ``headers``: what horizon needs on the provider request (today the
         # merged ``anthropic-beta``); applied on both paths, over the client's own.
         provider_headers = self.provider_call_headers(headers, required_provider_headers(compress))
 
@@ -380,7 +380,7 @@ class FakeGateway:
             round_no = 0  # which provider call this answers; the plugin sends it too
             for _ in range(self.max_redrives + 1):
                 if exchange.json is None:
-                    break  # non-JSON provider answer: nothing headroom can drive
+                    break  # non-JSON provider answer: nothing horizon can drive
                 step = self._post_response_half(
                     result,
                     {
@@ -395,7 +395,7 @@ class FakeGateway:
                 )
                 answer = step.response or {}
                 if step.status != 200:
-                    break  # headroom refused/expired: client gets the last provider answer
+                    break  # horizon refused/expired: client gets the last provider answer
                 if answer.get("action") == "redrive" and isinstance(answer.get("request"), dict):
                     round_no = int(answer.get("round", round_no + 1))
                     exchange = self._call_provider(answer["request"], provider_headers)

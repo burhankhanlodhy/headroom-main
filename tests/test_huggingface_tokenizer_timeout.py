@@ -2,7 +2,7 @@
 performs unbounded network downloads/retries; called lazily from the proxy's request
 path it blocked the event loop for ~10 minutes and zombified the server. The fix
 tries the local HF cache first (local_files_only=True), bounds the network attempt
-with HEADROOM_HF_TOKENIZER_LOAD_TIMEOUT_SECS on a daemon thread, and fails open to
+with HORIZON_HF_TOKENIZER_LOAD_TIMEOUT_SECS on a daemon thread, and fails open to
 estimation — caching the failure so the hub is probed at most once per process.
 
 The repo ids below are real shipped ones because _load_tokenizer now refuses
@@ -20,8 +20,8 @@ from typing import Any
 
 import pytest
 
-from headroom.tokenizers import huggingface as hf_mod
-from headroom.tokenizers.huggingface import (
+from horizon.tokenizers import huggingface as hf_mod
+from horizon.tokenizers.huggingface import (
     HuggingFaceTokenizer,
     _load_tokenizer,
     get_tokenizer_name,
@@ -53,7 +53,7 @@ def test_local_cache_tried_before_network(monkeypatch: pytest.MonkeyPatch) -> No
         return "network-tokenizer"
 
     _install_fake_transformers(monkeypatch, fake_from_pretrained)
-    monkeypatch.setenv("HEADROOM_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "5")
+    monkeypatch.setenv("HORIZON_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "5")
 
     assert _load_tokenizer("Qwen/Qwen2.5-7B") == "network-tokenizer"
     assert calls[0].get("local_files_only") is True, "first attempt must be cache-only"
@@ -82,7 +82,7 @@ def test_slow_network_load_times_out_and_fails_open(monkeypatch: pytest.MonkeyPa
         return "never"
 
     _install_fake_transformers(monkeypatch, fake_from_pretrained)
-    monkeypatch.setenv("HEADROOM_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "0.2")
+    monkeypatch.setenv("HORIZON_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "0.2")
 
     start = time.monotonic()
     assert _load_tokenizer("Qwen/Qwen2-7B") is None
@@ -101,7 +101,7 @@ def test_timeout_zero_disables_network_loading(monkeypatch: pytest.MonkeyPatch) 
         raise AssertionError("network load attempted despite timeout=0")
 
     _install_fake_transformers(monkeypatch, fake_from_pretrained)
-    monkeypatch.setenv("HEADROOM_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "0")
+    monkeypatch.setenv("HORIZON_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "0")
 
     assert _load_tokenizer("google/gemma-7b") is None
 
@@ -111,7 +111,7 @@ def test_count_messages_fails_open_to_estimation(monkeypatch: pytest.MonkeyPatch
         raise OSError("unavailable")
 
     _install_fake_transformers(monkeypatch, fake_from_pretrained)
-    monkeypatch.setenv("HEADROOM_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "0.2")
+    monkeypatch.setenv("HORIZON_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "0.2")
 
     counter = HuggingFaceTokenizer("deepseek-chat")
     tokens = counter.count_messages([{"role": "user", "content": "hello world" * 50}])
@@ -129,7 +129,7 @@ def test_deepseek_model_aliases_resolve_to_expected_tokenizers() -> None:
 
 
 def test_invalid_timeout_env_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HEADROOM_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "not-a-number")
+    monkeypatch.setenv("HORIZON_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "not-a-number")
     assert hf_mod._load_timeout_secs() == hf_mod._LOAD_TIMEOUT_DEFAULT
 
 

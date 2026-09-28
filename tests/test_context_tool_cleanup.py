@@ -4,7 +4,7 @@ Deleting the integration code does nothing for a machine that already ran the
 old default — the Claude ``PreToolUse`` hook, the vendored binaries, the MCP
 registration and the injected hint-file guidance are all durable on disk. These
 tests pin the two properties that make the cleanup safe to run unattended on
-every ``wrap``: it removes everything Headroom put there, and it touches nothing
+every ``wrap``: it removes everything Horizon put there, and it touches nothing
 else.
 """
 
@@ -16,14 +16,14 @@ import sys
 
 import pytest
 
-from headroom import context_tool_cleanup, paths
+from horizon import context_tool_cleanup, paths
 
 
 @pytest.fixture
 def home(monkeypatch, tmp_path):
-    """Point HOME, cwd and Headroom's bin dir at a scratch tree."""
+    """Point HOME, cwd and Horizon's bin dir at a scratch tree."""
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr(paths, "bin_dir", lambda: tmp_path / ".headroom" / "bin")
+    monkeypatch.setattr(paths, "bin_dir", lambda: tmp_path / ".horizon" / "bin")
     monkeypatch.delenv("CODEX_HOME", raising=False)
     monkeypatch.delenv("OPENCODE_HOME", raising=False)
     project = tmp_path / "project"
@@ -41,7 +41,7 @@ def _write(path, content):
 def test_removes_hooks_for_both_tools_but_keeps_user_hooks(home):
     bin_dir = paths.bin_dir()
     hooks_dir = home / ".claude" / "hooks"
-    # Managed: a script whose body execs the Headroom-installed binary.
+    # Managed: a script whose body execs the Horizon-installed binary.
     managed_script = _write(
         hooks_dir / "lean-ctx-rewrite.sh",
         f'#!/bin/sh\nexec {bin_dir / "lean-ctx"} "$@"\n',
@@ -134,7 +134,7 @@ def test_leaves_a_users_own_rtk_digest_alone(home):
 def test_leaves_a_users_own_binary_on_path_alone(home):
     """A real file in ~/.local/bin is not ours to reclaim — only our symlink is."""
     own = _write(home / ".local" / "bin" / "lean-ctx", "my own build")
-    managed = _write(home / ".headroom" / "bin" / "rtk", "binary")
+    managed = _write(home / ".horizon" / "bin" / "rtk", "binary")
     link = home / ".local" / "bin" / "rtk"
     link.symlink_to(managed)
 
@@ -153,7 +153,7 @@ def test_removes_mcp_entry_and_preserves_siblings(home):
                 "projects": {"/some/path": {"history": []}},
                 "mcpServers": {
                     "lean-ctx": {"command": str(bin_dir / "lean-ctx"), "args": ["mcp"]},
-                    "headroom": {"command": "headroom", "args": ["mcp"]},
+                    "horizon": {"command": "horizon", "args": ["mcp"]},
                 },
             }
         ),
@@ -162,7 +162,7 @@ def test_removes_mcp_entry_and_preserves_siblings(home):
     context_tool_cleanup.purge_context_tool_artifacts()
 
     payload = json.loads(config.read_text())
-    assert list(payload["mcpServers"]) == ["headroom"]
+    assert list(payload["mcpServers"]) == ["horizon"]
     assert payload["projects"] == {"/some/path": {"history": []}}
 
 
@@ -170,8 +170,8 @@ def test_strips_guidance_fence_but_keeps_surrounding_prose(home):
     agents = _write(
         home / "project" / "AGENTS.md",
         "# My project\n\nMy own notes.\n\n"
-        "<!-- headroom:rtk-instructions -->\nAlways prefix with rtk.\n"
-        "<!-- /headroom:rtk-instructions -->\n",
+        "<!-- horizon:rtk-instructions -->\nAlways prefix with rtk.\n"
+        "<!-- /horizon:rtk-instructions -->\n",
     )
 
     context_tool_cleanup.purge_context_tool_artifacts()
@@ -224,7 +224,7 @@ def test_a_completed_purge_never_runs_again(home):
 
     A tool installed under the *global* half (hooks, binaries) after the
     migration is not a leftover, so a later run must leave it alone without
-    even looking — this is what stops `headroom wrap` from re-litigating
+    even looking — this is what stops `horizon wrap` from re-litigating
     machine-global state on every launch, forever. Project- and config-
     directory-scoped guidance is a different story: see
     `test_a_completed_purge_still_cleans_a_different_project`.
@@ -261,8 +261,8 @@ def test_a_completed_purge_still_cleans_a_different_project(home, monkeypatch):
     project_b.mkdir()
     agents = _write(
         project_b / "AGENTS.md",
-        "# Project B\n\n<!-- headroom:rtk-instructions -->\nAlways prefix with rtk.\n"
-        "<!-- /headroom:rtk-instructions -->\n",
+        "# Project B\n\n<!-- horizon:rtk-instructions -->\nAlways prefix with rtk.\n"
+        "<!-- /horizon:rtk-instructions -->\n",
     )
     monkeypatch.chdir(project_b)
 
@@ -282,8 +282,8 @@ def test_a_completed_purge_still_inspects_a_repointed_codex_home(home, monkeypat
     new_codex_home.mkdir()
     agents = _write(
         new_codex_home / "AGENTS.md",
-        "<!-- headroom:rtk-instructions -->\nAlways prefix with rtk.\n"
-        "<!-- /headroom:rtk-instructions -->\n",
+        "<!-- horizon:rtk-instructions -->\nAlways prefix with rtk.\n"
+        "<!-- /horizon:rtk-instructions -->\n",
     )
     monkeypatch.setenv("CODEX_HOME", str(new_codex_home))
 
@@ -321,9 +321,9 @@ def test_purge_reports_on_stderr_so_json_stdout_stays_parseable(home):
     """
     from click.testing import CliRunner
 
-    from headroom.cli.main import main
+    from horizon.cli.main import main
 
-    _write(home / ".headroom" / "bin" / "rtk", "binary")
+    _write(home / ".horizon" / "bin" / "rtk", "binary")
 
     result = CliRunner().invoke(
         main, ["wrap", "openclaw", "--prepare-only", "--gateway-provider-id", "codex"]
@@ -339,10 +339,10 @@ def test_help_does_not_purge(home, monkeypatch):
     """`--help` must stay read-only — reading help should not delete files."""
     from click.testing import CliRunner
 
-    from headroom.cli.main import main
+    from horizon.cli.main import main
 
-    binary = _write(home / ".headroom" / "bin" / "rtk", "binary")
-    monkeypatch.setattr("sys.argv", ["headroom", "wrap", "codex", "--help"])
+    binary = _write(home / ".horizon" / "bin" / "rtk", "binary")
+    monkeypatch.setattr("sys.argv", ["horizon", "wrap", "codex", "--help"])
 
     result = CliRunner().invoke(main, ["wrap", "codex", "--help"])
 
@@ -358,12 +358,12 @@ def test_selfheal_does_not_purge(home, monkeypatch):
     """
     from click.testing import CliRunner
 
-    from headroom.cli.main import main
+    from horizon.cli.main import main
 
-    binary = _write(home / ".headroom" / "bin" / "rtk", "binary")
-    monkeypatch.setattr("sys.argv", ["headroom", "wrap", "selfheal"])
+    binary = _write(home / ".horizon" / "bin" / "rtk", "binary")
+    monkeypatch.setattr("sys.argv", ["horizon", "wrap", "selfheal"])
 
-    CliRunner().invoke(main, ["wrap", "selfheal", "--marker", "headroom-wrap-selfheal"])
+    CliRunner().invoke(main, ["wrap", "selfheal", "--marker", "horizon-wrap-selfheal"])
 
     assert binary.exists(), "selfheal performed filesystem cleanup"
 
@@ -444,14 +444,14 @@ def test_removes_a_hook_entry_pointing_at_the_managed_binary_directly(home):
 
 
 def test_matches_a_managed_path_written_in_tilde_form(home):
-    """The dangling-hook regression test: bin_dir is <tmp>/.headroom/bin, and the
+    """The dangling-hook regression test: bin_dir is <tmp>/.horizon/bin, and the
     script references it in unexpanded tilde form — the guard must normalize
     both sides before comparing, or it wrongly treats this as unprovable and
-    leaves a hook pointing at a script Headroom itself no longer manages.
+    leaves a hook pointing at a script Horizon itself no longer manages.
     """
     script = _write(
         home / ".claude" / "hooks" / "lean-ctx-rewrite.sh",
-        '#!/bin/sh\nexec ~/.headroom/bin/lean-ctx "$@"\n',
+        '#!/bin/sh\nexec ~/.horizon/bin/lean-ctx "$@"\n',
     )
     settings = _write(
         home / ".claude" / "settings.json",
@@ -468,8 +468,8 @@ def test_matches_a_managed_path_written_in_tilde_form(home):
 def test_leaves_a_hook_script_in_a_sibling_bin_named_directory_alone(home):
     """A directory that merely starts with the bin dir's name is not the bin dir.
 
-    ``<workspace>/.headroom/binaries`` shares a prefix with
-    ``<workspace>/.headroom/bin`` but is a different, user-owned directory —
+    ``<workspace>/.horizon/binaries`` shares a prefix with
+    ``<workspace>/.horizon/bin`` but is a different, user-owned directory —
     a naive substring match (no directory-boundary check) would treat the
     shared prefix as a reference to the managed bin dir and wrongly delete
     this script.
@@ -511,7 +511,7 @@ def test_leaves_an_mcp_entry_in_a_sibling_bin_named_directory_alone(home):
 def test_leaves_a_parent_traversal_path_through_the_bin_dir_alone(home):
     """``bin/../evil`` contains the managed prefix as literal text but does not
     resolve inside it — the guard must collapse ``..`` before comparing, or a
-    crafted (or coincidental) traversal path would be treated as Headroom's.
+    crafted (or coincidental) traversal path would be treated as Horizon's.
     """
     bin_dir = paths.bin_dir()
     evil_binary = _write(bin_dir.parent / "evil" / "lean-ctx", "not ours")
@@ -540,7 +540,7 @@ def test_leaves_a_hook_script_whose_body_has_the_bin_dir_as_a_path_segment_alone
     whitespace or a :data:`_PATH_BOUNDARY_CHARS` character, so this names a
     different, user-owned directory that only happens to end in the managed
     path's tail. Only checking the trailing boundary (the pre-fix behavior)
-    would misclassify this as Headroom's and delete the user's script.
+    would misclassify this as Horizon's and delete the user's script.
     """
     bin_dir = paths.bin_dir()
     lookalike = f"/prefix{bin_dir}/lean-ctx"
@@ -664,7 +664,7 @@ def test_matches_a_managed_path_when_home_contains_a_space(home, monkeypatch):
     space inside it. Splitting a script's body on whitespace before searching
     would sever the path at that space and miss it entirely.
     """
-    bin_dir = home / "space here" / ".headroom" / "bin"
+    bin_dir = home / "space here" / ".horizon" / "bin"
     monkeypatch.setattr(paths, "bin_dir", lambda: bin_dir)
     script = _write(
         home / ".claude" / "hooks" / "lean-ctx-rewrite.sh",
@@ -686,7 +686,7 @@ def test_leaves_a_same_named_hook_script_in_a_different_directory_alone(home):
     """A hook entry's command must name the exact managed script in
     ``~/.claude/hooks`` — not merely share a basename with one. A user's own
     ``~/mytools/lean-ctx-rewrite.sh`` must never inherit the classification of
-    Headroom's ``~/.claude/hooks/lean-ctx-rewrite.sh`` just because the
+    Horizon's ``~/.claude/hooks/lean-ctx-rewrite.sh`` just because the
     filename matches — but a wrapper invocation (``bash <script>``), a quoted
     command, or a redundant ``./`` segment naming the *managed* script by
     absolute path must still be recognised, or the entry survives while step

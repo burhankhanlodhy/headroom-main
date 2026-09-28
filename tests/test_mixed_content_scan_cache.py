@@ -12,7 +12,7 @@ import random
 
 import pytest
 
-from headroom.transforms.mixed_content import (
+from horizon.transforms.mixed_content import (
     _extract_json_block,
     _has_valid_json_block_with_text,
     is_mixed_content,
@@ -163,7 +163,7 @@ def test_each_line_is_scanned_once_per_state(monkeypatch) -> None:
     """
     from collections import Counter
 
-    from headroom.transforms import mixed_content as mc
+    from horizon.transforms import mixed_content as mc
 
     calls: list[tuple[str, bool, bool]] = []
     real = mc._scan_line

@@ -1,6 +1,6 @@
 """Fixtures for the gateway turn contract tests.
 
-* ``make_headroom_client`` / ``headroom_client`` - the proxy app built like
+* ``make_horizon_client`` / ``horizon_client`` - the proxy app built like
   ``tests/test_compress_session_mode.py::_make_client`` and served through a
   loopback ``TestClient`` (``/v1/compress`` and ``/v1/compress/response`` are
   loopback-gated).
@@ -8,8 +8,8 @@
   ``TestClient`` mounted on its ASGI app.
 * ``make_gateway`` - a :class:`FakeGateway` factory bound to the two clients.
 * ``outcome_spy`` - captures every ``RequestOutcome`` the proxy records.
-* Autouse: turn hooks cleared before/after each test; ``HEADROOM_GATEWAY_*``
-  scrubbed (the repo conftest already scrubs every ``HEADROOM_*`` var, this one
+* Autouse: turn hooks cleared before/after each test; ``HORIZON_GATEWAY_*``
+  scrubbed (the repo conftest already scrubs every ``HORIZON_*`` var, this one
   makes the dependency explicit for the knobs these tests set).
 """
 
@@ -26,8 +26,8 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
-from headroom.proxy.turn_hooks import clear_turn_hooks  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.turn_hooks import clear_turn_hooks  # noqa: E402
 from tests.gateway.fake_gateway import FakeGateway  # noqa: E402
 from tests.gateway.fake_provider import FakeProvider  # noqa: E402
 
@@ -44,7 +44,7 @@ def _clear_hooks() -> Iterator[None]:
 @pytest.fixture(autouse=True)
 def _scrub_gateway_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in list(os.environ):
-        if key.startswith("HEADROOM_GATEWAY_") or key.startswith("HEADROOM_TEST_REDRIVE_"):
+        if key.startswith("HORIZON_GATEWAY_") or key.startswith("HORIZON_TEST_REDRIVE_"):
             monkeypatch.delenv(key, raising=False)
 
 
@@ -64,8 +64,8 @@ def proxy_config(**overrides: Any) -> ProxyConfig:
 
 
 @pytest.fixture
-def make_headroom_client() -> Iterator[Callable[..., TestClient]]:
-    """Factory: ``make_headroom_client(**ProxyConfig overrides) -> TestClient``.
+def make_horizon_client() -> Iterator[Callable[..., TestClient]]:
+    """Factory: ``make_horizon_client(**ProxyConfig overrides) -> TestClient``.
 
     Each client is entered (lifespan started) and closed at teardown. Use the
     factory when a test must set env vars BEFORE the app is created."""
@@ -84,8 +84,8 @@ def make_headroom_client() -> Iterator[Callable[..., TestClient]]:
 
 
 @pytest.fixture
-def headroom_client(make_headroom_client: Callable[..., TestClient]) -> TestClient:
-    return make_headroom_client()
+def horizon_client(make_horizon_client: Callable[..., TestClient]) -> TestClient:
+    return make_horizon_client()
 
 
 @pytest.fixture
@@ -101,12 +101,12 @@ def provider_client(fake_provider: FakeProvider) -> Iterator[TestClient]:
 
 @pytest.fixture
 def make_gateway(
-    headroom_client: TestClient, provider_client: TestClient
+    horizon_client: TestClient, provider_client: TestClient
 ) -> Callable[..., FakeGateway]:
     def _make(**kwargs: Any) -> FakeGateway:
         kwargs.setdefault("can_redrive", True)
         kwargs.setdefault("can_relay_response", True)
-        return FakeGateway(headroom_client, provider_client, **kwargs)
+        return FakeGateway(horizon_client, provider_client, **kwargs)
 
     return _make
 

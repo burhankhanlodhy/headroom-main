@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.transforms.content_detector import ContentType, detect_content_type
-from headroom.transforms.log_compressor import LogCompressor, LogCompressorConfig
+from horizon.transforms.content_detector import ContentType, detect_content_type
+from horizon.transforms.log_compressor import LogCompressor, LogCompressorConfig
 
 # Fixtures --------------------------------------------------------------------
 

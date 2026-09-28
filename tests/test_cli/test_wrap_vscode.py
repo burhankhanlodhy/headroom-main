@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from headroom.cli.main import main
-from headroom.copilot_auth import CopilotSubscriptionTokenResolution
+from horizon.cli.main import main
+from horizon.copilot_auth import CopilotSubscriptionTokenResolution
 
 
 def _resolution() -> CopilotSubscriptionTokenResolution:
@@ -31,9 +31,9 @@ def test_wrap_vscode_configures_actual_port_and_seeds_subscription(tmp_path: Pat
 
     with (
         patch(
-            "headroom.cli.wrap._require_copilot_subscription_resolution", return_value=_resolution()
+            "horizon.cli.wrap._require_copilot_subscription_resolution", return_value=_resolution()
         ),
-        patch("headroom.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher),
+        patch("horizon.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher),
     ):
         result = CliRunner().invoke(main, ["wrap", "vscode", "--settings-file", str(path)])
 
@@ -54,9 +54,9 @@ def test_wrap_vscode_no_configure_prints_transparent_settings(tmp_path: Path) ->
 
     with (
         patch(
-            "headroom.cli.wrap._require_copilot_subscription_resolution", return_value=_resolution()
+            "horizon.cli.wrap._require_copilot_subscription_resolution", return_value=_resolution()
         ),
-        patch("headroom.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher),
+        patch("horizon.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher),
     ):
         result = CliRunner().invoke(
             main,
@@ -77,7 +77,7 @@ def test_unwrap_vscode_removes_only_managed_settings(tmp_path: Path) -> None:
     path = tmp_path / "settings.json"
     original = '{\n  "editor.fontSize": 14\n}\n'
     path.write_text(original, encoding="utf-8")
-    from headroom.providers.copilot.vscode import configure_vscode_proxy_settings
+    from horizon.providers.copilot.vscode import configure_vscode_proxy_settings
 
     configure_vscode_proxy_settings(path, "http://127.0.0.1:8787")
     result = CliRunner().invoke(main, ["unwrap", "vscode", "--settings-file", str(path)])

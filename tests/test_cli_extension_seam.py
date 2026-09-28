@@ -1,11 +1,11 @@
-"""Tests for the ``headroom.cli_extension`` third-party subcommand seam."""
+"""Tests for the ``horizon.cli_extension`` third-party subcommand seam."""
 
 from __future__ import annotations
 
 import click
 import pytest
 
-from headroom.cli import extensions
+from horizon.cli import extensions
 
 
 class _FakeEntry:

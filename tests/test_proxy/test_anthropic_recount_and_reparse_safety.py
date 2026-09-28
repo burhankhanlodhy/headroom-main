@@ -22,7 +22,7 @@ fastapi = pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 MESSAGES = "/v1/messages"
 MODEL = "claude-sonnet-4-6"
@@ -69,7 +69,7 @@ def test_consistency_recount_runs_off_the_event_loop(monkeypatch):
     at request start also sees the sentinel and passes either way, while the
     two re-count passes ran inline before #2810 and would fail here.
     """
-    import headroom.tokenizers as tokenizers_mod
+    import horizon.tokenizers as tokenizers_mod
 
     seen: list[bool] = []  # one entry per snapshot count: True == ran on the loop
 
@@ -127,7 +127,7 @@ def test_memoryerror_in_verification_reparse_does_not_abort_the_request(monkeypa
     swallowed (the safe fallback marks the body mutated, forcing canonical
     re-serialization) rather than escaping and killing the request.
     """
-    import headroom.proxy.handlers.anthropic as anthropic_mod
+    import horizon.proxy.handlers.anthropic as anthropic_mod
 
     real_loads = json.loads
     raised = {"n": 0}

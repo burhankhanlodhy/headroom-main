@@ -24,7 +24,7 @@ pytest.importorskip("fastapi")
 
 from click.testing import CliRunner  # noqa: E402
 
-from headroom.cli.main import main  # noqa: E402
+from horizon.cli.main import main  # noqa: E402
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def mock_run_server():
         captured["config"] = config
         captured["kwargs"] = kwargs
 
-    with patch("headroom.proxy.server.run_server", _mock):
+    with patch("horizon.proxy.server.run_server", _mock):
         yield captured
 
 
@@ -105,17 +105,17 @@ class TestHttpProxyOption:
         result = runner.invoke(
             main,
             ["proxy"],
-            env={"HEADROOM_HTTP_PROXY": "http://proxy.local:8080"},
+            env={"HORIZON_HTTP_PROXY": "http://proxy.local:8080"},
             catch_exceptions=False,
         )
         assert result.exit_code == 0, result.output
         assert mock_run_server["config"].http_proxy == "http://proxy.local:8080"
 
     def test_direct_server_env_http_proxy(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        import headroom.proxy.server as server_mod
+        import horizon.proxy.server as server_mod
 
         monkeypatch.delenv(server_mod._MULTI_WORKER_CONFIG_ENV, raising=False)
-        monkeypatch.setenv("HEADROOM_HTTP_PROXY", "http://proxy.local:8080")
+        monkeypatch.setenv("HORIZON_HTTP_PROXY", "http://proxy.local:8080")
 
         config = server_mod._proxy_config_from_env()
         assert config.http_proxy == "http://proxy.local:8080"
@@ -321,7 +321,7 @@ class TestMissingProxyDepsError:
         monkeypatch.setattr(builtins, "__import__", fake_import)
         result = runner.invoke(main, ["proxy"])
         assert result.exit_code == 1, result.output
-        assert "pip install headroom-ai[proxy]" in result.output
+        assert "pip install horizon-ai[proxy]" in result.output
         assert "No module named 'mcp'" in result.output
 
     @pytest.mark.proxy_dependency_gate
@@ -330,7 +330,7 @@ class TestMissingProxyDepsError:
     ) -> None:
         import builtins
 
-        from headroom.cli.proxy import ensure_proxy_dependencies
+        from horizon.cli.proxy import ensure_proxy_dependencies
 
         real_import = builtins.__import__
 
@@ -360,7 +360,7 @@ class TestKeyboardInterruptExitCode:
         def _run_server_raises(*args, **kwargs):
             raise KeyboardInterrupt
 
-        with patch("headroom.proxy.server.run_server", _run_server_raises):
+        with patch("horizon.proxy.server.run_server", _run_server_raises):
             result = runner.invoke(main, ["proxy"])
 
         assert result.exit_code == 130
@@ -369,37 +369,37 @@ class TestKeyboardInterruptExitCode:
 class TestNewEnvVarWiring:
     """Verify newly-added envvar= wiring works for options that lacked it."""
 
-    def test_headroom_memory_db_path_from_env(
+    def test_horizon_memory_db_path_from_env(
         self, runner: CliRunner, mock_run_server: dict
     ) -> None:
         result = runner.invoke(
             main,
             ["proxy", "--memory"],
-            env={"HEADROOM_MEMORY_DB_PATH": "/tmp/test-memory.db"},
+            env={"HORIZON_MEMORY_DB_PATH": "/tmp/test-memory.db"},
             catch_exceptions=False,
         )
         assert result.exit_code == 0, result.output
         assert mock_run_server["config"].memory_db_path == "/tmp/test-memory.db"
 
-    def test_headroom_retry_max_attempts_from_env(
+    def test_horizon_retry_max_attempts_from_env(
         self, runner: CliRunner, mock_run_server: dict
     ) -> None:
         result = runner.invoke(
             main,
             ["proxy"],
-            env={"HEADROOM_RETRY_MAX_ATTEMPTS": "5"},
+            env={"HORIZON_RETRY_MAX_ATTEMPTS": "5"},
             catch_exceptions=False,
         )
         assert result.exit_code == 0, result.output
         assert mock_run_server["config"].retry_max_attempts == 5
 
-    def test_headroom_retry_delays_from_env(self, runner: CliRunner, mock_run_server: dict) -> None:
+    def test_horizon_retry_delays_from_env(self, runner: CliRunner, mock_run_server: dict) -> None:
         result = runner.invoke(
             main,
             ["proxy"],
             env={
-                "HEADROOM_RETRY_BASE_DELAY_MS": "125",
-                "HEADROOM_RETRY_MAX_DELAY_MS": "8000",
+                "HORIZON_RETRY_BASE_DELAY_MS": "125",
+                "HORIZON_RETRY_MAX_DELAY_MS": "8000",
             },
             catch_exceptions=False,
         )
@@ -407,25 +407,25 @@ class TestNewEnvVarWiring:
         assert mock_run_server["config"].retry_base_delay_ms == 125
         assert mock_run_server["config"].retry_max_delay_ms == 8000
 
-    def test_headroom_connect_timeout_from_env(
+    def test_horizon_connect_timeout_from_env(
         self, runner: CliRunner, mock_run_server: dict
     ) -> None:
         result = runner.invoke(
             main,
             ["proxy"],
-            env={"HEADROOM_CONNECT_TIMEOUT_SECONDS": "30"},
+            env={"HORIZON_CONNECT_TIMEOUT_SECONDS": "30"},
             catch_exceptions=False,
         )
         assert result.exit_code == 0, result.output
         assert mock_run_server["config"].connect_timeout_seconds == 30
 
-    def test_headroom_anthropic_buffered_timeout_from_env(
+    def test_horizon_anthropic_buffered_timeout_from_env(
         self, runner: CliRunner, mock_run_server: dict
     ) -> None:
         result = runner.invoke(
             main,
             ["proxy"],
-            env={"HEADROOM_ANTHROPIC_BUFFERED_REQUEST_TIMEOUT_SECONDS": "900"},
+            env={"HORIZON_ANTHROPIC_BUFFERED_REQUEST_TIMEOUT_SECONDS": "900"},
             catch_exceptions=False,
         )
         assert result.exit_code == 0, result.output
@@ -445,10 +445,10 @@ class TestNewEnvVarWiring:
     def test_direct_server_env_timeout_zero_falls_back_to_default(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        import headroom.proxy.server as server_mod
+        import horizon.proxy.server as server_mod
 
         monkeypatch.delenv(server_mod._MULTI_WORKER_CONFIG_ENV, raising=False)
-        monkeypatch.setenv("HEADROOM_ANTHROPIC_BUFFERED_REQUEST_TIMEOUT_SECONDS", "0")
+        monkeypatch.setenv("HORIZON_ANTHROPIC_BUFFERED_REQUEST_TIMEOUT_SECONDS", "0")
 
         config = server_mod._proxy_config_from_env()
         assert config.anthropic_buffered_request_timeout_seconds == 600
@@ -456,37 +456,37 @@ class TestNewEnvVarWiring:
     def test_direct_server_timeout_parser_rejects_zero(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        import headroom.proxy.server as server_mod
+        import horizon.proxy.server as server_mod
 
         with pytest.raises(argparse.ArgumentTypeError):
             server_mod._positive_int_arg("0")
 
-    def test_headroom_backend_from_env(self, runner: CliRunner, mock_run_server: dict) -> None:
+    def test_horizon_backend_from_env(self, runner: CliRunner, mock_run_server: dict) -> None:
         result = runner.invoke(
             main,
             ["proxy"],
-            env={"HEADROOM_BACKEND": "bedrock"},
+            env={"HORIZON_BACKEND": "bedrock"},
             catch_exceptions=False,
         )
         assert result.exit_code == 0, result.output
         assert mock_run_server["config"].backend == "bedrock"
 
-    def test_headroom_region_from_env(self, runner: CliRunner, mock_run_server: dict) -> None:
+    def test_horizon_region_from_env(self, runner: CliRunner, mock_run_server: dict) -> None:
         result = runner.invoke(
             main,
             ["proxy"],
-            env={"HEADROOM_REGION": "eu-west-1"},
+            env={"HORIZON_REGION": "eu-west-1"},
             catch_exceptions=False,
         )
         assert result.exit_code == 0, result.output
         # bedrock_region falls back to region
         assert mock_run_server["config"].bedrock_region == "eu-west-1"
 
-    def test_headroom_memory_top_k_from_env(self, runner: CliRunner, mock_run_server: dict) -> None:
+    def test_horizon_memory_top_k_from_env(self, runner: CliRunner, mock_run_server: dict) -> None:
         result = runner.invoke(
             main,
             ["proxy", "--memory"],
-            env={"HEADROOM_MEMORY_TOP_K": "20"},
+            env={"HORIZON_MEMORY_TOP_K": "20"},
             catch_exceptions=False,
         )
         assert result.exit_code == 0, result.output
@@ -545,7 +545,7 @@ class TestHelpTextCompleteness:
 
 
 class TestCompressionMaxWorkers:
-    """--compression-max-workers / HEADROOM_COMPRESSION_MAX_WORKERS must reach ProxyConfig.
+    """--compression-max-workers / HORIZON_COMPRESSION_MAX_WORKERS must reach ProxyConfig.
 
     Regression: the field was documented in ProxyConfig and consumed by the
     server, but the CLI never defined the option or passed it through, so it
@@ -563,7 +563,7 @@ class TestCompressionMaxWorkers:
         result = runner.invoke(
             main,
             ["proxy"],
-            env={"HEADROOM_COMPRESSION_MAX_WORKERS": "5"},
+            env={"HORIZON_COMPRESSION_MAX_WORKERS": "5"},
             catch_exceptions=False,
         )
         assert result.exit_code == 0, result.output

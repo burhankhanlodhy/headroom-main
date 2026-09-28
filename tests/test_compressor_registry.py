@@ -8,8 +8,8 @@ from dataclasses import asdict, dataclass
 
 import pytest
 
-from headroom.transforms import compressor_registry
-from headroom.transforms.compressor_registry import (
+from horizon.transforms import compressor_registry
+from horizon.transforms.compressor_registry import (
     ENTRY_POINT_GROUP,
     CompressInput,
     CompressorDescriptor,

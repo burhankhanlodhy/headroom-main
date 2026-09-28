@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock
 import numpy as np
 import pytest
 
-from headroom.memory.core import HierarchicalMemory
-from headroom.memory.models import Memory
+from horizon.memory.core import HierarchicalMemory
+from horizon.memory.models import Memory
 
 
 def _memory_system(memory: Memory, *, cache=None):

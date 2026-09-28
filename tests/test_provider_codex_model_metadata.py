@@ -4,20 +4,20 @@ import json
 import httpx
 import pytest
 
-from headroom.providers.codex import (
+from horizon.providers.codex import (
     CodexRoutingDecision as ExportedCodexRoutingDecision,
 )
-from headroom.providers.codex import (
+from horizon.providers.codex import (
     resolve_codex_routing as exported_resolve_codex_routing,
 )
-from headroom.providers.codex.model_metadata import (
+from horizon.providers.codex.model_metadata import (
     codex_model_registry_entry,
     fetch_chatgpt_codex_model_ids,
     normalize_codex_registry_headers,
     synthetic_model_get_response,
     synthetic_models_list_response,
 )
-from headroom.providers.codex.runtime import (
+from horizon.providers.codex.runtime import (
     decode_openai_bearer_payload,
     resolve_codex_routing,
     resolve_codex_routing_headers,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synchronize version across all headroom packages."""
+"""Synchronize version across all horizon packages."""
 
 from __future__ import annotations
 
@@ -101,10 +101,10 @@ def update_plugin_versions(root: Path, version: str) -> None:
     update_marketplace_manifest(root / ".claude-plugin" / "marketplace.json", version)
     update_marketplace_manifest(root / ".github" / "plugin" / "marketplace.json", version)
     update_plugin_manifest(
-        root / "plugins" / "headroom-agent-hooks" / ".claude-plugin" / "plugin.json", version
+        root / "plugins" / "horizon-agent-hooks" / ".claude-plugin" / "plugin.json", version
     )
     update_plugin_manifest(
-        root / "plugins" / "headroom-agent-hooks" / ".github" / "plugin" / "plugin.json",
+        root / "plugins" / "horizon-agent-hooks" / ".github" / "plugin" / "plugin.json",
         version,
     )
 
@@ -112,7 +112,7 @@ def update_plugin_versions(root: Path, version: str) -> None:
 def update_openclaw_package_json(file_path: Path, version: str) -> None:
     """Update openclaw package.json version.
 
-    Keep the source `headroom-ai` dependency registry-installable. The release
+    Keep the source `horizon-ai` dependency registry-installable. The release
     workflow rewrites the packed tgz dependency to the exact release range after
     the local SDK tarball is available.
     """
@@ -127,7 +127,7 @@ def update_openclaw_package_json(file_path: Path, version: str) -> None:
 def update_opencode_package_json(file_path: Path, version: str) -> None:
     """Update opencode package.json version.
 
-    Keep the source `headroom-ai` dependency registry-installable. The release
+    Keep the source `horizon-ai` dependency registry-installable. The release
     workflow rewrites the packed dependency to the exact release range right
     before npm publication.
     """
@@ -171,7 +171,7 @@ def write_release_metadata(root: Path, version: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Synchronize version across headroom packages")
+    parser = argparse.ArgumentParser(description="Synchronize version across horizon packages")
     parser.add_argument(
         "--root",
         type=Path,

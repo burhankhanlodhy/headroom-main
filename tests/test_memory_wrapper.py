@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from headroom.memory.config import EmbedderBackend
-from headroom.memory.wrapper import MemoryWrapper, _MemoryAPI, with_memory
+from horizon.memory.config import EmbedderBackend
+from horizon.memory.wrapper import MemoryWrapper, _MemoryAPI, with_memory
 
 
 class FakeMemory:
@@ -53,7 +53,7 @@ def test_memory_wrapper_lazy_initialization_and_factory(monkeypatch: pytest.Monk
         seen["config"] = config
         return fake_memory
 
-    monkeypatch.setattr("headroom.memory.wrapper.HierarchicalMemory.create", fake_create)
+    monkeypatch.setattr("horizon.memory.wrapper.HierarchicalMemory.create", fake_create)
 
     wrapper = MemoryWrapper(
         client,
@@ -158,13 +158,13 @@ def test_wrapped_completions_create_injects_parses_and_stores(
         lambda messages: [{"role": "user", "content": "enhanced"}],
     )
     monkeypatch.setattr(
-        "headroom.memory.wrapper.inject_memory_instruction",
+        "horizon.memory.wrapper.inject_memory_instruction",
         lambda messages, short=True: (
             messages + [{"role": "system", "content": "memory-instruction"}]
         ),
     )
     monkeypatch.setattr(
-        "headroom.memory.wrapper.parse_response_with_memory",
+        "horizon.memory.wrapper.parse_response_with_memory",
         lambda content: SimpleNamespace(
             content="clean response",
             memories=[{"content": "saved memory"}],
@@ -208,7 +208,7 @@ def test_memory_api_methods_delegate_to_underlying_memory() -> None:
 
 
 def test_parse_response_with_memory_tolerates_non_object_memory_block() -> None:
-    from headroom.memory.inline_extractor import parse_response_with_memory
+    from horizon.memory.inline_extractor import parse_response_with_memory
 
     # The model controls the <memory> block. A valid-JSON non-object (a bare
     # array) or a non-list `memories` field must not crash the parse: the
@@ -227,7 +227,7 @@ def test_parse_response_with_memory_tolerates_non_object_memory_block() -> None:
 
 
 def test_parse_response_with_memory_tolerates_none_content() -> None:
-    from headroom.memory.inline_extractor import parse_response_with_memory
+    from horizon.memory.inline_extractor import parse_response_with_memory
 
     # `chat.completions` returns `message.content == None` whenever the model
     # answers with tool/function calls instead of text. The callers forward that

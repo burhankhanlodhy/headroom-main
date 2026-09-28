@@ -6,14 +6,14 @@ import json
 
 import pytest
 
-pytest.importorskip("headroom._core")
+pytest.importorskip("horizon._core")
 
 try:
     from langchain_core.messages import AIMessage, ToolMessage
 except ImportError:
     pytest.skip("LangChain not installed", allow_module_level=True)
 
-from headroom.integrations.langchain.langgraph import compress_tool_messages
+from horizon.integrations.langchain.langgraph import compress_tool_messages
 
 
 def _large_output() -> str:
@@ -29,7 +29,7 @@ def _messages(tool_name: str) -> list:
 
 @pytest.mark.parametrize(
     "tool_name",
-    ["mcp__Headroom__headroom_retrieve", "mcp_Headroom_headroom_retrieve"],
+    ["mcp__Horizon__horizon_retrieve", "mcp_Horizon_horizon_retrieve"],
 )
 def test_qualified_ccr_retrieval_message_is_preserved(tool_name: str) -> None:
     messages = _messages(tool_name)
@@ -50,7 +50,7 @@ def test_incomplete_tool_calls_do_not_hide_later_qualified_name() -> None:
                 {"id": "ignored", "name": "", "args": {}},
                 {
                     "id": "call_1",
-                    "name": "mcp__Headroom__headroom_retrieve",
+                    "name": "mcp__Horizon__horizon_retrieve",
                     "args": {},
                 },
             ],
@@ -66,7 +66,7 @@ def test_incomplete_tool_calls_do_not_hide_later_qualified_name() -> None:
 
 
 def test_near_match_ccr_tool_name_is_not_excluded() -> None:
-    messages = _messages("mcp__Headroom__headroom_retrieve_extra")
+    messages = _messages("mcp__Horizon__horizon_retrieve_extra")
     original = messages[1].content
 
     result = compress_tool_messages(messages)
@@ -77,7 +77,7 @@ def test_near_match_ccr_tool_name_is_not_excluded() -> None:
 
 @pytest.mark.parametrize(
     "tool_name",
-    ["mcp__Headroom__headroom_retrieve", "mcp_Headroom_headroom_retrieve"],
+    ["mcp__Horizon__horizon_retrieve", "mcp_Horizon_horizon_retrieve"],
 )
 def test_qualified_name_on_the_tool_message_is_enough(tool_name: str) -> None:
     """`ToolNode` populates `ToolMessage.name`, so the id index is only a fallback."""

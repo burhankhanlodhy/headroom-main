@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-import headroom.proxy.handlers.streaming as streaming_module
-from headroom.proxy.server import HeadroomProxy
+import horizon.proxy.handlers.streaming as streaming_module
+from horizon.proxy.server import HorizonProxy
 
 
 @pytest.fixture(autouse=True)
@@ -25,7 +25,7 @@ def _reset_codex_rate_limit_singleton():
     The tracker is a module singleton; save/restore ``_latest`` around every
     test so a captured snapshot never leaks into (or depends on) another test.
     """
-    from headroom.subscription.codex_rate_limits import get_codex_rate_limit_state
+    from horizon.subscription.codex_rate_limits import get_codex_rate_limit_state
 
     state = get_codex_rate_limit_state()
     saved = state._latest
@@ -40,8 +40,8 @@ class TestStreamingRatelimitHeaderForwarding:
     """Test that upstream ratelimit headers are forwarded in streaming responses."""
 
     def _create_mock_proxy(self):
-        """Create a HeadroomProxy with mocked internals for unit testing."""
-        proxy = object.__new__(HeadroomProxy)
+        """Create a HorizonProxy with mocked internals for unit testing."""
+        proxy = object.__new__(HorizonProxy)
         proxy.http_client = MagicMock(spec=httpx.AsyncClient)
         proxy.metrics = MagicMock()
         proxy.metrics.record_request = AsyncMock(return_value=None)
@@ -187,7 +187,7 @@ class TestStreamingRatelimitHeaderForwarding:
 
     @pytest.mark.asyncio
     async def test_compression_metrics_headers_on_streaming(self):
-        """The streaming path stamps the same x-headroom-* metrics as the buffered one."""
+        """The streaming path stamps the same x-horizon-* metrics as the buffered one."""
         proxy = self._create_mock_proxy()
         mock_response = self._create_mock_upstream_response()
         proxy.http_client.build_request = MagicMock(return_value=MagicMock())
@@ -213,12 +213,12 @@ class TestStreamingRatelimitHeaderForwarding:
             optimization_latency=0.0,
         )
 
-        assert result.headers.get("x-headroom-tokens-before") == "1000"
-        assert result.headers.get("x-headroom-tokens-after") == "400"
-        assert result.headers.get("x-headroom-tokens-saved") == "600"
-        assert result.headers.get("x-headroom-model") == "claude-sonnet-4-20250514"
+        assert result.headers.get("x-horizon-tokens-before") == "1000"
+        assert result.headers.get("x-horizon-tokens-after") == "400"
+        assert result.headers.get("x-horizon-tokens-saved") == "600"
+        assert result.headers.get("x-horizon-model") == "claude-sonnet-4-20250514"
         # Comma-bearing detail is collapsed so the header still splits into tags.
-        transforms = result.headers.get("x-headroom-transforms")
+        transforms = result.headers.get("x-horizon-transforms")
         assert transforms is not None and transforms.split(",")[0] == "smart_crusher"
         assert "/a,b.py" not in transforms
         # Upstream headers are still forwarded alongside.
@@ -247,8 +247,8 @@ class TestStreamingRatelimitHeaderForwarding:
             optimization_latency=0.0,
         )
 
-        assert result.headers.get("x-headroom-tokens-saved") == "0"
-        assert result.headers.get("x-headroom-transforms") is None
+        assert result.headers.get("x-horizon-tokens-saved") == "0"
+        assert result.headers.get("x-horizon-transforms") is None
 
     @pytest.mark.asyncio
     async def test_request_id_headers_forwarded_in_streaming(self):
@@ -687,7 +687,7 @@ class TestStreamingRatelimitHeaderForwarding:
         the client (the old ``"ratelimit" in k`` filter dropped them, so the
         Codex CLI's own usage display also went stale).
         """
-        from headroom.subscription.codex_rate_limits import get_codex_rate_limit_state
+        from horizon.subscription.codex_rate_limits import get_codex_rate_limit_state
 
         state = get_codex_rate_limit_state()
 
@@ -750,7 +750,7 @@ class TestStreamingRatelimitHeaderForwarding:
         exactly when the session/weekly windows are most worth surfacing, so the
         previous success-only placement left the most important update missing.
         """
-        from headroom.subscription.codex_rate_limits import get_codex_rate_limit_state
+        from horizon.subscription.codex_rate_limits import get_codex_rate_limit_state
 
         state = get_codex_rate_limit_state()
 
@@ -795,7 +795,7 @@ class TestStreamingRatelimitHeaderForwarding:
     @pytest.mark.asyncio
     async def test_anthropic_stream_leaves_codex_state_untouched(self):
         """The now-unconditional capture must be a no-op for non-Codex streams."""
-        from headroom.subscription.codex_rate_limits import get_codex_rate_limit_state
+        from horizon.subscription.codex_rate_limits import get_codex_rate_limit_state
 
         state = get_codex_rate_limit_state()
 

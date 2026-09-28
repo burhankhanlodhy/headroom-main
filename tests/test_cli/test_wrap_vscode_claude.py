@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli.main import main
+from horizon.cli.main import main
 
 
 def test_wrap_vscode_claude_configures_actual_port(tmp_path: Path) -> None:
@@ -20,7 +20,7 @@ def test_wrap_vscode_claude_configures_actual_port(tmp_path: Path) -> None:
         captured.update(kwargs)
         kwargs["print_setup_lines"](9999)
 
-    with patch("headroom.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher):
+    with patch("horizon.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher):
         result = CliRunner().invoke(main, ["wrap", "vscode-claude", "--settings-file", str(path)])
 
     assert result.exit_code == 0, result.output
@@ -44,7 +44,7 @@ def test_wrap_vscode_claude_no_configure_prints_settings(tmp_path: Path) -> None
     def fake_watcher(**kwargs):  # noqa: ANN003, ANN202
         kwargs["print_setup_lines"](8787)
 
-    with patch("headroom.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher):
+    with patch("horizon.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher):
         result = CliRunner().invoke(
             main,
             ["wrap", "vscode-claude", "--no-configure", "--settings-file", str(path)],
@@ -65,7 +65,7 @@ def test_wrap_vscode_claude_1m_persists_model(tmp_path: Path) -> None:
     def fake_watcher(**kwargs):  # noqa: ANN003, ANN202
         kwargs["print_setup_lines"](8787)
 
-    with patch("headroom.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher):
+    with patch("horizon.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher):
         result = CliRunner().invoke(
             main,
             ["wrap", "vscode-claude", "--1m", "--settings-file", str(path)],
@@ -87,7 +87,7 @@ def test_wrap_vscode_claude_default_leaves_model_unchanged(tmp_path: Path) -> No
     def fake_watcher(**kwargs):  # noqa: ANN003, ANN202
         kwargs["print_setup_lines"](8787)
 
-    with patch("headroom.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher):
+    with patch("horizon.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher):
         result = CliRunner().invoke(
             main,
             ["wrap", "vscode-claude", "--settings-file", str(path)],
@@ -102,13 +102,13 @@ def test_wrap_vscode_claude_no_configure_1m_is_write_free(tmp_path: Path) -> Non
     path = tmp_path / "settings.json"
     original = '{"model":"claude-opus-5","custom":{"keep":true}}'
     path.write_text(original, encoding="utf-8")
-    state_path = tmp_path / ".headroom-vscode-claude.json"
+    state_path = tmp_path / ".horizon-vscode-claude.json"
     state_path.write_text('{"sentinel":true}', encoding="utf-8")
 
     def fake_watcher(**kwargs):  # noqa: ANN003, ANN202
         kwargs["print_setup_lines"](8787)
 
-    with patch("headroom.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher):
+    with patch("horizon.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher):
         result = CliRunner().invoke(
             main,
             ["wrap", "vscode-claude", "--no-configure", "--1m", "--settings-file", str(path)],
@@ -131,13 +131,13 @@ def test_wrap_vscode_claude_no_configure_1m_falls_back_for_invalid_settings(
 ) -> None:
     path = tmp_path / "settings.json"
     path.write_text(contents, encoding="utf-8")
-    state_path = tmp_path / ".headroom-vscode-claude.json"
+    state_path = tmp_path / ".horizon-vscode-claude.json"
     state_path.write_text('{"sentinel":true}', encoding="utf-8")
 
     def fake_watcher(**kwargs):  # noqa: ANN003, ANN202
         kwargs["print_setup_lines"](8787)
 
-    with patch("headroom.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher):
+    with patch("horizon.cli.wrap._run_proxy_only_watcher", side_effect=fake_watcher):
         result = CliRunner().invoke(
             main,
             ["wrap", "vscode-claude", "--no-configure", "--1m", "--settings-file", str(path)],
@@ -159,7 +159,7 @@ def test_unwrap_vscode_claude_restores_previous_settings(tmp_path: Path) -> None
     original = {"env": {"KEEP": "1"}, "permissions": {"allow": ["Read"]}}
     path.write_text(json.dumps(original), encoding="utf-8")
 
-    from headroom.providers.claude.vscode import configure_vscode_claude_settings
+    from horizon.providers.claude.vscode import configure_vscode_claude_settings
 
     configure_vscode_claude_settings(path, "http://127.0.0.1:8787/p/demo")
     result = CliRunner().invoke(main, ["unwrap", "vscode-claude", "--settings-file", str(path)])

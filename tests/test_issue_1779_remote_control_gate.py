@@ -2,8 +2,8 @@
 
 Claude Code v2.1.196 added a client-side eligibility check that deterministically
 disables first-party Remote Control (`/remote-control` / `/rc`) whenever
-`ANTHROPIC_BASE_URL` points at a non-`api.anthropic.com` host — which Headroom
-always does. The gate is upstream, so Headroom's fix is an *accurate* warning
+`ANTHROPIC_BASE_URL` points at a non-`api.anthropic.com` host — which Horizon
+always does. The gate is upstream, so Horizon's fix is an *accurate* warning
 that:
 
 * states the disable as a fact on v2.1.196+ (never the old hedged "may"),
@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.providers.claude.runtime import (
+from horizon.providers.claude.runtime import (
     REMOTE_CONTROL_GATED_MIN_VERSION,
     REMOTE_CONTROL_SIBLING_GATE_NOTE,
     claude_auth_conflict_message,
@@ -77,7 +77,7 @@ def test_message_is_accurate_not_hedged() -> None:
     assert "/remote-control (/rc)" in msg
     # The old hedged phrasing is gone.
     assert "may hide" not in msg
-    assert "run Claude without Headroom for sessions that need Remote Control" in msg
+    assert "run Claude without Horizon for sessions that need Remote Control" in msg
 
 
 def test_message_unknown_version_states_threshold() -> None:
@@ -179,7 +179,7 @@ def test_detect_claude_code_version_tolerates_proc_without_stdout(monkeypatch) -
     # AttributeError. detect is best-effort → returns None (version unknown).
     from types import SimpleNamespace
 
-    import headroom._subprocess as _sub
+    import horizon._subprocess as _sub
 
     monkeypatch.setattr(_sub, "run", lambda *a, **k: SimpleNamespace(returncode=0))
     assert detect_claude_code_version("claude") is None
@@ -188,7 +188,7 @@ def test_detect_claude_code_version_tolerates_proc_without_stdout(monkeypatch) -
 def test_detect_claude_code_version_parses_wrapper_output(monkeypatch) -> None:
     from types import SimpleNamespace
 
-    import headroom._subprocess as _sub
+    import horizon._subprocess as _sub
 
     monkeypatch.setattr(
         _sub,
@@ -205,7 +205,7 @@ def test_detect_claude_code_version_nonzero_exit_is_none(monkeypatch) -> None:
     # instead of the self-qualified "2.1.196+ / unknown" path. Must return None.
     from types import SimpleNamespace
 
-    import headroom._subprocess as _sub
+    import horizon._subprocess as _sub
 
     monkeypatch.setattr(
         _sub,
@@ -230,7 +230,7 @@ def test_sibling_note_defaults_claim_active_and_advise_1m() -> None:
     note = remote_control_sibling_gate_note(tool_search_active=True, context_1m_enabled=False)
     assert "#746" in note and "#1158" in note
     assert "keeps it on for this session" in note
-    assert "restore with `headroom wrap claude --1m`" in note
+    assert "restore with `horizon wrap claude --1m`" in note
 
 
 def test_sibling_note_does_not_claim_disabled_tool_search_is_on() -> None:
@@ -245,7 +245,7 @@ def test_sibling_note_does_not_advise_1m_already_passed() -> None:
     # Accuracy under opt-ins: with --1m in effect, don't advise adding it.
     note = remote_control_sibling_gate_note(tool_search_active=True, context_1m_enabled=True)
     assert "already restored via --1m" in note
-    assert "restore with `headroom wrap claude --1m`" not in note
+    assert "restore with `horizon wrap claude --1m`" not in note
 
 
 # ---------------------------------------------------------------------------

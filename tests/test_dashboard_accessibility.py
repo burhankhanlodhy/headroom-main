@@ -16,9 +16,9 @@ from urllib.parse import urlsplit
 
 import pytest
 
-from headroom.dashboard import get_dashboard_html
+from horizon.dashboard import get_dashboard_html
 
-TEMPLATES = Path(__file__).resolve().parents[1] / "headroom" / "dashboard" / "templates"
+TEMPLATES = Path(__file__).resolve().parents[1] / "horizon" / "dashboard" / "templates"
 DASHBOARD = (TEMPLATES / "dashboard.html").read_text()
 SETTINGS = (TEMPLATES / "settings.html").read_text()
 
@@ -140,7 +140,7 @@ def _open(page, stats: dict) -> None:  # type: ignore[no-untyped-def]
             route.continue_()
 
     page.route("**/*", handler)
-    page.goto("http://headroom.local/dashboard")
+    page.goto("http://horizon.local/dashboard")
     page.wait_for_load_state("networkidle")
 
 

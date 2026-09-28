@@ -1,6 +1,6 @@
 # CCR: Compress-Cache-Retrieve
 
-Headroom's CCR architecture makes compression **reversible**. When content is compressed, the original data is cached. If the LLM needs more data, it can retrieve it instantly.
+Horizon's CCR architecture makes compression **reversible**. When content is compressed, the original data is cached. If the LLM needs more data, it can retrieve it instantly.
 
 ## The Problem with Traditional Compression
 
@@ -32,7 +32,7 @@ CCR eliminates this tradeoff.
 ┌─────────────────────────────────────────────────────────────────┐
 │  LLM PROCESSING                                                  │
 │  Option A: LLM solves task with 20 items → Done (90% savings)   │
-│  Option B: LLM calls headroom_retrieve(hash=abc123)             │
+│  Option B: LLM calls horizon_retrieve(hash=abc123)             │
 │            → Response Handler executes retrieval automatically  │
 │            → LLM receives full data, responds accurately        │
 └─────────────────────────────────────────────────────────────────┘
@@ -47,12 +47,12 @@ When SmartCrusher compresses tool output:
 
 ### Phase 2: Tool Injection
 
-Headroom injects a `headroom_retrieve` tool into the LLM's available tools:
+Horizon injects a `horizon_retrieve` tool into the LLM's available tools:
 
 ```json
 {
-  "name": "headroom_retrieve",
-  "description": "Retrieve original uncompressed data from Headroom cache",
+  "name": "horizon_retrieve",
+  "description": "Retrieve original uncompressed data from Horizon cache",
   "parameters": {
     "hash": "The hash key from the compression marker"
   }
@@ -61,7 +61,7 @@ Headroom injects a `headroom_retrieve` tool into the LLM's available tools:
 
 ### Phase 3: Response Handler
 
-When the LLM calls `headroom_retrieve`:
+When the LLM calls `horizon_retrieve`:
 1. Response Handler intercepts the tool call
 2. Retrieves data from the local cache (~1ms)
 3. Adds the result to the conversation
@@ -91,7 +91,7 @@ Turn 5: User asks "What about the auth middleware?"
 
 ## CCR Stores Content Blocks, Not Dropped Messages
 
-Headroom never drops whole messages from conversation history. CCR is purely about compressed **content blocks** — the newest tool outputs, tool results, and user content that the live-zone pipeline compresses. The original block is stored in the cache and is retrievable on demand:
+Horizon never drops whole messages from conversation history. CCR is purely about compressed **content blocks** — the newest tool outputs, tool results, and user content that the live-zone pipeline compresses. The original block is stored in the cache and is retrievable on demand:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -106,7 +106,7 @@ Headroom never drops whole messages from conversation history. CCR is purely abo
 │  LLM PROCESSING                                                  │
 │  Option A: LLM solves task with the compressed block → Done     │
 │  Option B: LLM needs the full content                           │
-│            → Calls headroom_retrieve(hash=def456)               │
+│            → Calls horizon_retrieve(hash=def456)               │
 │            → Full original block restored                        │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -119,22 +119,22 @@ The older conversation turns, system prompt, and tool definitions — the provid
 
 | Feature | Description |
 |---------|-------------|
-| **Automatic Response Handling** | When LLM calls `headroom_retrieve`, the proxy handles it automatically |
+| **Automatic Response Handling** | When LLM calls `horizon_retrieve`, the proxy handles it automatically |
 | **Multi-Turn Context Tracking** | Tracks compressed content across turns, proactively expands when relevant |
-| **Hash-Keyed Retrieval** | `headroom_retrieve(hash)` always returns the full original content |
+| **Hash-Keyed Retrieval** | `horizon_retrieve(hash)` always returns the full original content |
 | **Feedback Learning** | Learns from retrieval patterns to improve future compression |
 
 ## Configuration
 
 ```bash
 # Proxy with CCR enabled (default)
-headroom proxy --port 8787
+horizon proxy --port 8787
 
-# Disable CCR entirely: no retrieval markers, no headroom_retrieve tool
-headroom proxy --no-ccr
+# Disable CCR entirely: no retrieval markers, no horizon_retrieve tool
+horizon proxy --no-ccr
 
 # Disable proactive expansion of previously-compressed content
-headroom proxy --no-ccr-proactive-expansion
+horizon proxy --no-ccr-proactive-expansion
 ```
 
 ## Why This Matters
@@ -168,7 +168,7 @@ No CCR markers
 6/6 key concepts preserved in compressed output
 ```
 
-Note this run shows "No CCR markers" — `examples/test_ccr.py` calls the SDK `compress()` function directly, and this particular payload doesn't cross the size threshold that triggers a CCR marker. The full compress-cache-retrieve tool-call loop (`headroom_retrieve`, proactive expansion) only runs inside `headroom proxy`, not the standalone SDK call.
+Note this run shows "No CCR markers" — `examples/test_ccr.py` calls the SDK `compress()` function directly, and this particular payload doesn't cross the size threshold that triggers a CCR marker. The full compress-cache-retrieve tool-call loop (`horizon_retrieve`, proactive expansion) only runs inside `horizon proxy`, not the standalone SDK call.
 
 ## Architecture
 

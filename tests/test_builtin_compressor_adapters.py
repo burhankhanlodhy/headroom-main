@@ -21,8 +21,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from headroom.transforms.compressor_registry import CompressInput, CompressOutput
-from headroom.transforms.content_router import (
+from horizon.transforms.compressor_registry import CompressInput, CompressOutput
+from horizon.transforms.content_router import (
     _BUILTIN_COMPRESSOR_DESCRIPTORS,
     ContentRouter,
     ContentRouterConfig,

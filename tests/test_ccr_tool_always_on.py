@@ -1,4 +1,4 @@
-"""PR-B7 — `headroom_retrieve` tool always-on once a session has done CCR.
+"""PR-B7 — `horizon_retrieve` tool always-on once a session has done CCR.
 
 These tests pin three properties:
 
@@ -11,7 +11,7 @@ These tests pin three properties:
    snapshot deliberately.
 
 Tests target the canonical helper
-`headroom.proxy.helpers.apply_session_sticky_ccr_tool` plus the
+`horizon.proxy.helpers.apply_session_sticky_ccr_tool` plus the
 `SessionCcrTracker` semantics. The CCRToolInjector legacy path is
 covered by `tests/test_ccr_tool_injection.py`.
 """
@@ -20,12 +20,12 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.ccr.tool_injection import (
+from horizon.ccr.tool_injection import (
     CCR_TOOL_NAME,
     CCRToolInjector,
     create_ccr_tool_definition,
 )
-from headroom.proxy.helpers import (
+from horizon.proxy.helpers import (
     SessionCcrTracker,
     _reset_session_ccr_tracker_for_test,
     apply_session_sticky_ccr_tool,
@@ -185,7 +185,7 @@ def test_provider_isolation():
 
 
 def test_existing_ccr_tool_in_client_list_skips_injection():
-    """If client (e.g. via MCP) already provided headroom_retrieve, do not double up."""
+    """If client (e.g. via MCP) already provided horizon_retrieve, do not double up."""
     session_id = "sess-with-mcp"
     client_tool = {
         "name": CCR_TOOL_NAME,
@@ -259,7 +259,7 @@ def test_history_references_ccr_tool_detects_both_provider_shapes():
 
 def test_sessionless_history_reference_forces_reinjection():
     """#2440: no session_id + no fresh compression, but history already
-    references headroom_retrieve → the tool definition MUST be re-injected,
+    references horizon_retrieve → the tool definition MUST be re-injected,
     otherwise the provider rejects the request (400 tool not found)."""
     history = [
         {
@@ -299,7 +299,7 @@ def test_sessionless_history_reference_forces_reinjection():
 # active session's prompt cache (the tool list bytes are part of the
 # cache key).
 _ANTHROPIC_CCR_TOOL_SNAPSHOT_BYTES = (
-    b'{"name":"headroom_retrieve",'
+    b'{"name":"horizon_retrieve",'
     b'"description":"Retrieve original uncompressed content that was '
     b"compressed to save tokens. Use this when you need more data than "
     b"what's shown in compressed tool results. The hash is provided in "
@@ -314,7 +314,7 @@ _ANTHROPIC_CCR_TOOL_SNAPSHOT_BYTES = (
 
 _OPENAI_CCR_TOOL_SNAPSHOT_BYTES = (
     b'{"type":"function",'
-    b'"function":{"name":"headroom_retrieve",'
+    b'"function":{"name":"horizon_retrieve",'
     b'"description":"Retrieve original uncompressed content that was '
     b"compressed to save tokens. Use this when you need more data than "
     b"what's shown in compressed tool results. The hash is provided in "

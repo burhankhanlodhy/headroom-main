@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from headroom.mcp_registry.base import (
+from horizon.mcp_registry.base import (
     MCPRegistrar,
     RegisterResult,
     RegisterStatus,
     ServerSpec,
 )
-from headroom.mcp_registry.install import (
+from horizon.mcp_registry.install import (
     DEFAULT_PROXY_URL,
-    build_headroom_spec,
+    build_horizon_spec,
     build_serena_spec,
     install_everywhere,
 )
@@ -47,40 +47,40 @@ class _FakeRegistrar(MCPRegistrar):
 
 
 # ----------------------------------------------------------------------
-# build_headroom_spec
+# build_horizon_spec
 # ----------------------------------------------------------------------
 
 
 def test_build_spec_default_proxy_no_env(monkeypatch) -> None:
     monkeypatch.setattr(
-        "headroom.mcp_registry.install.resolve_headroom_command",
-        lambda: ["/opt/headroom/bin/headroom"],
+        "horizon.mcp_registry.install.resolve_horizon_command",
+        lambda: ["/opt/horizon/bin/horizon"],
     )
-    spec = build_headroom_spec()
-    assert spec.name == "headroom"
-    assert spec.command == "/opt/headroom/bin/headroom"
+    spec = build_horizon_spec()
+    assert spec.name == "horizon"
+    assert spec.command == "/opt/horizon/bin/horizon"
     assert spec.args == ("mcp", "serve")
     assert spec.env == {}
 
 
 def test_build_spec_custom_proxy_sets_env() -> None:
-    spec = build_headroom_spec("http://127.0.0.1:9999")
-    assert spec.env == {"HEADROOM_PROXY_URL": "http://127.0.0.1:9999"}
+    spec = build_horizon_spec("http://127.0.0.1:9999")
+    assert spec.env == {"HORIZON_PROXY_URL": "http://127.0.0.1:9999"}
 
 
 def test_build_spec_default_url_omits_env() -> None:
-    spec = build_headroom_spec(DEFAULT_PROXY_URL)
+    spec = build_horizon_spec(DEFAULT_PROXY_URL)
     assert spec.env == {}
 
 
 def test_build_spec_falls_back_to_python_module_when_no_binary(monkeypatch) -> None:
-    monkeypatch.setattr("headroom.install.runtime.shutil.which", lambda name: None)
-    monkeypatch.setattr("headroom.install.runtime.sys.executable", "/usr/bin/python")
+    monkeypatch.setattr("horizon.install.runtime.shutil.which", lambda name: None)
+    monkeypatch.setattr("horizon.install.runtime.sys.executable", "/usr/bin/python")
 
-    spec = build_headroom_spec()
+    spec = build_horizon_spec()
 
     assert spec.command == "/usr/bin/python"
-    assert spec.args == ("-m", "headroom.cli", "mcp", "serve")
+    assert spec.args == ("-m", "horizon.cli", "mcp", "serve")
     assert spec.env == {}
 
 
@@ -113,7 +113,7 @@ def test_build_serena_spec_uses_pypi_not_git_source() -> None:
 
 
 def test_build_serena_spec_disables_dashboard_popup_by_default() -> None:
-    # Headroom installs Serena by default; the dashboard browser tab must not
+    # Horizon installs Serena by default; the dashboard browser tab must not
     # auto-open. The flag overrides the user's serena_config.yml at startup,
     # so this holds even when the user never created a Serena config.
     for context in ("codex", "claude-code"):
@@ -168,7 +168,7 @@ def test_install_everywhere_passes_proxy_url_into_spec() -> None:
     reg = CapturingRegistrar("x")
     install_everywhere(proxy_url="http://localhost:9000", registrars=[reg])
     assert len(captured) == 1
-    assert captured[0].env == {"HEADROOM_PROXY_URL": "http://localhost:9000"}
+    assert captured[0].env == {"HORIZON_PROXY_URL": "http://localhost:9000"}
 
 
 def test_install_everywhere_passes_force_flag() -> None:

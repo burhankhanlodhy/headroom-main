@@ -11,8 +11,8 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.handlers.openai import _openai_rate_limit_key  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.handlers.openai import _openai_rate_limit_key  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 def test_openai_rate_limit_key_accepts_api_key_header() -> None:
@@ -37,7 +37,7 @@ def test_openai_rate_limit_key_prefers_authorization() -> None:
 
 @pytest.mark.parametrize("endpoint", ["chat", "responses"])
 def test_distinct_api_keys_do_not_share_openai_rate_limit_bucket(monkeypatch, endpoint) -> None:
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,

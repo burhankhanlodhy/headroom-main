@@ -30,7 +30,7 @@ from tests._dotenv import importorskip_no_env_leak
 
 importorskip_no_env_leak("litellm")
 
-from headroom.backends.litellm import (  # noqa: E402
+from horizon.backends.litellm import (  # noqa: E402
     LiteLLMBackend,
     _extract_thinking_content_blocks,
     _is_anthropic_family_model,
@@ -40,7 +40,7 @@ SIG = "ErUBCkYIBRgCKkB_signed_opaque_blob=="
 
 
 def _backend(provider: str = "anthropic") -> LiteLLMBackend:
-    with patch("headroom.backends.litellm._fetch_bedrock_inference_profiles", return_value={}):
+    with patch("horizon.backends.litellm._fetch_bedrock_inference_profiles", return_value={}):
         return LiteLLMBackend(provider=provider)
 
 
@@ -179,8 +179,8 @@ def _mock_response(*, content="Done.", thinking_blocks=None, reasoning=None, too
 @pytest.mark.asyncio
 async def test_send_message_forwards_thinking_and_reconstructs_response() -> None:
     with (
-        patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp,
-        patch("headroom.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
+        patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp,
+        patch("horizon.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
     ):
         mock_acomp.return_value = _mock_response(
             thinking_blocks=[{"type": "thinking", "thinking": "resp reasoning", "signature": SIG}]
@@ -209,8 +209,8 @@ async def test_send_message_forwards_thinking_and_reconstructs_response() -> Non
 @pytest.mark.asyncio
 async def test_send_message_strips_thinking_for_cross_vendor() -> None:
     with (
-        patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp,
-        patch("headroom.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
+        patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp,
+        patch("horizon.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
     ):
         mock_acomp.return_value = _mock_response()
         backend = LiteLLMBackend(provider="openai")
@@ -274,8 +274,8 @@ async def test_streaming_emits_leading_thinking_block_with_signature() -> None:
         ),
     ]
     with (
-        patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp,
-        patch("headroom.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
+        patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp,
+        patch("horizon.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
     ):
         mock_acomp.return_value = _FakeAsyncStream(chunks)
         backend = LiteLLMBackend(provider="anthropic")
@@ -324,8 +324,8 @@ async def test_streaming_emits_leading_thinking_block_with_signature() -> None:
 @pytest.mark.asyncio
 async def test_send_openai_message_carries_reasoning_through() -> None:
     with (
-        patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp,
-        patch("headroom.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
+        patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp,
+        patch("horizon.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
     ):
         mock_acomp.return_value = _mock_response(
             reasoning="claude reasoning",
@@ -355,8 +355,8 @@ def _delta_types(events):
 
 async def _run_stream(chunks):
     with (
-        patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp,
-        patch("headroom.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
+        patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp,
+        patch("horizon.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
     ):
         mock_acomp.return_value = _FakeAsyncStream(chunks)
         backend = LiteLLMBackend(provider="anthropic")

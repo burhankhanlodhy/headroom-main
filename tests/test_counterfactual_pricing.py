@@ -1,4 +1,4 @@
-"""Cache-aware pricing of the tokens Headroom kept off the wire.
+"""Cache-aware pricing of the tokens Horizon kept off the wire.
 
 The defect these cover: savings were priced at ``tokens * input_cost_per_token``
 — flat list price — which is correct only for the first request of a cache
@@ -27,7 +27,7 @@ apply_dotenv = autouse_apply_env(_env_overrides)
 
 importorskip_no_env_leak("litellm")
 
-from headroom.pricing.counterfactual import (  # noqa: E402
+from horizon.pricing.counterfactual import (  # noqa: E402
     BASIS_CATALOG,
     BASIS_CATALOG_TTL_RATIO,
     BASIS_LIST,
@@ -113,7 +113,7 @@ def test_live_zone_savings_on_a_cold_turn_exceed_list_price():
     """A removed cache-write token saves 1.25x list, not 1.0x.
 
     Deliberately NOT clamped to list: that is real money the provider would
-    have charged, and clamping it would under-report Headroom in exactly the
+    have charged, and clamping it would under-report Horizon in exactly the
     situation where compression is worth most.
     """
     priced = price_savings(8_000, model=SONNET, mix=_cold_anthropic(), region=Region.LIVE_ZONE)
@@ -269,7 +269,7 @@ def test_a_free_model_saves_nothing_rather_than_falling_back():
     """
     import litellm
 
-    from headroom.pricing.litellm_pricing import resolve_litellm_model
+    from horizon.pricing.litellm_pricing import resolve_litellm_model
 
     free_model = "free-local-model-for-test"
     litellm.model_cost[resolve_litellm_model(free_model)] = {"input_cost_per_token": 0.0}

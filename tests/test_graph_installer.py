@@ -11,8 +11,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from headroom import binaries
-from headroom.graph import installer
+from horizon import binaries
+from horizon.graph import installer
 
 
 class FakeResponse(io.BytesIO):
@@ -54,7 +54,7 @@ def test_asset_filename_matches_the_registry_asset(plat: str, extension: str) ->
 def test_download_cbm_on_windows_fetches_and_extracts_the_zip(
     monkeypatch, tmp_path: Path, member_name: str
 ) -> None:
-    monkeypatch.setenv("HEADROOM_BINARIES_ALLOW_UNVERIFIED", "1")
+    monkeypatch.setenv("HORIZON_BINARIES_ALLOW_UNVERIFIED", "1")
     monkeypatch.setattr(installer, "CBM_BIN_DIR", tmp_path)
     monkeypatch.setattr(installer, "_detect_platform", lambda: "windows-amd64")
     requested: list[str] = []
@@ -70,7 +70,7 @@ def test_download_cbm_on_windows_fetches_and_extracts_the_zip(
         probes.append(command)
         return SimpleNamespace(returncode=1, stdout="")
 
-    monkeypatch.setattr("headroom._subprocess.run", fake_run)
+    monkeypatch.setattr("horizon._subprocess.run", fake_run)
 
     path = installer.download_cbm()
 
@@ -104,7 +104,7 @@ def test_installed_binary_is_found_by_a_real_path_lookup(monkeypatch, tmp_path: 
     extension, elsewhere the extensionless name with its executable bit.
     """
     bin_dir = tmp_path / "bin"
-    monkeypatch.setenv("HEADROOM_BINARIES_ALLOW_UNVERIFIED", "1")
+    monkeypatch.setenv("HORIZON_BINARIES_ALLOW_UNVERIFIED", "1")
     monkeypatch.setattr(installer, "CBM_BIN_DIR", bin_dir)
     monkeypatch.setattr(
         installer,
@@ -117,7 +117,7 @@ def test_installed_binary_is_found_by_a_real_path_lookup(monkeypatch, tmp_path: 
         probes.append(command)
         return SimpleNamespace(returncode=1, stdout="")
 
-    monkeypatch.setattr("headroom._subprocess.run", fake_run)
+    monkeypatch.setattr("horizon._subprocess.run", fake_run)
 
     path = installer.download_cbm()
 
@@ -149,7 +149,7 @@ def test_get_cbm_path_finds_the_installed_binary_off_path(monkeypatch, tmp_path:
 
 
 def test_download_cbm_zip_errors(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HEADROOM_BINARIES_ALLOW_UNVERIFIED", "1")
+    monkeypatch.setenv("HORIZON_BINARIES_ALLOW_UNVERIFIED", "1")
     monkeypatch.setattr(installer, "CBM_BIN_DIR", tmp_path)
     monkeypatch.setattr(installer, "_detect_platform", lambda: "windows-amd64")
 

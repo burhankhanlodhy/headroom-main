@@ -11,12 +11,12 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 _ISOLATED_MODULE_NAMES = (
-    "headroom.proxy",
-    "headroom.proxy.handlers",
+    "horizon.proxy",
+    "horizon.proxy.handlers",
     "httpx",
     "fastapi.responses",
-    "tests.headroom_proxy_handlers_openai",
-    "tests.headroom_proxy_handlers_streaming",
+    "tests.horizon_proxy_handlers_openai",
+    "tests.horizon_proxy_handlers_streaming",
 )
 
 
@@ -34,13 +34,13 @@ def restore_isolated_modules() -> None:
 
 
 def _load_handler_module(monkeypatch: pytest.MonkeyPatch, module_name: str, relative_path: str):
-    proxy_pkg = types.ModuleType("headroom.proxy")
-    proxy_pkg.__path__ = [str(ROOT / "headroom" / "proxy")]
-    monkeypatch.setitem(sys.modules, "headroom.proxy", proxy_pkg)
+    proxy_pkg = types.ModuleType("horizon.proxy")
+    proxy_pkg.__path__ = [str(ROOT / "horizon" / "proxy")]
+    monkeypatch.setitem(sys.modules, "horizon.proxy", proxy_pkg)
 
-    handlers_pkg = types.ModuleType("headroom.proxy.handlers")
-    handlers_pkg.__path__ = [str(ROOT / "headroom" / "proxy" / "handlers")]
-    monkeypatch.setitem(sys.modules, "headroom.proxy.handlers", handlers_pkg)
+    handlers_pkg = types.ModuleType("horizon.proxy.handlers")
+    handlers_pkg.__path__ = [str(ROOT / "horizon" / "proxy" / "handlers")]
+    monkeypatch.setitem(sys.modules, "horizon.proxy.handlers", handlers_pkg)
 
     httpx_mod = types.ModuleType("httpx")
     httpx_mod.ConnectError = type("ConnectError", (Exception,), {})
@@ -91,8 +91,8 @@ def _load_handler_module(monkeypatch: pytest.MonkeyPatch, module_name: str, rela
 def test_openai_passthrough_applies_copilot_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     openai_mod = _load_handler_module(
         monkeypatch,
-        "tests.headroom_proxy_handlers_openai",
-        "headroom/proxy/handlers/openai.py",
+        "tests.horizon_proxy_handlers_openai",
+        "horizon/proxy/handlers/openai.py",
     )
 
     seen: dict[str, object] = {}
@@ -124,18 +124,18 @@ def test_openai_passthrough_applies_copilot_auth(monkeypatch: pytest.MonkeyPatch
             return f"req-{self._counter}"
 
         async def _record_request_outcome(self, outcome) -> None:  # noqa: ANN001
-            from headroom.proxy.outcome import emit_request_outcome
+            from horizon.proxy.outcome import emit_request_outcome
 
             await emit_request_outcome(self, outcome)
 
         def _extract_tags(self, headers: dict) -> dict[str, str]:
-            # Mirror of HeadroomProxy._extract_tags. The passthrough
+            # Mirror of HorizonProxy._extract_tags. The passthrough
             # handler now extracts tags at entry as part of the
             # outcome-tag invariant lock (PR #480).
             return {
-                k.lower().replace("x-headroom-", ""): v
+                k.lower().replace("x-horizon-", ""): v
                 for k, v in headers.items()
-                if k.lower().startswith("x-headroom-")
+                if k.lower().startswith("x-horizon-")
             }
 
         async def _request(self, **kwargs):  # noqa: ANN003
@@ -176,8 +176,8 @@ def test_openai_passthrough_applies_copilot_auth(monkeypatch: pytest.MonkeyPatch
 def test_streaming_response_applies_copilot_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     streaming_mod = _load_handler_module(
         monkeypatch,
-        "tests.headroom_proxy_handlers_streaming",
-        "headroom/proxy/handlers/streaming.py",
+        "tests.horizon_proxy_handlers_streaming",
+        "horizon/proxy/handlers/streaming.py",
     )
 
     seen: dict[str, object] = {}
@@ -247,8 +247,8 @@ def test_streaming_response_applies_copilot_auth(monkeypatch: pytest.MonkeyPatch
 def test_openai_chat_routes_copilot_requests_per_model(monkeypatch: pytest.MonkeyPatch) -> None:
     openai_mod = _load_handler_module(
         monkeypatch,
-        "tests.headroom_proxy_handlers_openai",
-        "headroom/proxy/handlers/openai.py",
+        "tests.horizon_proxy_handlers_openai",
+        "horizon/proxy/handlers/openai.py",
     )
 
     copilot_base = "https://api.githubcopilot.com"

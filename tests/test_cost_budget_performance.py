@@ -6,8 +6,8 @@ from datetime import datetime
 
 import pytest
 
-from headroom.proxy.budget_basis_policy import COST_BASIS_ESTIMATED, COST_BASIS_MEASURED
-from headroom.proxy.cost import CostEntry, CostTracker
+from horizon.proxy.budget_basis_policy import COST_BASIS_ESTIMATED, COST_BASIS_MEASURED
+from horizon.proxy.cost import CostEntry, CostTracker
 
 
 def test_budget_breakdown_does_not_scan_reporting_history() -> None:

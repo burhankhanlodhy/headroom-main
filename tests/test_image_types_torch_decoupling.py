@@ -30,23 +30,23 @@ def _assert_import_excludes(module_name: str, excluded: str) -> None:
 
 
 def test_importing_compressor_does_not_import_trained_router() -> None:
-    _assert_import_excludes("headroom.image.compressor", "headroom.image.trained_router")
+    _assert_import_excludes("horizon.image.compressor", "horizon.image.trained_router")
 
 
 def test_importing_onnx_router_does_not_import_trained_router() -> None:
-    _assert_import_excludes("headroom.image.onnx_router", "headroom.image.trained_router")
+    _assert_import_excludes("horizon.image.onnx_router", "horizon.image.trained_router")
 
 
 def test_image_types_module_does_not_import_torch() -> None:
-    _assert_import_excludes("headroom.image.image_types", "torch")
+    _assert_import_excludes("horizon.image.image_types", "torch")
 
 
 def test_technique_reexports_are_the_same_object() -> None:
-    from headroom.image import Technique as via_package
-    from headroom.image.image_types import ImageSignals, RouteDecision, Technique
-    from headroom.image.trained_router import ImageSignals as tr_signals
-    from headroom.image.trained_router import RouteDecision as tr_decision
-    from headroom.image.trained_router import Technique as tr_technique
+    from horizon.image import Technique as via_package
+    from horizon.image.image_types import ImageSignals, RouteDecision, Technique
+    from horizon.image.trained_router import ImageSignals as tr_signals
+    from horizon.image.trained_router import RouteDecision as tr_decision
+    from horizon.image.trained_router import Technique as tr_technique
 
     assert via_package is Technique
     assert tr_technique is Technique

@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import pytest
 
-import headroom.transforms.content_router as content_router_module
-from headroom.transforms.content_detector import ContentType, DetectionResult
-from headroom.transforms.content_router import (
+import horizon.transforms.content_router as content_router_module
+from horizon.transforms.content_detector import ContentType, DetectionResult
+from horizon.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
@@ -109,8 +109,8 @@ def test_apply_runs_detection_once_per_cache_miss_message(
     # then the cache-miss pass calls compress() on the same bytes. Before the
     # thread-through that was 2 native detections per cache-miss message; now
     # apply hands its detection to compress, so it must be exactly 1.
-    from headroom.providers import OpenAIProvider
-    from headroom.tokenizer import Tokenizer
+    from horizon.providers import OpenAIProvider
+    from horizon.tokenizer import Tokenizer
 
     router = ContentRouter(
         ContentRouterConfig(min_section_tokens=10, prefer_code_aware_for_code=False)

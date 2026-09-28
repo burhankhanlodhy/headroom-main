@@ -80,7 +80,7 @@ def test_failed_base_file_comparison_does_not_clear_the_rebase_label() -> None:
             "set -euo pipefail",
             # Stands in for a throttled API call that writes partial output and fails.
             "gh() { printf 'partia'; return 1; }",
-            'REPO="headroomlabs-ai/headroom"',
+            'REPO="your-org/horizon"',
             'base_ref="main"',
             'behind_by="13"',
             'merge_base="0123456789abcdef0123456789abcdef01234567"',
@@ -99,7 +99,7 @@ def test_failed_base_file_comparison_does_not_clear_the_rebase_label() -> None:
             ".github/scripts/pr-health-labels.py",
             "--state-json",
             json.dumps(
-                {"mergeStateStatus": "CLEAN", "files": [{"path": "headroom/proxy/server.py"}]}
+                {"mergeStateStatus": "CLEAN", "files": [{"path": "horizon/proxy/server.py"}]}
             ),
             "--field",
             "drift",

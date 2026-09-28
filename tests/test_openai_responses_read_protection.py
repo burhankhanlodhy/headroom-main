@@ -5,11 +5,11 @@ Copilot CLI (and other Responses-native harnesses) read files two ways:
 1. A first-class ``view`` tool (the Copilot equivalent of Claude Code's ``Read``)
    whose output is raw file content the model will byte-patch against.
 2. Shell reads through ``bash`` (``cat``/``nl``/``sed -n`` …), which the
-   chat/Anthropic path protects via ``HEADROOM_PROTECT_READS`` read-command
+   chat/Anthropic path protects via ``HORIZON_PROTECT_READS`` read-command
    detection in ``ContentRouter``.
 
 The Responses compression-units path historically protected neither: only
-``DEFAULT_EXCLUDE_TOOLS`` names were honored, and ``HEADROOM_PROTECT_READS``
+``DEFAULT_EXCLUDE_TOOLS`` names were honored, and ``HORIZON_PROTECT_READS``
 was never consulted. Lossy (Kompress) compression of a fresh file read garbles
 exactly the bytes the model needs for line-precise edits, forcing re-reads
 (turn inflation) — the harm read protection exists to prevent.
@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from types import MethodType, SimpleNamespace
 
-from headroom.proxy.handlers.openai import OpenAIHandlerMixin
-from headroom.transforms.content_router import (
+from horizon.proxy.handlers.openai import OpenAIHandlerMixin
+from horizon.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     RouterCompressionResult,
@@ -100,8 +100,8 @@ def test_responses_view_tool_read_stays_verbatim():
 
 
 def test_responses_bash_read_command_stays_verbatim_when_protect_reads(monkeypatch):
-    """HEADROOM_PROTECT_READS=1 must cover bash file reads on the Responses path too."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    """HORIZON_PROTECT_READS=1 must cover bash file reads on the Responses path too."""
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     payload = {
         "model": "gpt-5",
@@ -151,8 +151,8 @@ def test_responses_excluded_read_tool_stays_verbatim_control():
 
 
 def test_responses_bash_read_compresses_when_protect_reads_disabled(monkeypatch):
-    """Control: with HEADROOM_PROTECT_READS unset/0, bash reads stay compressible."""
-    monkeypatch.delenv("HEADROOM_PROTECT_READS", raising=False)
+    """Control: with HORIZON_PROTECT_READS unset/0, bash reads stay compressible."""
+    monkeypatch.delenv("HORIZON_PROTECT_READS", raising=False)
     handler = _handler_with_router(_lossy_router())
     payload = {
         "model": "gpt-5",
@@ -179,7 +179,7 @@ def test_responses_bash_read_compresses_when_protect_reads_disabled(monkeypatch)
 
 def test_responses_non_read_bash_command_still_compresses(monkeypatch):
     """Protection is type-specific: test/build/search output stays compressible."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     payload = {
         "model": "gpt-5",
@@ -207,7 +207,7 @@ def test_responses_non_read_bash_command_still_compresses(monkeypatch):
 def test_responses_lockfile_read_stays_compressible(monkeypatch):
     """Lockfiles are tool-regenerated, never byte-patched: the command-level
     carve-out keeps `cat uv.lock` compressible even with protection on."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     payload = {
         "model": "gpt-5",
@@ -234,7 +234,7 @@ def test_responses_lockfile_read_stays_compressible(monkeypatch):
 
 def test_responses_local_shell_call_read_stays_verbatim(monkeypatch):
     """Codex native shell: local_shell_call.action.command (argv) read protected."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     payload = {
         "model": "gpt-5",
@@ -318,7 +318,7 @@ def test_responses_view_json_shaped_output_stays_byte_exact():
 
 def test_responses_malformed_arguments_do_not_break_extraction(monkeypatch):
     """Malformed function_call arguments yield no command -> normal compression."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     payload = {
         "model": "gpt-5",
@@ -345,7 +345,7 @@ def test_responses_malformed_arguments_do_not_break_extraction(monkeypatch):
 
 def test_responses_protected_read_survives_cross_turn_dedup(monkeypatch):
     """A repeated protected read must not be replaced by a [↑…] dedup pointer."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     router = _lossy_router()
     router._cross_turn_dedup_enabled = True
     handler = _handler_with_router(router)
@@ -386,7 +386,7 @@ def test_responses_protected_read_survives_cross_turn_dedup(monkeypatch):
 def test_responses_debug_path_with_excluded_list_output(monkeypatch):
     """Regression: debug logging over an excluded tool's content-part output must
     not raise (latent unbound `fold` variable in the list branch)."""
-    from headroom.proxy.handlers import openai as openai_handler
+    from horizon.proxy.handlers import openai as openai_handler
 
     monkeypatch.setattr(openai_handler, "_log_codex_compression_debug", lambda *a, **k: None)
     handler = _handler_with_router(_lossy_router())
@@ -415,8 +415,8 @@ def test_responses_debug_path_with_excluded_list_output(monkeypatch):
 
 def test_responses_read_command_with_releasable_json_output_compresses(monkeypatch):
     """Content gate: a read command whose output is confidently DATA (JSON array)
-    is released to compression even with HEADROOM_PROTECT_READS=1."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    is released to compression even with HORIZON_PROTECT_READS=1."""
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     json_output = "[" + ",".join(f'{{"line": {i}, "text": "value {i}"}}' for i in range(60)) + "]"
     payload = {
@@ -444,7 +444,7 @@ def test_responses_read_command_with_releasable_json_output_compresses(monkeypat
 
 def test_responses_local_shell_call_string_command_read_stays_verbatim(monkeypatch):
     """local_shell_call with a string (not argv) command is also covered."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     payload = {
         "model": "gpt-5",
@@ -469,10 +469,10 @@ def test_responses_local_shell_call_string_command_read_stays_verbatim(monkeypat
 
 def test_responses_debug_path_with_read_protected_output(monkeypatch):
     """Debug logging over a read-protected output records and does not raise."""
-    from headroom.proxy.handlers import openai as openai_handler
+    from horizon.proxy.handlers import openai as openai_handler
 
     monkeypatch.setattr(openai_handler, "_log_codex_compression_debug", lambda *a, **k: None)
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     payload = {
         "model": "gpt-5",
@@ -499,7 +499,7 @@ def test_responses_debug_path_with_read_protected_output(monkeypatch):
 def test_responses_read_scan_tolerates_non_dict_and_missing_call_id(monkeypatch):
     """The producer scan must skip non-dict items and calls without a string
     call_id without breaking normal compression."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     payload = {
         "model": "gpt-5",
@@ -557,7 +557,7 @@ def _codex_exec_output(call_id: str, text: str) -> dict:
 
 
 def test_custom_tool_call_commands_parses_codex_exec_input():
-    from headroom.transforms.content_router import _custom_tool_call_commands
+    from horizon.transforms.content_router import _custom_tool_call_commands
 
     call = _codex_exec_call("c", "sed -n '1,80p' tenacity/wait.py", "rg -n 'def f' src")
     assert _custom_tool_call_commands(call["input"]) == [
@@ -572,7 +572,7 @@ def test_custom_tool_call_commands_parses_codex_exec_input():
 
 
 def test_custom_tool_call_commands_ignores_other_shapes():
-    from headroom.transforms.content_router import _custom_tool_call_commands
+    from horizon.transforms.content_router import _custom_tool_call_commands
 
     assert _custom_tool_call_commands(None) == []
     assert _custom_tool_call_commands({"cmd": "cat f"}) == []
@@ -581,7 +581,7 @@ def test_custom_tool_call_commands_ignores_other_shapes():
 
 def test_custom_tool_call_commands_marks_non_literal_cmd_unknown():
     """A cmd that is not a whole string literal may still be a read: None, not skipped."""
-    from headroom.transforms.content_router import _custom_tool_call_commands
+    from horizon.transforms.content_router import _custom_tool_call_commands
 
     for script in (
         "tools.exec_command(notJson)",
@@ -602,7 +602,7 @@ def test_custom_tool_call_commands_marks_non_literal_cmd_unknown():
 
 def test_custom_tool_call_commands_parses_javascript_object_literals():
     """Codex usually writes the argument as a JS literal, not JSON (bare `cmd` key)."""
-    from headroom.transforms.content_router import _custom_tool_call_commands
+    from horizon.transforms.content_router import _custom_tool_call_commands
 
     script = (
         'const a = await tools.exec_command({cmd:"cat /tmp/app.js","workdir":"/tmp"});\n'
@@ -622,7 +622,7 @@ def test_custom_tool_call_commands_parses_javascript_object_literals():
 
 def test_responses_codex_exec_javascript_literal_read_stays_verbatim(monkeypatch):
     """The same read with Codex's usual bare-key argument must also stay verbatim."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     output = _codex_exec_output("call_exec", _NL_OUTPUT)
     call = {
@@ -644,7 +644,7 @@ def test_responses_codex_exec_javascript_literal_read_stays_verbatim(monkeypatch
 
 def test_responses_codex_exec_concatenated_cmd_stays_verbatim(monkeypatch):
     """`"c" + "at f"` runs `cat f`: an unparsed cmd must not release the read."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     output = _codex_exec_output("call_exec", _NL_OUTPUT)
     call = {
@@ -666,7 +666,7 @@ def test_responses_codex_exec_concatenated_cmd_stays_verbatim(monkeypatch):
 
 def test_responses_codex_exec_read_stays_verbatim(monkeypatch):
     """Codex's `exec` custom tool: a sed/nl file read must reach the model verbatim."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     output = _codex_exec_output("call_exec", _NL_OUTPUT)
     payload = {
@@ -684,7 +684,7 @@ def test_responses_codex_exec_read_stays_verbatim(monkeypatch):
 
 def test_responses_codex_exec_script_with_a_read_among_commands_stays_verbatim(monkeypatch):
     """One script, one output: protect it when any command in the script is a read."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     output = _codex_exec_output("call_multi", _NL_OUTPUT)
     payload = {
@@ -704,7 +704,7 @@ def test_responses_codex_exec_script_with_a_read_among_commands_stays_verbatim(m
 
 def test_responses_codex_exec_test_output_still_compresses(monkeypatch):
     """Control: a Codex `exec` running tests is not a read and stays compressible."""
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
     handler = _handler_with_router(_lossy_router())
     payload = {
         "model": "gpt-5",

@@ -26,7 +26,7 @@ pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.proxy.server import ProxyConfig, create_app
 
 
 class _CountingMockTransport(httpx.AsyncBaseTransport):
@@ -371,7 +371,7 @@ _FakeWebSocketDisconnect.__name__ = "WebSocketDisconnect_Fake"
 
 
 class _FakeUpstream:
-    """Fake upstream connection that records frames sent by Headroom."""
+    """Fake upstream connection that records frames sent by Horizon."""
 
     def __init__(self, events: list[str]) -> None:
         self._events = list(events)

@@ -9,12 +9,12 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from headroom.capture.network_diff import (
+from horizon.capture.network_diff import (
     compare_captures,
     load_capture_file,
     render_markdown_report,
 )
-from headroom.cli.main import main
+from horizon.cli.main import main
 
 
 def _write_jsonl(path: Path, records: list[dict[str, object]]) -> None:
@@ -37,7 +37,7 @@ def _load_capture_addon(
     token: str | None,
     *,
     include_hosts: str = "api.anthropic.com",
-    token_hosts: str = "headroom-proxy",
+    token_hosts: str = "horizon-proxy",
 ):
     fake_http = types.SimpleNamespace(HTTPFlow=object)
     fake_mitmproxy = types.ModuleType("mitmproxy")
@@ -60,12 +60,12 @@ def _load_capture_addon(
     return module
 
 
-def test_network_capture_injects_token_only_on_included_headroom_client_lane(
+def test_network_capture_injects_token_only_on_included_horizon_client_lane(
     monkeypatch, tmp_path: Path
 ) -> None:
     token = "capture-secret"
-    headroom_addon = _load_capture_addon(monkeypatch, tmp_path, "headroom-client", token)
-    headroom_flow = types.SimpleNamespace(
+    horizon_addon = _load_capture_addon(monkeypatch, tmp_path, "horizon-client", token)
+    horizon_flow = types.SimpleNamespace(
         request=types.SimpleNamespace(
             headers=_Headers(),
             pretty_host="api.anthropic.com",
@@ -73,21 +73,21 @@ def test_network_capture_injects_token_only_on_included_headroom_client_lane(
             method="POST",
             raw_content=b"{}",
         ),
-        server_conn=types.SimpleNamespace(address=("headroom-proxy", 8787)),
+        server_conn=types.SimpleNamespace(address=("horizon-proxy", 8787)),
         response=types.SimpleNamespace(
-            headers=_Headers({"X-Headroom-Proxy-Token": token}),
+            headers=_Headers({"X-Horizon-Proxy-Token": token}),
             raw_content=b"{}",
             status_code=200,
         ),
     )
 
-    headroom_addon.request(headroom_flow)
+    horizon_addon.request(horizon_flow)
 
-    assert headroom_flow.request.headers == {"X-Headroom-Proxy-Token": token}
-    headroom_addon.response(headroom_flow)
-    record = json.loads((tmp_path / "headroom-client.jsonl").read_text(encoding="utf-8"))
-    assert record["request_headers"]["X-Headroom-Proxy-Token"] == "<redacted>"
-    assert record["response_headers"]["X-Headroom-Proxy-Token"] == "<redacted>"
+    assert horizon_flow.request.headers == {"X-Horizon-Proxy-Token": token}
+    horizon_addon.response(horizon_flow)
+    record = json.loads((tmp_path / "horizon-client.jsonl").read_text(encoding="utf-8"))
+    assert record["request_headers"]["X-Horizon-Proxy-Token"] == "<redacted>"
+    assert record["response_headers"]["X-Horizon-Proxy-Token"] == "<redacted>"
 
     outside_flow = types.SimpleNamespace(
         request=types.SimpleNamespace(
@@ -97,7 +97,7 @@ def test_network_capture_injects_token_only_on_included_headroom_client_lane(
         server_conn=types.SimpleNamespace(address=("other.example.com", 443)),
     )
 
-    headroom_addon.request(outside_flow)
+    horizon_addon.request(outside_flow)
 
     assert outside_flow.request.headers == {}
 
@@ -107,7 +107,7 @@ def test_network_capture_injects_token_only_on_included_headroom_client_lane(
             headers=_Headers(),
             pretty_host="api.anthropic.com",
         ),
-        server_conn=types.SimpleNamespace(address=("headroom-proxy", 8787)),
+        server_conn=types.SimpleNamespace(address=("horizon-proxy", 8787)),
     )
 
     direct_addon.request(direct_flow)
@@ -121,23 +121,23 @@ def test_network_capture_token_destination_allowlist_is_independent_of_logging_f
     addon = _load_capture_addon(
         monkeypatch,
         tmp_path,
-        "headroom-client",
+        "horizon-client",
         "capture-secret",
         include_hosts="other.example.com",
     )
     flow = types.SimpleNamespace(
         request=types.SimpleNamespace(headers=_Headers(), pretty_host="api.anthropic.com"),
-        server_conn=types.SimpleNamespace(address=("headroom-proxy", 8787)),
+        server_conn=types.SimpleNamespace(address=("horizon-proxy", 8787)),
     )
     addon.request(flow)
-    assert flow.request.headers == {"X-Headroom-Proxy-Token": "capture-secret"}
+    assert flow.request.headers == {"X-Horizon-Proxy-Token": "capture-secret"}
 
     empty_allowlist = _load_capture_addon(
-        monkeypatch, tmp_path, "headroom-client", "capture-secret", token_hosts=""
+        monkeypatch, tmp_path, "horizon-client", "capture-secret", token_hosts=""
     )
     empty_flow = types.SimpleNamespace(
         request=types.SimpleNamespace(headers=_Headers(), pretty_host="api.anthropic.com"),
-        server_conn=types.SimpleNamespace(address=("headroom-proxy", 8787)),
+        server_conn=types.SimpleNamespace(address=("horizon-proxy", 8787)),
     )
     empty_allowlist.request(empty_flow)
     assert empty_flow.request.headers == {}
@@ -145,7 +145,7 @@ def test_network_capture_token_destination_allowlist_is_independent_of_logging_f
 
 def test_network_diff_redacts_and_reports_body_json_deltas(tmp_path: Path) -> None:
     direct_path = tmp_path / "direct.jsonl"
-    headroom_path = tmp_path / "headroom.jsonl"
+    horizon_path = tmp_path / "horizon.jsonl"
     _write_jsonl(
         direct_path,
         [
@@ -166,16 +166,16 @@ def test_network_diff_redacts_and_reports_body_json_deltas(tmp_path: Path) -> No
         ],
     )
     _write_jsonl(
-        headroom_path,
+        horizon_path,
         [
             {
-                "lane": "headroom",
+                "lane": "horizon",
                 "method": "POST",
                 "url": "https://api.anthropic.com/v1/messages?api_key=secret",
                 "request_headers": {
                     "authorization": "Bearer other",
                     "anthropic-version": "2023-06-01",
-                    "x-headroom-mode": "optimize",
+                    "x-horizon-mode": "optimize",
                 },
                 "request_body_b64": _body(
                     {
@@ -191,20 +191,20 @@ def test_network_diff_redacts_and_reports_body_json_deltas(tmp_path: Path) -> No
     )
 
     direct = load_capture_file(direct_path, fallback_lane="direct")
-    headroom = load_capture_file(headroom_path, fallback_lane="headroom")
+    horizon = load_capture_file(horizon_path, fallback_lane="horizon")
 
     assert direct[0].url == "https://api.anthropic.com/v1/messages?api_key=%3Credacted%3E"
     assert direct[0].request_headers["authorization"] == "<redacted>"
 
-    diff = compare_captures(direct, headroom)
+    diff = compare_captures(direct, horizon)
     assert diff.direct_count == 1
-    assert diff.headroom_count == 1
+    assert diff.horizon_count == 1
     paired = diff.paired[0]
-    assert paired["headers"]["only_headroom"] == ["x-headroom-mode"]
-    assert "$.metadata" in paired["json"]["only_headroom"]
+    assert paired["headers"]["only_horizon"] == ["x-horizon-mode"]
+    assert "$.metadata" in paired["json"]["only_horizon"]
     assert "$.messages[0].content" in paired["json"]["changed"]
     assert paired["anthropic"]["direct"]["tools_count"] == 0
-    assert paired["anthropic"]["headroom"]["tools_count"] == 1
+    assert paired["anthropic"]["horizon"]["tools_count"] == 1
 
     markdown = render_markdown_report(diff)
     assert "Differential Network Capture Report" in markdown
@@ -214,7 +214,7 @@ def test_network_diff_redacts_and_reports_body_json_deltas(tmp_path: Path) -> No
 
 def test_network_diff_cli_writes_markdown_and_json(tmp_path: Path) -> None:
     direct_path = tmp_path / "direct.jsonl"
-    headroom_path = tmp_path / "headroom.jsonl"
+    horizon_path = tmp_path / "horizon.jsonl"
     markdown_path = tmp_path / "report.md"
     json_path = tmp_path / "report.json"
     record = {
@@ -225,7 +225,7 @@ def test_network_diff_cli_writes_markdown_and_json(tmp_path: Path) -> None:
         "response_status": 200,
     }
     _write_jsonl(direct_path, [record])
-    _write_jsonl(headroom_path, [record])
+    _write_jsonl(horizon_path, [record])
 
     result = CliRunner().invoke(
         main,
@@ -234,8 +234,8 @@ def test_network_diff_cli_writes_markdown_and_json(tmp_path: Path) -> None:
             "network-diff",
             "--direct",
             str(direct_path),
-            "--headroom",
-            str(headroom_path),
+            "--horizon",
+            str(horizon_path),
             "--output",
             str(markdown_path),
             "--json-output",
@@ -248,4 +248,4 @@ def test_network_diff_cli_writes_markdown_and_json(tmp_path: Path) -> None:
     assert "Differential Network Capture Report" in markdown_path.read_text(encoding="utf-8")
     payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert payload["direct_count"] == 1
-    assert payload["headroom_count"] == 1
+    assert payload["horizon_count"] == 1

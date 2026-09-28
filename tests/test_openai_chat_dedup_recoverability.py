@@ -1,7 +1,7 @@
 """OpenAI chat-completions: cross-turn dedup pointers are recoverability-gated.
 
 The fold rewrites a repeated tool-output span to a bare ``[↑NL same as msg M]``
-pointer naming Headroom's internal message index. On the STREAMING chat path
+pointer naming Horizon's internal message index. On the STREAMING chat path
 (``wrap copilot``) the CCR retrieval tool cannot be injected — the path cannot
 intercept tool calls — and OpenAI-compatible clients never show the model
 numbered messages, so the pointer is unresolvable: models read it as deleted
@@ -12,7 +12,7 @@ buffered (non-streaming) path — where the retrieval tool IS injectable — kee
 folding.
 
 These tests drive the real ``/v1/chat/completions`` handler through a TestClient
-with dedup force-enabled (``HEADROOM_DEDUPE=1``) and capture the exact upstream
+with dedup force-enabled (``HORIZON_DEDUPE=1``) and capture the exact upstream
 request body, the same evidence the proxy logs showed when the bug bit.
 """
 
@@ -26,7 +26,7 @@ httpx = pytest.importorskip("httpx")
 from fastapi.responses import StreamingResponse  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 _SPAN = "\n".join(f"    result_{i} = compute_overdraft(business_id={i})" for i in range(12))
 
@@ -63,7 +63,7 @@ def test_streaming_chat_keeps_verbatim_bytes_no_dedup_pointer(monkeypatch):
     """The bug: a streaming chat request with a repeated span got a bare
     ``[↑NL same as msg M]`` pointer the model cannot resolve. Now the upstream
     body must carry the repeated bytes verbatim."""
-    monkeypatch.setenv("HEADROOM_DEDUPE", "1")  # before create_app: router reads env at init
+    monkeypatch.setenv("HORIZON_DEDUPE", "1")  # before create_app: router reads env at init
     captured: list[dict] = []
 
     async def fake_stream(url, headers, body, *args, **kwargs):
@@ -87,7 +87,7 @@ def test_lossless_buffered_chat_also_skips_the_fold(monkeypatch):
     the recoverability predicate is False for buffered chat too and the fold
     is skipped there as well (no retrieval tool exists to redeem anything in
     no-CCR mode). Bytes stay verbatim; the conservative direction is intended."""
-    monkeypatch.setenv("HEADROOM_DEDUPE", "1")
+    monkeypatch.setenv("HORIZON_DEDUPE", "1")
     captured: list[dict] = []
 
     async def fake_retry(method, url, headers, body, *args, **kwargs):
@@ -126,7 +126,7 @@ def test_buffered_chat_still_folds_repeated_tool_output(monkeypatch):
     """The recoverable counterpart: non-streaming chat can inject the CCR
     retrieval tool, so the in-context pointer stays resolvable and the
     repeated span still folds (today's behavior, unchanged)."""
-    monkeypatch.setenv("HEADROOM_DEDUPE", "1")
+    monkeypatch.setenv("HORIZON_DEDUPE", "1")
     captured: list[dict] = []
 
     async def fake_retry(method, url, headers, body, *args, **kwargs):

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from headroom.proxy.tool_schema_savings_policy import (
+from horizon.proxy.tool_schema_savings_policy import (
     TOOL_SCHEMA_SAVINGS_TAGS,
     headline_tokens_saved,
     tool_schema_saved_from_tags,
 )
 
 
-def test_tool_schema_saved_from_tags_sums_headroom_deferral_tags() -> None:
+def test_tool_schema_saved_from_tags_sums_horizon_deferral_tags() -> None:
     assert (
         tool_schema_saved_from_tags(
             {
@@ -45,7 +45,7 @@ def test_tool_schema_savings_tags_are_stable() -> None:
 
 
 # ── headline_tokens_saved: the one figure every surface reports ────────────────
-# Headroom saves tool-definition tokens in two accounting shapes — compaction
+# Horizon saves tool-definition tokens in two accounting shapes — compaction
 # folds into tokens_saved, deferral is tagged and additive. Both existed before
 # but the rule was never written down, so two harnesses dropped their compaction
 # savings and three surfaces open-coded the sum. These cases pin the contract.
@@ -100,8 +100,8 @@ def test_tool_schema_compaction_saves_real_tokens_not_just_bytes() -> None:
     """
     import json
 
-    from headroom.providers.anthropic import AnthropicProvider
-    from headroom.proxy.tool_schema_compaction import compact_tools
+    from horizon.providers.anthropic import AnthropicProvider
+    from horizon.proxy.tool_schema_compaction import compact_tools
 
     tok = AnthropicProvider().get_token_counter("claude-sonnet-4-6")
     payload = {

@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from headroom.dashboard import get_dashboard_html
+from horizon.dashboard import get_dashboard_html
 
 
 class _StatsStub:
@@ -25,15 +25,15 @@ class _ToinStub:
 
 @pytest.fixture(autouse=True)
 def _stub_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HEADROOM_REQUIRE_RUST_CORE", "false")
+    monkeypatch.setenv("HORIZON_REQUIRE_RUST_CORE", "false")
 
 
 def test_stats_cached_query_reuses_short_ttl_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
-    import headroom.proxy.server as server
-    from headroom.proxy.server import ProxyConfig, create_app
+    import horizon.proxy.server as server
+    from horizon.proxy.server import ProxyConfig, create_app
 
     calls = {"store": 0, "telemetry": 0, "feedback": 0}
     now = {"value": 100.0}
@@ -92,7 +92,7 @@ def test_stats_cached_query_reuses_short_ttl_snapshot(monkeypatch: pytest.Monkey
 
 
 def test_session_summary_surfaces_codex_ws_counters() -> None:
-    from headroom.proxy.cost import build_session_summary
+    from horizon.proxy.cost import build_session_summary
 
     proxy = SimpleNamespace(
         config=SimpleNamespace(mode="token"),
@@ -120,9 +120,9 @@ def test_stats_reset_clears_runtime_proxy_counters(monkeypatch: pytest.MonkeyPat
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
-    import headroom.proxy.server as server
-    from headroom.proxy.loopback_guard import require_loopback
-    from headroom.proxy.server import ProxyConfig, create_app
+    import horizon.proxy.server as server
+    from horizon.proxy.loopback_guard import require_loopback
+    from horizon.proxy.server import ProxyConfig, create_app
 
     monkeypatch.setattr(
         server,
@@ -204,7 +204,7 @@ def test_dashboard_session_metrics_do_not_repeat_proxy_tokens_without_new_contex
     html = get_dashboard_html()
 
     assert "proxy tokens removed" not in html
-    assert '<span class="text-sm text-gray-400">Headroom Overhead</span>' not in html
+    assert '<span class="text-sm text-gray-400">Horizon Overhead</span>' not in html
     assert '<span class="text-sm text-gray-400">TTFB (upstream)</span>' not in html
     assert "Overhead Range" in html
     assert "TTFB Range" in html
@@ -215,27 +215,27 @@ def test_proxy_throughput_in_stats_endpoint(monkeypatch: pytest.MonkeyPatch) -> 
     """Verify that the /stats endpoint includes a 'throughput' key in the response.
 
     The server's _compute_throughput closure does a fresh
-    `from headroom.perf.analyzer import ...` on every call, so we patch the
-    names directly on the `headroom.perf.analyzer` module so the local import
+    `from horizon.perf.analyzer import ...` on every call, so we patch the
+    names directly on the `horizon.perf.analyzer` module so the local import
     inside the closure picks up our fakes.
 
-    Skipped locally when headroom._core (Rust extension) is not compiled.
+    Skipped locally when horizon._core (Rust extension) is not compiled.
     """
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
-    import headroom.perf.analyzer as _analyzer_mod
+    import horizon.perf.analyzer as _analyzer_mod
 
     try:
-        from headroom.proxy.server import (
+        from horizon.proxy.server import (
             _throughput_cache,
             create_app,
             require_loopback,
         )
     except (ImportError, ModuleNotFoundError) as exc:
-        pytest.skip(f"headroom._core not available (Rust extension not compiled): {exc}")
+        pytest.skip(f"horizon._core not available (Rust extension not compiled): {exc}")
 
-    from headroom.config import ProxyConfig
+    from horizon.config import ProxyConfig
 
     # Reset the module-level cache so CI doesn't reuse a stale value
     _throughput_cache.update({"expires_at": 0.0, "value": None})

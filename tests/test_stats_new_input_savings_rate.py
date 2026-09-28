@@ -14,12 +14,12 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 
-from headroom import savings_ledger
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon import savings_ledger
+from horizon.proxy.server import ProxyConfig, create_app
 
 
 def _make_client(tmp_path, monkeypatch) -> TestClient:
-    monkeypatch.setenv("HEADROOM_SAVINGS_PATH", str(tmp_path / "proxy_savings.json"))
+    monkeypatch.setenv("HORIZON_SAVINGS_PATH", str(tmp_path / "proxy_savings.json"))
     config = ProxyConfig(
         cache_enabled=False,
         rate_limit_enabled=False,
@@ -122,7 +122,7 @@ def test_stats_new_input_rate_pairs_savings_with_qualified_requests(tmp_path, mo
 
 
 def test_stats_and_ledger_share_one_new_input_cohort(tmp_path, monkeypatch):
-    """The dashboard rate and `headroom savings` must be the same measurement.
+    """The dashboard rate and `horizon savings` must be the same measurement.
 
     /stats accumulated its new-input pair under a cache-ACTIVITY gate while the
     ledger writes under a newly-BILLED-input one, so the two admitted different

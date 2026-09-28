@@ -1,6 +1,6 @@
 """Fixture recorder for the Rust-vs-Python parity harness.
 
-This module is new (no modifications to existing Python under `headroom/`).
+This module is new (no modifications to existing Python under `horizon/`).
 It provides a decorator that captures `(input, config, output)` triples and
 writes them as JSON fixtures under
 `tests/parity/fixtures/<transform_name>/<hash>.json`.
@@ -36,7 +36,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
 
-LOG = logging.getLogger("headroom.parity.recorder")
+LOG = logging.getLogger("horizon.parity.recorder")
 
 # tests/parity/recorder.py -> repo root -> tests/parity/fixtures
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -202,7 +202,7 @@ def record_all(root: Path | None = None) -> dict[str, str]:
 
     # --- log_compressor ----------------------------------------------------
     try:
-        from headroom.transforms.log_compressor import LogCompressor
+        from horizon.transforms.log_compressor import LogCompressor
 
         _wrap_method(LogCompressor, "compress", "log_compressor", root=root)
         statuses["log_compressor"] = "patched"
@@ -211,7 +211,7 @@ def record_all(root: Path | None = None) -> dict[str, str]:
 
     # --- diff_compressor ---------------------------------------------------
     try:
-        from headroom.transforms.diff_compressor import DiffCompressor
+        from horizon.transforms.diff_compressor import DiffCompressor
 
         _wrap_method(DiffCompressor, "compress", "diff_compressor", root=root)
         statuses["diff_compressor"] = "patched"
@@ -220,7 +220,7 @@ def record_all(root: Path | None = None) -> dict[str, str]:
 
     # --- tokenizer ---------------------------------------------------------
     try:
-        from headroom.tokenizer import Tokenizer
+        from horizon.tokenizer import Tokenizer
 
         _wrap_method(Tokenizer, "count_text", "tokenizer", root=root)
         statuses["tokenizer"] = "patched"
@@ -232,7 +232,7 @@ def record_all(root: Path | None = None) -> dict[str, str]:
     # requires building a tokenizer. We do that in the workload driver, but
     # still install the patch here so calls made elsewhere are captured.
     try:
-        from headroom.transforms.cache_aligner import CacheAligner
+        from horizon.transforms.cache_aligner import CacheAligner
 
         _wrap_method(
             CacheAligner,
@@ -252,7 +252,7 @@ def record_all(root: Path | None = None) -> dict[str, str]:
     # response-handler decode path is async + requires a batch store, so it
     # is recorded only from the workload driver with a real injected call.
     try:
-        from headroom.ccr.tool_injection import CCRToolInjector
+        from horizon.ccr.tool_injection import CCRToolInjector
 
         _wrap_method(
             CCRToolInjector,
@@ -268,7 +268,7 @@ def record_all(root: Path | None = None) -> dict[str, str]:
     # `detect_content_type` is a module-level function, so we monkey-patch
     # the module attribute rather than a class method.
     try:
-        from headroom.transforms import content_detector as _cd_mod
+        from horizon.transforms import content_detector as _cd_mod
 
         _wrap_function(
             _cd_mod,
@@ -287,7 +287,7 @@ def record_all(root: Path | None = None) -> dict[str, str]:
     # constructs it with enable_ccr=False so the recorded output is the pure
     # joined kept-word stream (deterministic, store-independent).
     try:
-        from headroom.transforms.kompress_compressor import KompressCompressor
+        from horizon.transforms.kompress_compressor import KompressCompressor
 
         _wrap_method(KompressCompressor, "compress", "kompress", root=root)
         statuses["kompress"] = "patched"
@@ -301,7 +301,7 @@ def record_all(root: Path | None = None) -> dict[str, str]:
     # + fallback_to_kompress=False so output is deterministic and
     # store/model-independent.
     try:
-        from headroom.transforms.code_compressor import CodeAwareCompressor
+        from horizon.transforms.code_compressor import CodeAwareCompressor
 
         _wrap_method(CodeAwareCompressor, "compress", "code_aware_compressor", root=root)
         statuses["code_aware_compressor"] = "patched"
@@ -784,7 +784,7 @@ def run_default_workload(root: Path | None = None) -> dict[str, int]:
 
     # log_compressor
     try:
-        from headroom.transforms.log_compressor import LogCompressor
+        from horizon.transforms.log_compressor import LogCompressor
 
         lc = LogCompressor()
         for s in _varied_log_inputs():
@@ -795,7 +795,7 @@ def run_default_workload(root: Path | None = None) -> dict[str, int]:
 
     # diff_compressor
     try:
-        from headroom.transforms.diff_compressor import DiffCompressor
+        from horizon.transforms.diff_compressor import DiffCompressor
 
         dc = DiffCompressor()
         for s in _varied_diff_inputs():
@@ -806,8 +806,8 @@ def run_default_workload(root: Path | None = None) -> dict[str, int]:
 
     # tokenizer
     try:
-        from headroom.providers.openai import OpenAITokenCounter
-        from headroom.tokenizer import Tokenizer
+        from horizon.providers.openai import OpenAITokenCounter
+        from horizon.tokenizer import Tokenizer
 
         tok = Tokenizer(OpenAITokenCounter("gpt-4o-mini"), model="gpt-4o-mini")
         for s in _varied_text_inputs():
@@ -818,9 +818,9 @@ def run_default_workload(root: Path | None = None) -> dict[str, int]:
 
     # cache_aligner — needs Tokenizer; reuse the one above
     try:
-        from headroom.providers.openai import OpenAITokenCounter
-        from headroom.tokenizer import Tokenizer
-        from headroom.transforms.cache_aligner import CacheAligner
+        from horizon.providers.openai import OpenAITokenCounter
+        from horizon.tokenizer import Tokenizer
+        from horizon.transforms.cache_aligner import CacheAligner
 
         tok = Tokenizer(OpenAITokenCounter("gpt-4o-mini"), model="gpt-4o-mini")
         aligner = CacheAligner()
@@ -836,7 +836,7 @@ def run_default_workload(root: Path | None = None) -> dict[str, int]:
     # compression markers, so we force `has_compressed_content` by planting
     # a hash in the detected set directly.
     try:
-        from headroom.ccr.tool_injection import CCRToolInjector
+        from horizon.ccr.tool_injection import CCRToolInjector
 
         for i in range(25):
             injector = CCRToolInjector(provider="anthropic" if i % 2 == 0 else "openai")
@@ -861,7 +861,7 @@ def run_default_workload(root: Path | None = None) -> dict[str, int]:
     # branch (json_array, diff, html, search, log, code-by-language,
     # plain-text fallback) is exercised at least once.
     try:
-        from headroom.transforms import content_detector as _cd_mod
+        from horizon.transforms import content_detector as _cd_mod
 
         for s in _varied_content_detector_inputs():
             _cd_mod.detect_content_type(s)
@@ -874,7 +874,7 @@ def run_default_workload(root: Path | None = None) -> dict[str, int]:
     # when onnxruntime / the model are unavailable (the Rust comparator
     # likewise skips when the model is not cached).
     try:
-        from headroom.transforms.kompress_compressor import (
+        from horizon.transforms.kompress_compressor import (
             KompressCompressor,
             KompressConfig,
         )
@@ -892,7 +892,7 @@ def run_default_workload(root: Path | None = None) -> dict[str, int]:
     # fallback_to_kompress=False keep output deterministic. Soft-fails when
     # the per-language grammar wheels aren't installed.
     try:
-        from headroom.transforms.code_compressor import (
+        from horizon.transforms.code_compressor import (
             CodeAwareCompressor,
             CodeCompressorConfig,
         )
@@ -933,7 +933,7 @@ def install_individual_grammar_parsers() -> None:
     import tree_sitter_typescript
     from tree_sitter import Language, Parser
 
-    from headroom.transforms import code_compressor as cc
+    from horizon.transforms import code_compressor as cc
 
     langs = {
         "python": Language(tree_sitter_python.language()),

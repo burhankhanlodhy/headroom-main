@@ -1,1 +1,1 @@
-"""Tests for Headroom storage implementations."""
+"""Tests for Horizon storage implementations."""

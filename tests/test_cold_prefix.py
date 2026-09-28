@@ -10,12 +10,12 @@ it to the router gate: unrecoverable paths keep the bytes verbatim, the
 Anthropic cache-mode caller (default True) keeps folding.
 """
 
-from headroom.transforms.cold_prefix import cold_recompact_messages
+from horizon.transforms.cold_prefix import cold_recompact_messages
 
 
 def _mk_tok():
-    from headroom.providers import OpenAIProvider
-    from headroom.tokenizer import Tokenizer
+    from horizon.providers import OpenAIProvider
+    from horizon.tokenizer import Tokenizer
 
     return Tokenizer(OpenAIProvider().get_token_counter("gpt-4o"), "gpt-4o")
 

@@ -16,17 +16,17 @@ from pathlib import Path
 
 import pytest
 
-from headroom.cache.compression_feedback import (
+from horizon.cache.compression_feedback import (
     get_compression_feedback,
     reset_compression_feedback,
 )
-from headroom.cache.compression_store import (
+from horizon.cache.compression_store import (
     RetrievalEvent,
     get_compression_store,
     reset_compression_store,
 )
-from headroom.telemetry import ToolSignature
-from headroom.telemetry.toin import (
+from horizon.telemetry import ToolSignature
+from horizon.telemetry.toin import (
     TOINConfig,
     ToolIntelligenceNetwork,
     get_toin,

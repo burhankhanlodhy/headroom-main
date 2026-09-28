@@ -16,7 +16,7 @@ from collections.abc import Iterator
 
 import pytest
 
-from headroom.dashboard import get_dashboard_html, get_settings_html
+from horizon.dashboard import get_dashboard_html, get_settings_html
 from tests.test_dashboard_cache_net_playwright import _open_dashboard
 from tests.test_dashboard_cache_ttl_playwright import _sample_stats
 

@@ -26,9 +26,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from headroom.cache.backends.memory import InMemoryBackend
-from headroom.cache.backends.sqlite import SQLiteBackend
-from headroom.cache.compression_store import (
+from horizon.cache.backends.memory import InMemoryBackend
+from horizon.cache.backends.sqlite import SQLiteBackend
+from horizon.cache.compression_store import (
     CCR_TTL_SECONDS_ENV,
     DEFAULT_CCR_TTL_SECONDS,
     CompressionEntry,
@@ -40,9 +40,9 @@ from headroom.cache.compression_store import (
 
 
 @contextmanager
-def _capture_headroom_retrieve_events():
+def _capture_horizon_retrieve_events():
     events: list[dict[str, Any]] = []
-    prefix = "event=headroom_retrieve "
+    prefix = "event=horizon_retrieve "
 
     class _Handler(logging.Handler):
         def emit(self, record: logging.LogRecord) -> None:
@@ -50,7 +50,7 @@ def _capture_headroom_retrieve_events():
             if prefix in message:
                 events.append(json.loads(message.split(prefix, 1)[1]))
 
-    logger = logging.getLogger("headroom.cache.compression_store")
+    logger = logging.getLogger("horizon.cache.compression_store")
     previous_level = logger.level
     handler = _Handler(level=logging.INFO)
     logger.addHandler(handler)
@@ -63,7 +63,7 @@ def _capture_headroom_retrieve_events():
 
 
 def test_retrieve_logs_payload_preview(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("HEADROOM_LOG_PAYLOAD_PREVIEW", "1")
+    monkeypatch.setenv("HORIZON_LOG_PAYLOAD_PREVIEW", "1")
     store = CompressionStore(enable_feedback=False)
     hash_key = store.store(
         original="secret-ish payload for operator debugging",
@@ -75,7 +75,7 @@ def test_retrieve_logs_payload_preview(monkeypatch: pytest.MonkeyPatch):
         tool_name="tool_a",
     )
 
-    with _capture_headroom_retrieve_events() as events:
+    with _capture_horizon_retrieve_events() as events:
         entry = store.retrieve(hash_key)
 
     assert entry is not None
@@ -89,14 +89,14 @@ def test_retrieve_logs_payload_preview(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_retrieve_log_redacts_secret_payload_values(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("HEADROOM_LOG_PAYLOAD_PREVIEW", "1")
+    monkeypatch.setenv("HORIZON_LOG_PAYLOAD_PREVIEW", "1")
     store = CompressionStore(enable_feedback=False)
     hash_key = store.store(
         original="OPENAI_API_KEY=sk-proj-secret1234567890 Authorization: Bearer token123456789",
         compressed="payload",
     )
 
-    with _capture_headroom_retrieve_events() as events:
+    with _capture_horizon_retrieve_events() as events:
         entry = store.retrieve(hash_key)
 
     assert entry is not None
@@ -146,10 +146,10 @@ def test_explicit_global_store_ttl_overrides_env(monkeypatch: pytest.MonkeyPatch
 def test_entry_status_reports_expiration_metadata():
     store = CompressionStore(default_ttl=1)
 
-    with patch("headroom.cache.compression_store.time.time", return_value=1000.0):
+    with patch("horizon.cache.compression_store.time.time", return_value=1000.0):
         hash_key = store.store(original="payload", compressed="payload")
 
-    with patch("headroom.cache.compression_store.time.time", return_value=1002.0):
+    with patch("horizon.cache.compression_store.time.time", return_value=1002.0):
         status = store.get_entry_status(hash_key, clean_expired=True)
 
     assert status["status"] == "expired"
@@ -690,7 +690,7 @@ class TestCompressionStoreEviction:
         store = CompressionStore(max_entries=10, enable_feedback=False, backend=backend)
 
         with (
-            patch("headroom.cache.compression_store.time.time") as now,
+            patch("horizon.cache.compression_store.time.time") as now,
             patch.object(backend, "get", wraps=backend.get) as get,
             patch.object(backend, "delete", wraps=backend.delete) as delete,
             patch.object(backend, "items", wraps=backend.items) as items,
@@ -718,7 +718,7 @@ class TestCompressionStoreEviction:
         backend = InMemoryBackend()
         store = CompressionStore(max_entries=1, enable_feedback=False, backend=backend)
 
-        with patch("headroom.cache.compression_store.time.time") as now:
+        with patch("horizon.cache.compression_store.time.time") as now:
             now.return_value = 100.0
             old_hash = store.store(original="old", compressed="old")
             now.return_value = 101.0
@@ -754,7 +754,7 @@ class TestCompressionStoreEviction:
         store = CompressionStore(max_entries=2, enable_feedback=True, backend=backend)
         sibling_store = CompressionStore(enable_feedback=False, backend=sibling_backend)
 
-        with patch("headroom.cache.compression_store.time.time") as now:
+        with patch("horizon.cache.compression_store.time.time") as now:
             now.return_value = 90
             removed_hash = None
             if mode != "count":
@@ -835,7 +835,7 @@ class TestCompressionStoreEviction:
         backend = InMemoryBackend()
         store = CompressionStore(max_entries=2, enable_feedback=False, backend=backend)
 
-        with patch("headroom.cache.compression_store.time.time") as now:
+        with patch("horizon.cache.compression_store.time.time") as now:
             now.return_value = 100
             older_long_ttl = store.store(original="older", compressed="older", ttl=100)
             now.return_value = 110
@@ -879,7 +879,7 @@ class TestCompressionStoreEviction:
         backend = InMemoryBackend()
         store = CompressionStore(max_entries=2, enable_feedback=True, backend=backend)
 
-        with patch("headroom.cache.compression_store.time.time") as now:
+        with patch("horizon.cache.compression_store.time.time") as now:
             now.return_value = 100
             live_hash = store.store(original="live", compressed="live", ttl=100)
             now.return_value = 110
@@ -916,7 +916,7 @@ class TestCompressionStoreEviction:
         backend = _TransientMissBackend()
         store = CompressionStore(max_entries=2, enable_feedback=True, backend=backend)
 
-        with patch("headroom.cache.compression_store.time.time") as now:
+        with patch("horizon.cache.compression_store.time.time") as now:
             if misses == 1:
                 now.return_value = 80
                 store.store(original="stale", compressed="stale", ttl=100)
@@ -946,7 +946,7 @@ class TestCompressionStoreEviction:
         backend = InMemoryBackend()
         store = CompressionStore(max_entries=2, enable_feedback=False, backend=backend)
 
-        with patch("headroom.cache.compression_store.time.time") as now:
+        with patch("horizon.cache.compression_store.time.time") as now:
             now.return_value = 90
             oldest_hash = store.store(original="oldest", compressed="oldest", ttl=100)
             now.return_value = 100
@@ -965,7 +965,7 @@ class TestCompressionStoreEviction:
         backend = InMemoryBackend()
         store = CompressionStore(max_entries=2, enable_feedback=False, backend=backend)
 
-        with patch("headroom.cache.compression_store.time.time") as now:
+        with patch("horizon.cache.compression_store.time.time") as now:
             now.return_value = 100
             expired_hash = store.store(original="expired", compressed="expired", ttl=1)
             now.return_value = 102
@@ -1187,9 +1187,9 @@ class TestCompressionStoreRetrievalEvents:
         # get_retrieval_events returns newest first.
         assert [e.query for e in events] == [f"q{i}" for i in reversed(range(overflow, total))]
 
-    @patch("headroom.cache.compression_feedback.get_compression_feedback")
-    @patch("headroom.telemetry.get_telemetry_collector")
-    @patch("headroom.telemetry.toin.get_toin")
+    @patch("horizon.cache.compression_feedback.get_compression_feedback")
+    @patch("horizon.telemetry.get_telemetry_collector")
+    @patch("horizon.telemetry.toin.get_toin")
     def test_events_dropped_from_history_still_reach_feedback(
         self, mock_toin, mock_telemetry, mock_feedback
     ):
@@ -1460,9 +1460,9 @@ class TestCompressionStoreFeedback:
         events = store.get_retrieval_events()
         assert len(events) >= 1
 
-    @patch("headroom.cache.compression_feedback.get_compression_feedback")
-    @patch("headroom.telemetry.get_telemetry_collector")
-    @patch("headroom.telemetry.toin.get_toin")
+    @patch("horizon.cache.compression_feedback.get_compression_feedback")
+    @patch("horizon.telemetry.get_telemetry_collector")
+    @patch("horizon.telemetry.toin.get_toin")
     def test_process_pending_feedback_forwards_events(
         self, mock_toin, mock_telemetry, mock_feedback
     ):

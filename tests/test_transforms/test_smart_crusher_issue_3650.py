@@ -1,4 +1,4 @@
-"""Regression tests for headroomlabs-ai/headroom#3650.
+"""Regression tests for your-org/horizon#3650.
 
 Scalar (string/number/mixed) arrays used to drop items silently: the
 crusher returned only the retained items with no marker, so e.g. 120
@@ -14,8 +14,8 @@ import re
 
 import pytest
 
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
-from headroom.transforms.smart_crusher import (
+from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
+from horizon.transforms.smart_crusher import (
     is_ccr_sentinel,
     strip_ccr_sentinels,
 )
@@ -46,7 +46,7 @@ def test_scalar_sentinel_recognized_by_python_shim() -> None:
 
 def test_issue_3650_router_emits_visible_retrievable_sentinel() -> None:
     """End-to-end: the issue's payload truncates visibly and retrievably."""
-    pytest.importorskip("headroom._core")  # needs the native extension
+    pytest.importorskip("horizon._core")  # needs the native extension
     router = ContentRouter(ContentRouterConfig())
     result = router.compress(_issue_payload())
     compressed = result.compressed
@@ -62,7 +62,7 @@ def test_issue_3650_router_emits_visible_retrievable_sentinel() -> None:
     # 2. The marker retrieves the FULL original array: the Python
     #    SmartCrusher mirrors Rust CCR markers into the process
     #    compression store.
-    from headroom.cache.compression_store import get_compression_store
+    from horizon.cache.compression_store import get_compression_store
 
     entry = get_compression_store().retrieve(ccr_hash)
     assert entry is not None, "CCR marker hash must resolve in the compression store"

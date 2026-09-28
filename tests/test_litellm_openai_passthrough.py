@@ -9,7 +9,7 @@ from tests._dotenv import importorskip_no_env_leak
 
 importorskip_no_env_leak("litellm")
 
-from headroom.backends.litellm import LiteLLMBackend  # noqa: E402
+from horizon.backends.litellm import LiteLLMBackend  # noqa: E402
 
 
 class FakeAsyncStream:
@@ -28,7 +28,7 @@ class FakeAsyncStream:
 
 
 def make_backend() -> LiteLLMBackend:
-    with patch("headroom.backends.litellm._fetch_bedrock_inference_profiles", return_value={}):
+    with patch("horizon.backends.litellm._fetch_bedrock_inference_profiles", return_value={}):
         return LiteLLMBackend(provider="openrouter")
 
 
@@ -61,7 +61,7 @@ def request_body(**overrides):
 async def test_chat_template_kwargs_forwarded_buffered() -> None:
     backend = make_backend()
 
-    with patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
+    with patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
         mock_acomp.return_value = make_response()
 
         await backend.send_openai_message(
@@ -84,7 +84,7 @@ async def test_chat_template_kwargs_forwarded_streaming() -> None:
         ]
     )
 
-    with patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
+    with patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
         mock_acomp.return_value = stream
 
         chunks = [
@@ -109,7 +109,7 @@ async def test_chat_template_kwargs_forwarded_streaming() -> None:
 async def test_standard_only_body_has_no_extra_body() -> None:
     backend = make_backend()
 
-    with patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
+    with patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
         mock_acomp.return_value = make_response()
 
         await backend.send_openai_message(
@@ -125,7 +125,7 @@ async def test_standard_only_body_has_no_extra_body() -> None:
 async def test_standard_params_still_forwarded() -> None:
     backend = make_backend()
 
-    with patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
+    with patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
         mock_acomp.return_value = make_response()
 
         await backend.send_openai_message(
@@ -151,7 +151,7 @@ async def test_max_completion_tokens_forwarded_as_standard_param() -> None:
     body = request_body(max_completion_tokens=64)
     body.pop("max_tokens")
 
-    with patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
+    with patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
         mock_acomp.return_value = make_response()
 
         await backend.send_openai_message(body, {})
@@ -170,7 +170,7 @@ async def test_max_completion_tokens_forwarded_as_standard_param_streaming() -> 
         [SimpleNamespace(model_dump=lambda **kwargs: {"id": "chunk1", "choices": []})]
     )
 
-    with patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
+    with patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
         mock_acomp.return_value = stream
 
         chunks = [chunk async for chunk in backend.stream_openai_message(body, {})]
@@ -189,7 +189,7 @@ async def test_reasoning_params_forwarded_top_level_not_extra_body() -> None:
     # for the OpenAI-in -> Claude-out cross-protocol reasoning path.
     backend = make_backend()
 
-    with patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
+    with patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
         mock_acomp.return_value = make_response()
 
         await backend.send_openai_message(
@@ -212,7 +212,7 @@ async def test_reasoning_params_forwarded_top_level_streaming() -> None:
     stream = FakeAsyncStream(
         [SimpleNamespace(model_dump=lambda **kwargs: {"id": "c1", "choices": []})]
     )
-    with patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
+    with patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
         mock_acomp.return_value = stream
         _ = [
             c

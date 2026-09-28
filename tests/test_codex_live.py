@@ -20,7 +20,7 @@ import uvicorn
 import websockets
 from starlette.websockets import WebSocket
 
-from headroom.providers.codex.live import (
+from horizon.providers.codex.live import (
     CODEX_LIVE_ROUTE_PATHS,
     DEFAULT_CODEX_LIVE_WS_PATH,
     _close_info,
@@ -31,8 +31,8 @@ from headroom.providers.codex.live import (
     handle_codex_live_http,
     handle_codex_live_websocket,
 )
-from headroom.providers.codex.runtime import resolve_codex_routing
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.providers.codex.runtime import resolve_codex_routing
+from horizon.proxy.server import ProxyConfig, create_app
 
 
 def _jwt(payload: dict[str, Any]) -> str:
@@ -41,7 +41,7 @@ def _jwt(payload: dict[str, Any]) -> str:
 
 
 def test_live_aliases_are_registered_as_websocket_routes(monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_REQUIRE_RUST_CORE", "false")
+    monkeypatch.setenv("HORIZON_REQUIRE_RUST_CORE", "false")
     app = create_app(
         ProxyConfig(
             optimize=False,
@@ -98,7 +98,7 @@ def test_live_auth_modes_and_derived_paths(monkeypatch) -> None:
         == "ws://127.0.0.1:9000/backend-api/live?mode=live"
     )
     assert DEFAULT_CODEX_LIVE_WS_PATH == "/live"
-    monkeypatch.setenv("HEADROOM_CODEX_LIVE_WS_PATH", "/custom/live")
+    monkeypatch.setenv("HORIZON_CODEX_LIVE_WS_PATH", "/custom/live")
     assert codex_live_ws_path() == "/custom/live"
     assert (
         codex_live_websocket_url(
@@ -168,7 +168,7 @@ async def test_live_http_call_creation_forwards_json_and_location() -> None:
 async def test_live_http_call_creation_strips_internal_headers_and_stale_compression_headers() -> (
     None
 ):
-    """Regression for PR #3464 review: internal x-headroom-* headers must
+    """Regression for PR #3464 review: internal x-horizon-* headers must
     never reach the upstream call, and a compressed upstream response must
     not have its content-encoding/content-length replayed onto the
     already-decoded body httpx hands back (that makes the downstream client
@@ -185,8 +185,8 @@ async def test_live_http_call_creation_strips_internal_headers_and_stale_compres
             "authorization": f"Bearer {token}",
             "host": "proxy.test",
             "content-type": "multipart/form-data; boundary=test",
-            "x-headroom-proxy-token": "internal-secret",
-            "x-headroom-bypass": "true",
+            "x-horizon-proxy-token": "internal-secret",
+            "x-horizon-bypass": "true",
         }
 
         async def form(self):  # type: ignore[no-untyped-def]
@@ -225,8 +225,8 @@ async def test_live_http_call_creation_strips_internal_headers_and_stale_compres
     assert client.call is not None
     sent_headers = client.call[2]
     lowered_sent = {key.lower() for key in sent_headers}
-    assert "x-headroom-proxy-token" not in lowered_sent
-    assert "x-headroom-bypass" not in lowered_sent
+    assert "x-horizon-proxy-token" not in lowered_sent
+    assert "x-horizon-bypass" not in lowered_sent
     assert sent_headers["authorization"] == f"Bearer {token}"
     assert sent_headers["ChatGPT-Account-ID"] == "acct-live"
 
@@ -245,7 +245,7 @@ def test_live_headers_strip_internal_and_handshake_headers_without_beta_injectio
             "Authorization": "Bearer live-token",
             "ChatGPT-Account-ID": "acct-live",
             "OpenAI-Beta": "client-beta",
-            "X-Headroom-User-ID": "private",
+            "X-Horizon-User-ID": "private",
             "Connection": "keep-alive",
             "Sec-WebSocket-Key": "nonce",
             "Sec-WebSocket-Protocol": "codex.live.v1",
@@ -495,7 +495,7 @@ async def test_live_handler_propagates_close_metadata_and_cleans_tasks(monkeypat
         return no_auth_upstream
 
     monkeypatch.delenv("OPENAI_API_KEY")
-    caplog.set_level(logging.WARNING, logger="headroom.providers.codex.live")
+    caplog.set_level(logging.WARNING, logger="horizon.providers.codex.live")
     monkeypatch.setattr(websockets, "connect", connect_without_auth)
     await handle_codex_live_websocket(
         no_auth_client,
@@ -655,8 +655,8 @@ async def _await(value: Any) -> Any:
 
 @pytest.mark.asyncio
 async def test_live_rg4_real_uvicorn_and_websockets_binary_round_trip() -> None:
-    previous = os.environ.get("HEADROOM_REQUIRE_RUST_CORE")
-    os.environ["HEADROOM_REQUIRE_RUST_CORE"] = "false"
+    previous = os.environ.get("HORIZON_REQUIRE_RUST_CORE")
+    os.environ["HORIZON_REQUIRE_RUST_CORE"] = "false"
     upstream = _LoopbackLiveUpstream()
     await upstream.start()
     proxy = _ProxyThread(_free_port(), upstream.port)
@@ -683,7 +683,7 @@ async def test_live_rg4_real_uvicorn_and_websockets_binary_round_trip() -> None:
                 additional_headers={
                     "Authorization": "Bearer sk-live",
                     "OpenAI-Beta": "client-beta",
-                    "X-Headroom-User-ID": "private",
+                    "X-Horizon-User-ID": "private",
                 },
                 subprotocols=["codex.live.v1"],
             ) as client:
@@ -703,14 +703,14 @@ async def test_live_rg4_real_uvicorn_and_websockets_binary_round_trip() -> None:
         ]
         assert upstream.headers["authorization"] == "Bearer sk-live"
         assert upstream.headers["openai-beta"] == "client-beta"
-        assert "x-headroom-user-id" not in upstream.headers
+        assert "x-horizon-user-id" not in upstream.headers
     finally:
         proxy.stop()
         await upstream.stop()
         if previous is None:
-            os.environ.pop("HEADROOM_REQUIRE_RUST_CORE", None)
+            os.environ.pop("HORIZON_REQUIRE_RUST_CORE", None)
         else:
-            os.environ["HEADROOM_REQUIRE_RUST_CORE"] = previous
+            os.environ["HORIZON_REQUIRE_RUST_CORE"] = previous
 
 
 class _LoopbackHttpUpstream:
@@ -761,8 +761,8 @@ async def test_live_http_non_chatgpt_multipart_falls_through_with_body_intact() 
     ChatGPT auth must fall through to the passthrough fallback with its
     body still readable -- not a 500 from `RuntimeError: Stream consumed`.
     """
-    previous = os.environ.get("HEADROOM_REQUIRE_RUST_CORE")
-    os.environ["HEADROOM_REQUIRE_RUST_CORE"] = "false"
+    previous = os.environ.get("HORIZON_REQUIRE_RUST_CORE")
+    os.environ["HORIZON_REQUIRE_RUST_CORE"] = "false"
     upstream = _LoopbackHttpUpstream()
     upstream.start()
     proxy = _ProxyThread(_free_port(), upstream.port)
@@ -785,9 +785,9 @@ async def test_live_http_non_chatgpt_multipart_falls_through_with_body_intact() 
         proxy.stop()
         upstream.stop()
         if previous is None:
-            os.environ.pop("HEADROOM_REQUIRE_RUST_CORE", None)
+            os.environ.pop("HORIZON_REQUIRE_RUST_CORE", None)
         else:
-            os.environ["HEADROOM_REQUIRE_RUST_CORE"] = previous
+            os.environ["HORIZON_REQUIRE_RUST_CORE"] = previous
 
 
 @pytest.mark.asyncio
@@ -796,8 +796,8 @@ async def test_live_http_non_chatgpt_json_body_falls_through_instead_of_400() ->
     fall through to the passthrough fallback, not receive the handler's own
     "Missing sdp or session form field" 400.
     """
-    previous = os.environ.get("HEADROOM_REQUIRE_RUST_CORE")
-    os.environ["HEADROOM_REQUIRE_RUST_CORE"] = "false"
+    previous = os.environ.get("HORIZON_REQUIRE_RUST_CORE")
+    os.environ["HORIZON_REQUIRE_RUST_CORE"] = "false"
     upstream = _LoopbackHttpUpstream()
     upstream.start()
     proxy = _ProxyThread(_free_port(), upstream.port)
@@ -817,6 +817,6 @@ async def test_live_http_non_chatgpt_json_body_falls_through_instead_of_400() ->
         proxy.stop()
         upstream.stop()
         if previous is None:
-            os.environ.pop("HEADROOM_REQUIRE_RUST_CORE", None)
+            os.environ.pop("HORIZON_REQUIRE_RUST_CORE", None)
         else:
-            os.environ["HEADROOM_REQUIRE_RUST_CORE"] = previous
+            os.environ["HORIZON_REQUIRE_RUST_CORE"] = previous

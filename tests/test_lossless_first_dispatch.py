@@ -9,13 +9,13 @@ its byte-exact fold — the lossless floor is never discarded by a later lossy
 stage.
 """
 
-from headroom.transforms.content_router import (
+from horizon.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
 )
-from headroom.transforms.lossless_compaction import search_unheading
-from headroom.transforms.lossless_provider import (
+from horizon.transforms.lossless_compaction import search_unheading
+from horizon.transforms.lossless_provider import (
     get_lossless_provider,
     get_lossless_verifier,
     set_lossless_provider,
@@ -119,7 +119,7 @@ def test_registered_provider_competes_on_the_general_path():
     # excluded-tool output — that gate made external folds inert for gateway
     # traffic (/v1/compress), where tool names are the caller's own. The smaller
     # output wins, so a provider can only improve on the built-in folds.
-    from headroom.transforms.lossless_provider import set_lossless_provider
+    from horizon.transforms.lossless_provider import set_lossless_provider
 
     block = _grep_block()
     baseline, _, _ = _compress(block, lossless=True)
@@ -325,7 +325,7 @@ def test_memo_does_not_go_stale_when_the_provider_changes():
     # registered (or cleared) after a block was already folded is ignored for
     # that exact block forever — invisible in production (extensions register at
     # startup) but wrong, and a trap for tests and any hot-reload path.
-    from headroom.transforms.content_router import CompressionStrategy
+    from horizon.transforms.content_router import CompressionStrategy
 
     router = ContentRouter(ContentRouterConfig(lossless=True))
     block = _grep_block()

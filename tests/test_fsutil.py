@@ -1,4 +1,4 @@
-"""Tests for headroom.fsutil — encoding- and newline-safe text I/O (#733)."""
+"""Tests for horizon.fsutil — encoding- and newline-safe text I/O (#733)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import stat
 
 import pytest
 
-from headroom import fsutil
+from horizon import fsutil
 
 
 def test_write_text_does_not_double_existing_crlf(tmp_path):

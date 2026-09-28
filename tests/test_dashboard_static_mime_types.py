@@ -19,7 +19,7 @@ from starlette.applications import Starlette  # noqa: E402
 from starlette.staticfiles import StaticFiles  # noqa: E402
 from starlette.testclient import TestClient  # noqa: E402
 
-from headroom.dashboard import (  # noqa: E402
+from horizon.dashboard import (  # noqa: E402
     _STATIC_MIME_TYPES,
     STATIC_DIR,
     register_static_mime_types,

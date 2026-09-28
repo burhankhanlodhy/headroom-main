@@ -1,4 +1,4 @@
-"""Tests for `headroom wrap openhands` command (PR-G1, Phase G)."""
+"""Tests for `horizon wrap openhands` command (PR-G1, Phase G)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli import wrap as wrap_mod
-from headroom.cli.main import main
+from horizon.cli import wrap as wrap_mod
+from horizon.cli.main import main
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def test_wrap_openhands_prepare_only_succeeds_unpatched(
     the bare invocation has to exit 0 on its own.
     """
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
 
     result = runner.invoke(main, ["wrap", "openhands", "--prepare-only"])
 
@@ -43,7 +43,7 @@ def test_wrap_openhands_sets_provider_envs(
 ) -> None:
     """OPENAI_BASE_URL, ANTHROPIC_BASE_URL, LLM_BASE_URL are set on launch."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
 
     captured: dict[str, object] = {}
 
@@ -75,7 +75,7 @@ def test_wrap_openhands_missing_binary_errors_clearly(
 ) -> None:
     """If the openhands binary is missing the command must fail with a clear error."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
 
     with patch.object(wrap_mod.shutil, "which", return_value=None):
         result = runner.invoke(main, ["wrap", "openhands"])

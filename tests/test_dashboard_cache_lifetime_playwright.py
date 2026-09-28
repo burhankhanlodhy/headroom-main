@@ -12,8 +12,8 @@ from urllib.parse import urlsplit
 
 import pytest
 
-from headroom.dashboard import get_dashboard_html
-from headroom.proxy.savings_tracker import _empty_display_session
+from horizon.dashboard import get_dashboard_html
+from horizon.proxy.savings_tracker import _empty_display_session
 from tests.test_dashboard_cache_ttl_playwright import (
     _fulfill_static_asset,
     _sample_history,
@@ -113,7 +113,7 @@ def _install_dashboard_routes(page: Page, stats: dict, lifetime: dict) -> None:
 
 def _open_dashboard(page: Page, stats: dict, lifetime: dict) -> None:
     _install_dashboard_routes(page, stats, lifetime)
-    page.goto("http://headroom.local/dashboard")
+    page.goto("http://horizon.local/dashboard")
     page.wait_for_load_state("networkidle")
 
 

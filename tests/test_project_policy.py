@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from headroom.proxy.project_policy import (
+from horizon.proxy.project_policy import (
     classify_project,
     split_project_path,
     with_project_prefix,
@@ -10,8 +10,8 @@ from headroom.proxy.project_policy import (
 
 
 def test_classify_project_reads_project_header() -> None:
-    assert classify_project({"x-headroom-project": " frontend "}) == "frontend"
-    assert classify_project({"X-Headroom-Project": "api"}) == "api"
+    assert classify_project({"x-horizon-project": " frontend "}) == "frontend"
+    assert classify_project({"X-Horizon-Project": "api"}) == "api"
     assert classify_project({"user-agent": "codex"}) is None
     assert classify_project(object()) is None
 

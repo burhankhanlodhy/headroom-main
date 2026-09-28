@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock
 
 import numpy as np
 
-from headroom.memory.models import Memory
+from horizon.memory.models import Memory
 from tests._mcp_stub import import_module_with_mcp_stub
 
-mcp_server_mod = import_module_with_mcp_stub("headroom.memory.mcp_server")
+mcp_server_mod = import_module_with_mcp_stub("horizon.memory.mcp_server")
 
 
 class _CapturingServer:
@@ -230,7 +230,7 @@ def test_server_cleanup_closes_initialized_backend_once(monkeypatch) -> None:
         await server.list_tools_handler()
         await asyncio.sleep(0)
 
-        close_backend = server._headroom_close
+        close_backend = server._horizon_close
         await close_backend()
         await close_backend()
 
@@ -256,7 +256,7 @@ def test_server_cleanup_cancels_pending_backend_initialization(monkeypatch) -> N
         await server.list_tools_handler()
         await init_started.wait()
 
-        await server._headroom_close()
+        await server._horizon_close()
 
         backend.close.assert_awaited_once()
 
@@ -269,7 +269,7 @@ def test_run_closes_backend_when_stdio_exits(monkeypatch) -> None:
         server = SimpleNamespace(
             create_initialization_options=lambda: {},
             run=AsyncMock(),
-            _headroom_close=close_backend,
+            _horizon_close=close_backend,
         )
 
         class _StdioContext:
@@ -293,7 +293,7 @@ def test_run_closes_backend_when_stdio_exits(monkeypatch) -> None:
 def test_memory_mcp_startup_context_reports_dynamic_project_db(tmp_path) -> None:
     project_dir = tmp_path / "project-a"
     project_dir.mkdir()
-    configured_db = str(project_dir / ".headroom" / "memory.db")
+    configured_db = str(project_dir / ".horizon" / "memory.db")
 
     context = mcp_server_mod._memory_mcp_startup_context(
         configured_db,
@@ -377,12 +377,12 @@ def test_main_logs_memory_mcp_startup_context(monkeypatch, tmp_path, caplog) -> 
         lambda payload: captured_run_payloads.append(payload),
     )
 
-    caplog.set_level("INFO", logger="headroom.memory.mcp")
+    caplog.set_level("INFO", logger="horizon.memory.mcp")
 
     mcp_server_mod.main()
 
     assert captured_run_payloads == [
-        ("run", str(project_dir / ".headroom" / "memory.db"), "codex-user")
+        ("run", str(project_dir / ".horizon" / "memory.db"), "codex-user")
     ]
     assert any(
         "Memory MCP startup: configured_db=" in record.message

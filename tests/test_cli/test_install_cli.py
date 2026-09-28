@@ -6,9 +6,9 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli import install as inst
-from headroom.cli.main import main
-from headroom.install.planner import build_tool_envs
+from horizon.cli import install as inst
+from horizon.cli.main import main
+from horizon.install.planner import build_tool_envs
 
 
 def test_require_manifest_resolves_single_profile_when_default_missing(monkeypatch):
@@ -16,7 +16,7 @@ def test_require_manifest_resolves_single_profile_when_default_missing(monkeypat
     command whose --profile defaults to 'default' resolves to the single
     installed deployment instead of dead-ending (#2811)."""
     only = SimpleNamespace(profile="init-user")
-    monkeypatch.delenv("HEADROOM_DEPLOYMENT_PROFILE", raising=False)
+    monkeypatch.delenv("HORIZON_DEPLOYMENT_PROFILE", raising=False)
     monkeypatch.setattr(inst, "load_manifest", lambda profile: None)
     monkeypatch.setattr(inst, "list_manifests", lambda: [only])
 
@@ -24,10 +24,10 @@ def test_require_manifest_resolves_single_profile_when_default_missing(monkeypat
 
 
 def test_require_manifest_honors_env_profile(monkeypatch):
-    """An explicit HEADROOM_DEPLOYMENT_PROFILE (exported by the runtime) selects
+    """An explicit HORIZON_DEPLOYMENT_PROFILE (exported by the runtime) selects
     the target even when the requested profile is not installed."""
     target = SimpleNamespace(profile="init-user")
-    monkeypatch.setenv("HEADROOM_DEPLOYMENT_PROFILE", "init-user")
+    monkeypatch.setenv("HORIZON_DEPLOYMENT_PROFILE", "init-user")
     monkeypatch.setattr(
         inst, "load_manifest", lambda profile: target if profile == "init-user" else None
     )
@@ -39,7 +39,7 @@ def test_require_manifest_honors_env_profile(monkeypatch):
 def test_require_manifest_lists_installed_profiles_when_ambiguous(monkeypatch):
     """With several installed profiles and no signal, the error names them and
     points at --profile instead of dead-ending on 'default'."""
-    monkeypatch.delenv("HEADROOM_DEPLOYMENT_PROFILE", raising=False)
+    monkeypatch.delenv("HORIZON_DEPLOYMENT_PROFILE", raising=False)
     monkeypatch.setattr(inst, "load_manifest", lambda profile: None)
     monkeypatch.setattr(
         inst,
@@ -68,11 +68,11 @@ def _status_manifest(profile: str) -> SimpleNamespace:
 
 def test_install_status_explicit_missing_profile_is_not_redirected_to_env(monkeypatch):
     """An explicit --profile must be honored or rejected verbatim, never
-    redirected to HEADROOM_DEPLOYMENT_PROFILE or a lone installed deployment: a
+    redirected to HORIZON_DEPLOYMENT_PROFILE or a lone installed deployment: a
     typo must fail even when the env profile exists (#2832 review). Only a
     CliRunner invocation exercises the default-vs-explicit distinction."""
     init_user = _status_manifest("init-user")
-    monkeypatch.setenv("HEADROOM_DEPLOYMENT_PROFILE", "init-user")
+    monkeypatch.setenv("HORIZON_DEPLOYMENT_PROFILE", "init-user")
     monkeypatch.setattr(inst, "load_manifest", lambda p: init_user if p == "init-user" else None)
     monkeypatch.setattr(inst, "list_manifests", lambda: [init_user])
 
@@ -86,11 +86,11 @@ def test_install_status_explicit_missing_profile_is_not_redirected_to_env(monkey
 
 
 def test_install_status_stale_env_profile_is_not_redirected_to_lone_manifest(monkeypatch):
-    """A non-empty HEADROOM_DEPLOYMENT_PROFILE is an explicit selection: if it
+    """A non-empty HORIZON_DEPLOYMENT_PROFILE is an explicit selection: if it
     names a missing/stale profile the command must fail naming that profile, never
     silently redirect to a different lone installed deployment (#2832 review)."""
     init_user = _status_manifest("init-user")
-    monkeypatch.setenv("HEADROOM_DEPLOYMENT_PROFILE", "missing")
+    monkeypatch.setenv("HORIZON_DEPLOYMENT_PROFILE", "missing")
     monkeypatch.setattr(inst, "load_manifest", lambda p: init_user if p == "init-user" else None)
     monkeypatch.setattr(inst, "list_manifests", lambda: [init_user])
 
@@ -104,10 +104,10 @@ def test_install_status_stale_env_profile_is_not_redirected_to_lone_manifest(mon
 
 
 def test_install_status_omitted_profile_resolves_env_deployment(monkeypatch):
-    """With --profile omitted (Click default), HEADROOM_DEPLOYMENT_PROFILE selects
+    """With --profile omitted (Click default), HORIZON_DEPLOYMENT_PROFILE selects
     the target so the documented bare command works on an init'd machine."""
     init_user = _status_manifest("init-user")
-    monkeypatch.setenv("HEADROOM_DEPLOYMENT_PROFILE", "init-user")
+    monkeypatch.setenv("HORIZON_DEPLOYMENT_PROFILE", "init-user")
     monkeypatch.setattr(inst, "load_manifest", lambda p: init_user if p == "init-user" else None)
     monkeypatch.setattr(inst, "list_manifests", lambda: [init_user])
     monkeypatch.setattr(inst, "probe_json", lambda url: None)
@@ -142,31 +142,31 @@ def test_install_apply_starts_service_supervisor(monkeypatch) -> None:
 
     manifest = Manifest()
 
-    monkeypatch.setattr("headroom.cli.install.build_manifest", lambda **_: manifest)
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.build_manifest", lambda **_: manifest)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: None)
     monkeypatch.setattr(
-        "headroom.cli.install.apply_mutations",
+        "horizon.cli.install.apply_mutations",
         lambda deployment: calls.append("apply") or [],
     )
-    monkeypatch.setattr("headroom.cli.install.install_supervisor", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.install_supervisor", lambda deployment: [])
     monkeypatch.setattr(
-        "headroom.cli.install.save_manifest", lambda deployment: calls.append("save")
+        "horizon.cli.install.save_manifest", lambda deployment: calls.append("save")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.start_supervisor", lambda deployment: calls.append("start_service")
+        "horizon.cli.install.start_supervisor", lambda deployment: calls.append("start_service")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.start_detached_agent", lambda profile: calls.append("start_agent")
+        "horizon.cli.install.start_detached_agent", lambda profile: calls.append("start_agent")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.start_persistent_docker",
+        "horizon.cli.install.start_persistent_docker",
         lambda deployment: calls.append("start_docker"),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
+        "horizon.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
     )
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda manifest: "stopped")
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda manifest: "stopped")
 
     result = runner.invoke(main, ["install", "apply"])
 
@@ -194,19 +194,19 @@ def test_install_apply_announces_windows_service_fallback(monkeypatch) -> None:
         targets: list[str] = []
         artifacts: list[object] = []
 
-    monkeypatch.setattr("headroom.cli.install._is_windows", lambda: True)
-    monkeypatch.setattr("headroom.cli.install.build_manifest", lambda **_: Manifest())
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: None)
-    monkeypatch.setattr("headroom.cli.install.install_supervisor", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.apply_mutations", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda manifest: "stopped")
+    monkeypatch.setattr("horizon.cli.install._is_windows", lambda: True)
+    monkeypatch.setattr("horizon.cli.install.build_manifest", lambda **_: Manifest())
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.install_supervisor", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.apply_mutations", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda manifest: "stopped")
     monkeypatch.setattr(
-        "headroom.cli.install.start_detached_agent", lambda profile: calls.append("start_agent")
+        "horizon.cli.install.start_detached_agent", lambda profile: calls.append("start_agent")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
+        "horizon.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
     )
 
     result = runner.invoke(main, ["install", "apply", "--preset", "persistent-service"])
@@ -243,15 +243,15 @@ def test_install_apply_forwards_no_http2_to_build_manifest(monkeypatch) -> None:
         captured.update(kwargs)
         return manifest
 
-    monkeypatch.setattr("headroom.cli.install.build_manifest", fake_build_manifest)
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: None)
-    monkeypatch.setattr("headroom.cli.install.apply_mutations", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.install_supervisor", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.start_supervisor", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.start_detached_agent", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.build_manifest", fake_build_manifest)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.apply_mutations", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.install_supervisor", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.start_supervisor", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.start_detached_agent", lambda profile: None)
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
+        "horizon.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
     )
 
     result = runner.invoke(main, ["install", "apply", "--no-http2"])
@@ -281,27 +281,27 @@ def _patch_apply_pipeline(monkeypatch, captured: dict[str, object]):
         captured.update(kwargs)
         return Manifest()
 
-    monkeypatch.setattr("headroom.cli.install.build_manifest", fake_build_manifest)
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: None)
-    monkeypatch.setattr("headroom.cli.install.apply_mutations", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.install_supervisor", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.start_supervisor", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.start_detached_agent", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.build_manifest", fake_build_manifest)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.apply_mutations", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.install_supervisor", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.start_supervisor", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.start_detached_agent", lambda profile: None)
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
+        "horizon.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
     )
 
 
-def test_install_apply_honors_headroom_port_env(monkeypatch) -> None:
-    """An explicit HEADROOM_PORT must reach build_manifest, like `proxy --port` honors it.
+def test_install_apply_honors_horizon_port_env(monkeypatch) -> None:
+    """An explicit HORIZON_PORT must reach build_manifest, like `proxy --port` honors it.
 
-    Regression for #3072 bug 1: `install apply` ignored HEADROOM_PORT and always
+    Regression for #3072 bug 1: `install apply` ignored HORIZON_PORT and always
     configured 8787 because the --port option had no envvar binding.
     """
     captured: dict[str, object] = {}
     _patch_apply_pipeline(monkeypatch, captured)
-    monkeypatch.setenv("HEADROOM_PORT", "8788")
+    monkeypatch.setenv("HORIZON_PORT", "8788")
 
     result = CliRunner().invoke(main, ["install", "apply"])
 
@@ -310,10 +310,10 @@ def test_install_apply_honors_headroom_port_env(monkeypatch) -> None:
 
 
 def test_install_apply_explicit_port_overrides_env(monkeypatch) -> None:
-    """An explicit --port still wins over HEADROOM_PORT (Click precedence)."""
+    """An explicit --port still wins over HORIZON_PORT (Click precedence)."""
     captured: dict[str, object] = {}
     _patch_apply_pipeline(monkeypatch, captured)
-    monkeypatch.setenv("HEADROOM_PORT", "8788")
+    monkeypatch.setenv("HORIZON_PORT", "8788")
 
     result = CliRunner().invoke(main, ["install", "apply", "--port", "9999"])
 
@@ -321,8 +321,8 @@ def test_install_apply_explicit_port_overrides_env(monkeypatch) -> None:
     assert captured["port"] == 9999
 
 
-def test_deploy_honors_headroom_port_env(monkeypatch) -> None:
-    """`headroom deploy` must honor HEADROOM_PORT the same way (#3072 bug 1)."""
+def test_deploy_honors_horizon_port_env(monkeypatch) -> None:
+    """`horizon deploy` must honor HORIZON_PORT the same way (#3072 bug 1)."""
     captured: dict[str, object] = {}
 
     plan = SimpleNamespace(
@@ -348,12 +348,12 @@ def test_deploy_honors_headroom_port_env(monkeypatch) -> None:
         return manifest
 
     monkeypatch.setattr(
-        "headroom.cli.install._select_turnkey_plan", lambda prefer_docker=True: plan
+        "horizon.cli.install._select_turnkey_plan", lambda prefer_docker=True: plan
     )
-    monkeypatch.setattr("headroom.cli.install._build_deployment_manifest", fake_build)
-    monkeypatch.setattr("headroom.cli.install._apply_manifest", lambda m: None)
-    monkeypatch.setattr("headroom.cli.install._echo_installed", lambda m, prefix="": None)
-    monkeypatch.setenv("HEADROOM_PORT", "8788")
+    monkeypatch.setattr("horizon.cli.install._build_deployment_manifest", fake_build)
+    monkeypatch.setattr("horizon.cli.install._apply_manifest", lambda m: None)
+    monkeypatch.setattr("horizon.cli.install._echo_installed", lambda m, prefix="": None)
+    monkeypatch.setenv("HORIZON_PORT", "8788")
 
     result = CliRunner().invoke(main, ["deploy"])
 
@@ -371,7 +371,7 @@ def test_install_apply_help_lists_no_http2() -> None:
 
 
 def test_capture_passthrough_env_skips_empty_and_unrelated() -> None:
-    from headroom.cli.install import _capture_passthrough_env
+    from horizon.cli.install import _capture_passthrough_env
 
     captured = _capture_passthrough_env(
         {
@@ -406,15 +406,15 @@ def _apply_capturing_build_manifest(monkeypatch) -> dict[str, object]:
         captured.update(kwargs)
         return Manifest()
 
-    monkeypatch.setattr("headroom.cli.install.build_manifest", fake_build_manifest)
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: None)
-    monkeypatch.setattr("headroom.cli.install.apply_mutations", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.install_supervisor", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.start_supervisor", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.start_detached_agent", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.build_manifest", fake_build_manifest)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.apply_mutations", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.install_supervisor", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.start_supervisor", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.start_detached_agent", lambda profile: None)
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
+        "horizon.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
     )
     return captured
 
@@ -460,11 +460,11 @@ def test_install_status_includes_backend_from_health_probe(monkeypatch) -> None:
         backend = "anthropic"
         health_url = "http://127.0.0.1:8787/readyz"
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda manifest: "running")
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: True)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda manifest: "running")
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: True)
     monkeypatch.setattr(
-        "headroom.cli.install.probe_json",
+        "horizon.cli.install.probe_json",
         lambda url: {"config": {"backend": "anthropic"}},
     )
 
@@ -493,10 +493,10 @@ def test_install_status_survives_non_dict_config(monkeypatch) -> None:
         backend = "anthropic"
         health_url = "http://127.0.0.1:8787/readyz"
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda manifest: "running")
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: True)
-    monkeypatch.setattr("headroom.cli.install.probe_json", lambda url: {"config": None})
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda manifest: "running")
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: True)
+    monkeypatch.setattr("horizon.cli.install.probe_json", lambda url: {"config": None})
 
     result = runner.invoke(main, ["install", "status"])
 
@@ -522,29 +522,29 @@ def test_install_restart_uses_internal_helpers(monkeypatch) -> None:
         health_url = "http://127.0.0.1:8787/readyz"
         mutations = [object()]
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
     monkeypatch.setattr(
-        "headroom.cli.install.revert_mutations", lambda manifest: calls.append("revert")
+        "horizon.cli.install.revert_mutations", lambda manifest: calls.append("revert")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.stop_supervisor", lambda manifest: calls.append("stop_supervisor")
+        "horizon.cli.install.stop_supervisor", lambda manifest: calls.append("stop_supervisor")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.stop_runtime", lambda manifest: calls.append("stop_runtime")
+        "horizon.cli.install.stop_runtime", lambda manifest: calls.append("stop_runtime")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
+        "horizon.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda manifest, timeout_seconds=45: True
+        "horizon.cli.install.wait_ready", lambda manifest, timeout_seconds=45: True
     )
     monkeypatch.setattr(
-        "headroom.cli.install.apply_mutations", lambda manifest: calls.append("apply") or []
+        "horizon.cli.install.apply_mutations", lambda manifest: calls.append("apply") or []
     )
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda manifest: calls.append("save"))
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
-    monkeypatch.setattr("headroom.cli.install.wait_stopped", lambda manifest: True)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda manifest: "stopped")
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda manifest: calls.append("save"))
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.wait_stopped", lambda manifest: True)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda manifest: "stopped")
 
     result = runner.invoke(main, ["install", "restart"])
 
@@ -586,28 +586,28 @@ def test_install_restart_waits_for_old_process_before_starting(monkeypatch) -> N
     calls: list[str] = []
 
     monkeypatch.setattr(
-        "headroom.cli.install.load_manifest", lambda profile: _restart_race_manifest()
+        "horizon.cli.install.load_manifest", lambda profile: _restart_race_manifest()
     )
     monkeypatch.setattr(
-        "headroom.cli.install.stop_supervisor", lambda manifest: calls.append("stop_supervisor")
+        "horizon.cli.install.stop_supervisor", lambda manifest: calls.append("stop_supervisor")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.stop_runtime", lambda manifest: calls.append("stop_runtime")
+        "horizon.cli.install.stop_runtime", lambda manifest: calls.append("stop_runtime")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.wait_stopped",
+        "horizon.cli.install.wait_stopped",
         lambda manifest, timeout_seconds=15: calls.append("wait_stopped") or True,
     )
     monkeypatch.setattr(
-        "headroom.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
+        "horizon.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda manifest, timeout_seconds=45: True
+        "horizon.cli.install.wait_ready", lambda manifest, timeout_seconds=45: True
     )
-    monkeypatch.setattr("headroom.cli.install.apply_mutations", lambda manifest: [])
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda manifest: None)
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda manifest: "stopped")
+    monkeypatch.setattr("horizon.cli.install.apply_mutations", lambda manifest: [])
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda manifest: None)
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda manifest: "stopped")
 
     result = runner.invoke(main, ["install", "restart"])
 
@@ -621,17 +621,17 @@ def test_install_stop_and_restart_fail_when_old_process_never_stops(monkeypatch,
     calls: list[str] = []
 
     monkeypatch.setattr(
-        "headroom.cli.install.load_manifest", lambda profile: _restart_race_manifest()
+        "horizon.cli.install.load_manifest", lambda profile: _restart_race_manifest()
     )
-    monkeypatch.setattr("headroom.cli.install.stop_supervisor", lambda manifest: None)
-    monkeypatch.setattr("headroom.cli.install.stop_runtime", lambda manifest: None)
+    monkeypatch.setattr("horizon.cli.install.stop_supervisor", lambda manifest: None)
+    monkeypatch.setattr("horizon.cli.install.stop_runtime", lambda manifest: None)
     monkeypatch.setattr(
-        "headroom.cli.install.wait_stopped", lambda manifest, timeout_seconds=15: False
+        "horizon.cli.install.wait_stopped", lambda manifest, timeout_seconds=15: False
     )
     monkeypatch.setattr(
-        "headroom.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
+        "horizon.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
     )
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda manifest: None)
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda manifest: None)
 
     result = runner.invoke(main, ["install", command])
 
@@ -658,10 +658,10 @@ def test_install_start_noops_when_already_healthy(monkeypatch) -> None:
         health_url = "http://127.0.0.1:8787/readyz"
         mutations = [object()]
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: True)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: True)
     monkeypatch.setattr(
-        "headroom.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
+        "horizon.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
     )
 
     result = runner.invoke(main, ["install", "start"])
@@ -687,9 +687,9 @@ def test_install_start_noops_for_healthy_docker_without_docker_on_path(monkeypat
         health_url = "http://127.0.0.1:8787/readyz"
         mutations = [object()]
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: True)
-    monkeypatch.setattr("headroom.cli.install.shutil.which", lambda name, *args, **kwargs: None)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: True)
+    monkeypatch.setattr("horizon.cli.install.shutil.which", lambda name, *args, **kwargs: None)
 
     result = runner.invoke(main, ["install", "start"])
 
@@ -714,8 +714,8 @@ def test_install_start_does_not_spawn_when_start_lock_is_contended(monkeypatch) 
         health_url = "http://127.0.0.1:8787/readyz"
         mutations = []
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
 
     import contextlib
 
@@ -723,9 +723,9 @@ def test_install_start_does_not_spawn_when_start_lock_is_contended(monkeypatch) 
     def fake_lock(profile):
         yield False
 
-    monkeypatch.setattr("headroom.cli.install.acquire_runtime_start_lock", fake_lock)
+    monkeypatch.setattr("horizon.cli.install.acquire_runtime_start_lock", fake_lock)
     monkeypatch.setattr(
-        "headroom.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
+        "horizon.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
     )
 
     result = runner.invoke(main, ["install", "start"])
@@ -752,29 +752,29 @@ def test_install_start_restarts_wedged_runtime_under_single_lock(monkeypatch) ->
         health_url = "http://127.0.0.1:8787/readyz"
         mutations = [object()]
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
     probe_calls = {"count": 0}
 
     def fake_probe_ready(url: str) -> bool:
         probe_calls["count"] += 1
         return probe_calls["count"] > 2
 
-    monkeypatch.setattr("headroom.cli.install.probe_ready", fake_probe_ready)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda manifest: "running")
+    monkeypatch.setattr("horizon.cli.install.probe_ready", fake_probe_ready)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda manifest: "running")
     wait_results = iter([False, True])
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda manifest, timeout_seconds: next(wait_results)
+        "horizon.cli.install.wait_ready", lambda manifest, timeout_seconds: next(wait_results)
     )
     monkeypatch.setattr(
-        "headroom.cli.install.revert_mutations", lambda manifest: calls.append("revert")
+        "horizon.cli.install.revert_mutations", lambda manifest: calls.append("revert")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.apply_mutations", lambda manifest: calls.append("apply") or []
+        "horizon.cli.install.apply_mutations", lambda manifest: calls.append("apply") or []
     )
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda manifest: calls.append("save"))
-    monkeypatch.setattr("headroom.cli.install.stop_runtime", lambda manifest: calls.append("stop"))
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda manifest: calls.append("save"))
+    monkeypatch.setattr("horizon.cli.install.stop_runtime", lambda manifest: calls.append("stop"))
     monkeypatch.setattr(
-        "headroom.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
+        "horizon.cli.install.start_supervisor", lambda manifest: calls.append("start_supervisor")
     )
 
     result = runner.invoke(main, ["install", "start"])
@@ -828,15 +828,15 @@ def test_install_apply_accepts_opencode_target(monkeypatch) -> None:
         captured.update(kwargs)
         return manifest
 
-    monkeypatch.setattr("headroom.cli.install.build_manifest", fake_build_manifest)
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: None)
-    monkeypatch.setattr("headroom.cli.install.apply_mutations", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.install_supervisor", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.start_supervisor", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.start_detached_agent", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.build_manifest", fake_build_manifest)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.apply_mutations", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.install_supervisor", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.start_supervisor", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.start_detached_agent", lambda profile: None)
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
+        "horizon.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
     )
 
     result = runner.invoke(
@@ -883,38 +883,38 @@ def test_install_apply_restores_previous_deployment_after_failed_update(monkeypa
     existing_manifest = Manifest("default", ["codex"])
     existing_manifest.mutations = [object()]
 
-    monkeypatch.setattr("headroom.cli.install.build_manifest", lambda **_: new_manifest)
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: existing_manifest)
+    monkeypatch.setattr("horizon.cli.install.build_manifest", lambda **_: new_manifest)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: existing_manifest)
     monkeypatch.setattr(
-        "headroom.cli.install.apply_mutations",
+        "horizon.cli.install.apply_mutations",
         lambda deployment: calls.append(f"apply:{','.join(deployment.targets)}") or [],
     )
     monkeypatch.setattr(
-        "headroom.cli.install.install_supervisor",
+        "horizon.cli.install.install_supervisor",
         lambda deployment: calls.append(f"supervisor:{','.join(deployment.targets)}") or [],
     )
     monkeypatch.setattr(
-        "headroom.cli.install.save_manifest",
+        "horizon.cli.install.save_manifest",
         lambda deployment: calls.append(f"save:{','.join(deployment.targets)}"),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.stop_supervisor",
+        "horizon.cli.install.stop_supervisor",
         lambda deployment: calls.append(f"stop-supervisor:{','.join(deployment.targets)}"),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.stop_runtime",
+        "horizon.cli.install.stop_runtime",
         lambda deployment: calls.append(f"stop-runtime:{','.join(deployment.targets)}"),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.remove_supervisor",
+        "horizon.cli.install.remove_supervisor",
         lambda deployment: calls.append(f"remove-supervisor:{','.join(deployment.targets)}"),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.revert_mutations",
+        "horizon.cli.install.revert_mutations",
         lambda deployment: calls.append(f"revert:{','.join(deployment.targets)}"),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.delete_manifest",
+        "horizon.cli.install.delete_manifest",
         lambda profile: calls.append(f"delete:{profile}"),
     )
 
@@ -923,7 +923,7 @@ def test_install_apply_restores_previous_deployment_after_failed_update(monkeypa
         if deployment is new_manifest:
             raise click.ClickException("boom")
 
-    monkeypatch.setattr("headroom.cli.install._start_deployment", _start)
+    monkeypatch.setattr("horizon.cli.install._start_deployment", _start)
 
     result = runner.invoke(main, ["install", "apply"])
 
@@ -965,12 +965,12 @@ def test_install_start_rejects_task_lifecycle(monkeypatch) -> None:
         scope = "user"
         health_url = "http://127.0.0.1:8787/readyz"
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
 
     result = runner.invoke(main, ["install", "start"])
 
     assert result.exit_code != 0
-    assert "headroom install start" in result.output
+    assert "horizon install start" in result.output
 
 
 def test_install_apply_uses_docker_runtime_for_persistent_docker(monkeypatch) -> None:
@@ -987,18 +987,18 @@ def test_install_apply_uses_docker_runtime_for_persistent_docker(monkeypatch) ->
         supervisor_kind = "none"
         scope = "user"
         health_url = "http://127.0.0.1:8787/readyz"
-        container_name = "headroom-default"
+        container_name = "horizon-default"
         targets: list[str] = []
         mutations = []
         artifacts = []
 
-    monkeypatch.setattr("headroom.cli.install.build_manifest", lambda **_: Manifest())
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: None)
-    monkeypatch.setattr("headroom.cli.install.apply_mutations", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.install_supervisor", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda deployment: "stopped")
+    monkeypatch.setattr("horizon.cli.install.build_manifest", lambda **_: Manifest())
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.apply_mutations", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.install_supervisor", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda deployment: "stopped")
 
     import contextlib
 
@@ -1006,23 +1006,23 @@ def test_install_apply_uses_docker_runtime_for_persistent_docker(monkeypatch) ->
     def fake_lock(profile):
         yield True
 
-    monkeypatch.setattr("headroom.cli.install.acquire_runtime_start_lock", fake_lock)
+    monkeypatch.setattr("horizon.cli.install.acquire_runtime_start_lock", fake_lock)
     monkeypatch.setattr(
-        "headroom.cli.install.start_persistent_docker",
+        "horizon.cli.install.start_persistent_docker",
         lambda deployment: calls.append("start_docker"),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
+        "horizon.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
     )
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda deployment: "stopped")
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda deployment: "stopped")
     # _start_deployment guards the persistent-docker preset with
     # `shutil.which("docker")`. Fake docker as present so the test exercises the
     # runtime-selection path itself rather than the host's docker install —
     # otherwise it passes on dev machines with Docker but fails on CI runners
     # (e.g. macos-latest) that have no docker on PATH.
     monkeypatch.setattr(
-        "headroom.cli.install.shutil.which",
+        "horizon.cli.install.shutil.which",
         lambda name, *args, **kwargs: "/usr/local/bin/docker" if name == "docker" else None,
     )
 
@@ -1056,19 +1056,19 @@ def test_deploy_prefers_docker_when_available(monkeypatch) -> None:
         return Manifest()
 
     monkeypatch.setattr(
-        "headroom.cli.install._command_available", lambda command: command == "docker"
+        "horizon.cli.install._command_available", lambda command: command == "docker"
     )
     monkeypatch.setattr(
-        "headroom.cli.install.shutil.which",
+        "horizon.cli.install.shutil.which",
         lambda name, *args, **kwargs: "/usr/local/bin/docker" if name == "docker" else None,
     )
-    monkeypatch.setattr("headroom.cli.install.build_manifest", fake_build)
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: None)
-    monkeypatch.setattr("headroom.cli.install.apply_mutations", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.install_supervisor", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda deployment: "stopped")
+    monkeypatch.setattr("horizon.cli.install.build_manifest", fake_build)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.apply_mutations", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.install_supervisor", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda deployment: "stopped")
 
     import contextlib
 
@@ -1076,13 +1076,13 @@ def test_deploy_prefers_docker_when_available(monkeypatch) -> None:
     def fake_lock(profile):
         yield True
 
-    monkeypatch.setattr("headroom.cli.install.acquire_runtime_start_lock", fake_lock)
+    monkeypatch.setattr("horizon.cli.install.acquire_runtime_start_lock", fake_lock)
     monkeypatch.setattr(
-        "headroom.cli.install.start_persistent_docker",
+        "horizon.cli.install.start_persistent_docker",
         lambda deployment: calls.append("start_docker"),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
+        "horizon.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
     )
 
     result = runner.invoke(main, ["deploy"])
@@ -1120,19 +1120,19 @@ def test_deploy_prefers_gpu_docker_when_available(monkeypatch) -> None:
         captured.update(kwargs)
         return manifest
 
-    monkeypatch.setattr("headroom.cli.install._detect_nvidia_gpu_names", lambda: ["RTX 4090"])
-    monkeypatch.setattr("headroom.cli.install._docker_supports_nvidia_gpus", lambda: True)
+    monkeypatch.setattr("horizon.cli.install._detect_nvidia_gpu_names", lambda: ["RTX 4090"])
+    monkeypatch.setattr("horizon.cli.install._docker_supports_nvidia_gpus", lambda: True)
     monkeypatch.setattr(
-        "headroom.cli.install.shutil.which",
+        "horizon.cli.install.shutil.which",
         lambda name, *args, **kwargs: "/usr/local/bin/docker" if name == "docker" else None,
     )
-    monkeypatch.setattr("headroom.cli.install.build_manifest", fake_build)
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: None)
-    monkeypatch.setattr("headroom.cli.install.apply_mutations", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.install_supervisor", lambda deployment: [])
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda deployment: "stopped")
+    monkeypatch.setattr("horizon.cli.install.build_manifest", fake_build)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.apply_mutations", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.install_supervisor", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda deployment: "stopped")
 
     import contextlib
 
@@ -1140,10 +1140,10 @@ def test_deploy_prefers_gpu_docker_when_available(monkeypatch) -> None:
     def fake_lock(profile):
         yield True
 
-    monkeypatch.setattr("headroom.cli.install.acquire_runtime_start_lock", fake_lock)
-    monkeypatch.setattr("headroom.cli.install.start_persistent_docker", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.acquire_runtime_start_lock", fake_lock)
+    monkeypatch.setattr("horizon.cli.install.start_persistent_docker", lambda deployment: None)
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
+        "horizon.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
     )
 
     result = runner.invoke(main, ["deploy"])
@@ -1152,7 +1152,7 @@ def test_deploy_prefers_gpu_docker_when_available(monkeypatch) -> None:
     assert "RTX 4090" in result.output
     assert captured["preset"] == "persistent-docker"
     assert captured["runtime_kind"] == "docker"
-    assert manifest.base_env["HEADROOM_DOCKER_GPUS"] == "all"
+    assert manifest.base_env["HORIZON_DOCKER_GPUS"] == "all"
 
 
 def test_deploy_falls_back_to_detached_python_without_supervisor(monkeypatch) -> None:
@@ -1175,17 +1175,17 @@ def test_deploy_falls_back_to_detached_python_without_supervisor(monkeypatch) ->
 
     manifest = Manifest()
 
-    monkeypatch.setattr("headroom.cli.install._command_available", lambda command: False)
-    monkeypatch.setattr("headroom.cli.install.build_manifest", lambda **_: manifest)
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: None)
-    monkeypatch.setattr("headroom.cli.install.apply_mutations", lambda deployment: [])
+    monkeypatch.setattr("horizon.cli.install._command_available", lambda command: False)
+    monkeypatch.setattr("horizon.cli.install.build_manifest", lambda **_: manifest)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: None)
+    monkeypatch.setattr("horizon.cli.install.apply_mutations", lambda deployment: [])
     monkeypatch.setattr(
-        "headroom.cli.install.install_supervisor",
+        "horizon.cli.install.install_supervisor",
         lambda deployment: calls.append(f"supervisor:{deployment.supervisor_kind}") or [],
     )
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda deployment: None)
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda deployment: "stopped")
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda deployment: None)
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda deployment: "stopped")
 
     import contextlib
 
@@ -1193,13 +1193,13 @@ def test_deploy_falls_back_to_detached_python_without_supervisor(monkeypatch) ->
     def fake_lock(profile):
         yield True
 
-    monkeypatch.setattr("headroom.cli.install.acquire_runtime_start_lock", fake_lock)
+    monkeypatch.setattr("horizon.cli.install.acquire_runtime_start_lock", fake_lock)
     monkeypatch.setattr(
-        "headroom.cli.install.start_detached_agent",
+        "horizon.cli.install.start_detached_agent",
         lambda profile: calls.append(f"agent:{profile}"),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
+        "horizon.cli.install.wait_ready", lambda deployment, timeout_seconds=45: True
     )
 
     result = runner.invoke(main, ["deploy", "--no-docker"])
@@ -1227,23 +1227,23 @@ def test_install_remove_continues_when_runtime_teardown_errors(monkeypatch) -> N
         health_url = "http://127.0.0.1:8787/readyz"
         mutations = [object()]
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
     monkeypatch.setattr(
-        "headroom.cli.install.revert_mutations", lambda manifest: calls.append("revert")
+        "horizon.cli.install.revert_mutations", lambda manifest: calls.append("revert")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.stop_supervisor",
+        "horizon.cli.install.stop_supervisor",
         lambda manifest: (_ for _ in ()).throw(RuntimeError("boom")),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.stop_runtime",
+        "horizon.cli.install.stop_runtime",
         lambda manifest: (_ for _ in ()).throw(RuntimeError("boom")),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.remove_supervisor", lambda manifest: calls.append("remove_supervisor")
+        "horizon.cli.install.remove_supervisor", lambda manifest: calls.append("remove_supervisor")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.delete_manifest", lambda profile: calls.append("delete")
+        "horizon.cli.install.delete_manifest", lambda profile: calls.append("delete")
     )
 
     result = runner.invoke(main, ["install", "remove"])
@@ -1263,8 +1263,8 @@ def test_install_agent_ensure_reports_already_healthy(monkeypatch) -> None:
         profile = "default"
         health_url = "http://127.0.0.1:8787/readyz"
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: True)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: True)
 
     result = runner.invoke(main, ["install", "agent", "ensure"])
 
@@ -1283,8 +1283,8 @@ def test_install_agent_run_exits_with_foreground_status(monkeypatch) -> None:
         profile = "default"
         health_url = "http://127.0.0.1:8787/readyz"
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
-    monkeypatch.setattr("headroom.cli.install.run_foreground", lambda manifest: 7)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.run_foreground", lambda manifest: 7)
 
     result = runner.invoke(main, ["install", "agent", "run"])
 
@@ -1304,8 +1304,8 @@ def test_install_agent_ensure_no_spawn_when_lock_not_acquired(monkeypatch) -> No
         profile = "default"
         health_url = "http://127.0.0.1:8787/readyz"
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
 
     import contextlib
 
@@ -1313,13 +1313,13 @@ def test_install_agent_ensure_no_spawn_when_lock_not_acquired(monkeypatch) -> No
     def fake_lock(profile):
         yield False
 
-    monkeypatch.setattr("headroom.cli.install.acquire_runtime_start_lock", fake_lock)
+    monkeypatch.setattr("horizon.cli.install.acquire_runtime_start_lock", fake_lock)
     monkeypatch.setattr(
-        "headroom.cli.install.start_detached_agent",
+        "horizon.cli.install.start_detached_agent",
         lambda profile: calls.append("start_agent"),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.start_persistent_docker",
+        "horizon.cli.install.start_persistent_docker",
         lambda manifest: calls.append("start_docker"),
     )
 
@@ -1352,24 +1352,24 @@ def test_install_agent_ensure_stops_wedged_runtime_before_restart(monkeypatch) -
         scope = "user"
         mutations = [object()]
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda manifest: "running")
-    monkeypatch.setattr("headroom.cli.install.wait_ready", lambda manifest, timeout_seconds: False)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda manifest: "running")
+    monkeypatch.setattr("horizon.cli.install.wait_ready", lambda manifest, timeout_seconds: False)
     monkeypatch.setattr(
-        "headroom.cli.install.revert_mutations", lambda manifest: calls.append("revert")
+        "horizon.cli.install.revert_mutations", lambda manifest: calls.append("revert")
     )
     monkeypatch.setattr(
-        "headroom.cli.install.apply_mutations", lambda manifest: calls.append("apply") or []
+        "horizon.cli.install.apply_mutations", lambda manifest: calls.append("apply") or []
     )
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda manifest: calls.append("save"))
-    monkeypatch.setattr("headroom.cli.install.stop_runtime", lambda manifest: calls.append("stop"))
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda manifest: calls.append("save"))
+    monkeypatch.setattr("horizon.cli.install.stop_runtime", lambda manifest: calls.append("stop"))
     monkeypatch.setattr(
-        "headroom.cli.install.start_detached_agent",
+        "horizon.cli.install.start_detached_agent",
         lambda profile: calls.append("start_agent"),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.start_persistent_docker",
+        "horizon.cli.install.start_persistent_docker",
         lambda manifest: calls.append("start_docker"),
     )
 
@@ -1379,9 +1379,9 @@ def test_install_agent_ensure_stops_wedged_runtime_before_restart(monkeypatch) -
     def fake_lock(profile):
         yield True
 
-    monkeypatch.setattr("headroom.cli.install.acquire_runtime_start_lock", fake_lock)
+    monkeypatch.setattr("horizon.cli.install.acquire_runtime_start_lock", fake_lock)
     monkeypatch.setattr(
-        "headroom.cli.install._start_deployment",
+        "horizon.cli.install._start_deployment",
         lambda manifest, **kwargs: calls.append("start_deployment"),
     )
 
@@ -1412,19 +1412,19 @@ def test_install_agent_ensure_starts_when_stopped_and_lock_acquired(monkeypatch)
         scope = "user"
         mutations = []
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda manifest: "stopped")
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda manifest: "stopped")
     monkeypatch.setattr(
-        "headroom.cli.install.apply_mutations", lambda manifest: calls.append("apply") or []
+        "horizon.cli.install.apply_mutations", lambda manifest: calls.append("apply") or []
     )
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda manifest: calls.append("save"))
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda manifest: calls.append("save"))
     monkeypatch.setattr(
-        "headroom.cli.install.start_detached_agent",
+        "horizon.cli.install.start_detached_agent",
         lambda profile: calls.append("start_agent"),
     )
     monkeypatch.setattr(
-        "headroom.cli.install.start_persistent_docker",
+        "horizon.cli.install.start_persistent_docker",
         lambda manifest: calls.append("start_docker"),
     )
 
@@ -1434,8 +1434,8 @@ def test_install_agent_ensure_starts_when_stopped_and_lock_acquired(monkeypatch)
     def fake_lock(profile):
         yield True
 
-    monkeypatch.setattr("headroom.cli.install.acquire_runtime_start_lock", fake_lock)
-    monkeypatch.setattr("headroom.cli.install.wait_ready", lambda manifest, timeout_seconds: True)
+    monkeypatch.setattr("horizon.cli.install.acquire_runtime_start_lock", fake_lock)
+    monkeypatch.setattr("horizon.cli.install.wait_ready", lambda manifest, timeout_seconds: True)
 
     result = runner.invoke(main, ["install", "agent", "ensure"])
     assert result.exit_code == 0, result.output
@@ -1457,11 +1457,11 @@ def test_install_agent_ensure_no_duplicate_spawn_after_lock_recheck(monkeypatch)
 
     # First probe_ready (before lock) returns False, second (after lock) returns True
     probe_results = iter([False, True])
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: next(probe_results))
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: next(probe_results))
 
     monkeypatch.setattr(
-        "headroom.cli.install.start_detached_agent",
+        "horizon.cli.install.start_detached_agent",
         lambda profile: calls.append("start_agent"),
     )
 
@@ -1471,7 +1471,7 @@ def test_install_agent_ensure_no_duplicate_spawn_after_lock_recheck(monkeypatch)
     def fake_lock(profile):
         yield True
 
-    monkeypatch.setattr("headroom.cli.install.acquire_runtime_start_lock", fake_lock)
+    monkeypatch.setattr("horizon.cli.install.acquire_runtime_start_lock", fake_lock)
 
     result = runner.invoke(main, ["install", "agent", "ensure"])
     assert result.exit_code == 0, result.output
@@ -1501,9 +1501,9 @@ def test_install_agent_ensure_propagates_start_deployment_failure(monkeypatch) -
         scope = "user"
         mutations = []
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: Manifest())
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: False)
-    monkeypatch.setattr("headroom.cli.install.runtime_status", lambda manifest: "stopped")
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: Manifest())
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.cli.install.runtime_status", lambda manifest: "stopped")
 
     import contextlib
 
@@ -1511,12 +1511,12 @@ def test_install_agent_ensure_propagates_start_deployment_failure(monkeypatch) -
     def fake_lock(profile):
         yield True
 
-    monkeypatch.setattr("headroom.cli.install.acquire_runtime_start_lock", fake_lock)
+    monkeypatch.setattr("horizon.cli.install.acquire_runtime_start_lock", fake_lock)
 
     def boom(manifest, **kwargs):
         raise click.ClickException("simulated start failure")
 
-    monkeypatch.setattr("headroom.cli.install._start_deployment", boom)
+    monkeypatch.setattr("horizon.cli.install._start_deployment", boom)
 
     result = runner.invoke(main, ["install", "agent", "ensure"])
     assert result.exit_code != 0, f"expected non-zero exit, got {result.exit_code}: {result.output}"
@@ -1550,14 +1550,14 @@ def test_install_start_reconciles_a_healthy_deployment(monkeypatch) -> None:
         artifacts = []
 
     manifest = Manifest()
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: manifest)
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: True)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: manifest)
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: True)
     monkeypatch.setattr(
-        "headroom.cli.install.apply_mutations", lambda m: applied.append("apply") or []
+        "horizon.cli.install.apply_mutations", lambda m: applied.append("apply") or []
     )
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda m: None)
-    monkeypatch.setattr("headroom.cli.install.start_supervisor", lambda m: None)
-    monkeypatch.setattr("headroom.cli.install.wait_ready", lambda m, timeout_seconds=None: True)
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda m: None)
+    monkeypatch.setattr("horizon.cli.install.start_supervisor", lambda m: None)
+    monkeypatch.setattr("horizon.cli.install.wait_ready", lambda m, timeout_seconds=None: True)
 
     result = runner.invoke(main, ["install", "start"])
 
@@ -1586,18 +1586,18 @@ def test_install_start_still_skips_when_nothing_is_pending(monkeypatch) -> None:
         artifacts = []
 
     manifest = Manifest()
-    from headroom.cli.install import _reconcile_tool_envs
+    from horizon.cli.install import _reconcile_tool_envs
 
     _reconcile_tool_envs(manifest)  # bring it fully up to date first
 
-    monkeypatch.setattr("headroom.cli.install.load_manifest", lambda profile: manifest)
-    monkeypatch.setattr("headroom.cli.install.probe_ready", lambda url: True)
+    monkeypatch.setattr("horizon.cli.install.load_manifest", lambda profile: manifest)
+    monkeypatch.setattr("horizon.cli.install.probe_ready", lambda url: True)
     monkeypatch.setattr(
-        "headroom.cli.install.apply_mutations", lambda m: applied.append("apply") or []
+        "horizon.cli.install.apply_mutations", lambda m: applied.append("apply") or []
     )
-    monkeypatch.setattr("headroom.cli.install.save_manifest", lambda m: None)
-    monkeypatch.setattr("headroom.cli.install.start_supervisor", lambda m: None)
-    monkeypatch.setattr("headroom.cli.install.wait_ready", lambda m, timeout_seconds=None: True)
+    monkeypatch.setattr("horizon.cli.install.save_manifest", lambda m: None)
+    monkeypatch.setattr("horizon.cli.install.start_supervisor", lambda m: None)
+    monkeypatch.setattr("horizon.cli.install.wait_ready", lambda m, timeout_seconds=None: True)
 
     result = runner.invoke(main, ["install", "start"])
 

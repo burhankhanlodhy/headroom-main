@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from headroom.models import (
+from horizon.models import (
     ModelInfo,
     ModelRegistry,
     get_model_info,
@@ -111,7 +111,7 @@ class TestModelRegistry:
 
     def test_resolve_future_google_family_fallback(self):
         """Resolve should return provider-scoped fallbacks for plausible future models."""
-        with patch("headroom.models.registry.get_model_pricing", return_value=None):
+        with patch("horizon.models.registry.get_model_pricing", return_value=None):
             info = ModelRegistry.resolve("gemini-3-pro-preview", provider="google")
 
         assert info is not None
@@ -121,7 +121,7 @@ class TestModelRegistry:
 
     def test_resolve_google_litellm_prefixed_family_fallback(self):
         """Resolve should support LiteLLM-style Gemini provider prefixes."""
-        with patch("headroom.models.registry.get_model_pricing", return_value=None):
+        with patch("horizon.models.registry.get_model_pricing", return_value=None):
             info = ModelRegistry.resolve("gemini/gemini-3-pro-preview", provider="google")
 
         assert info is not None
@@ -318,7 +318,7 @@ class TestBuiltInModels:
 
 def test_deepseek_flash_is_registered_with_vision_and_legacy_aliases() -> None:
     """The current DeepSeek id carries V4.1-Flash capabilities; retired ids alias it."""
-    from headroom.models.registry import ModelRegistry
+    from horizon.models.registry import ModelRegistry
 
     flash = ModelRegistry.get("deepseek-flash")
     assert flash is not None

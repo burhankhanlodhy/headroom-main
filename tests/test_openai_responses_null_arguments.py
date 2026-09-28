@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-_OPENAI = Path(__file__).resolve().parents[1] / "headroom" / "proxy" / "handlers" / "openai.py"
+_OPENAI = Path(__file__).resolve().parents[1] / "horizon" / "proxy" / "handlers" / "openai.py"
 
 
 def test_memory_tool_argument_parsing_is_null_safe():

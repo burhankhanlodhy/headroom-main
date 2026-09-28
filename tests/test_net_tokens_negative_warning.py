@@ -17,8 +17,8 @@ import logging
 
 import pytest
 
-from headroom.proxy.cost import CostTracker, build_prefix_cache_stats
-from headroom.proxy.prometheus_metrics import PrometheusMetrics
+from horizon.proxy.cost import CostTracker, build_prefix_cache_stats
+from horizon.proxy.prometheus_metrics import PrometheusMetrics
 
 
 def _metrics_with_savings(tokens_saved: int) -> PrometheusMetrics:
@@ -44,7 +44,7 @@ def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
 def test_warns_when_busts_overtake_savings(caplog: pytest.LogCaptureFixture) -> None:
     metrics = _metrics_with_savings(100)
 
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         asyncio.run(metrics.record_cache_bust(500))
 
     warnings = _warnings(caplog)
@@ -57,7 +57,7 @@ def test_warns_when_busts_overtake_savings(caplog: pytest.LogCaptureFixture) -> 
 def test_silent_while_still_net_positive(caplog: pytest.LogCaptureFixture) -> None:
     metrics = _metrics_with_savings(1000)
 
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         asyncio.run(metrics.record_cache_bust(10))
         asyncio.run(metrics.record_cache_bust(10))
 
@@ -67,7 +67,7 @@ def test_silent_while_still_net_positive(caplog: pytest.LogCaptureFixture) -> No
 def test_warns_once_per_crossing_not_once_per_bust(caplog: pytest.LogCaptureFixture) -> None:
     metrics = _metrics_with_savings(100)
 
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         for _ in range(5):
             asyncio.run(metrics.record_cache_bust(200))
 
@@ -78,7 +78,7 @@ def test_rearms_after_recovering(caplog: pytest.LogCaptureFixture) -> None:
     """Crossing back into profit and out again is a second event, not silence."""
     metrics = _metrics_with_savings(100)
 
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         asyncio.run(metrics.record_cache_bust(200))  # net -100, warns
         asyncio.run(
             metrics.record_request(

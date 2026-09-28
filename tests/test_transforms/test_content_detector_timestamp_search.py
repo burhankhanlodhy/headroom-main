@@ -11,7 +11,7 @@ which keeps 5 of 2,000 lines and prints the minute back as an integer
 
 from __future__ import annotations
 
-from headroom.transforms.content_detector import (
+from horizon.transforms.content_detector import (
     ContentType,
     _is_search_result_line,
     _try_detect_search,

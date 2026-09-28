@@ -18,18 +18,18 @@ import logging
 
 import pytest
 
-from headroom.proxy.models import ProxyConfig
-from headroom.proxy.server import (
+from horizon.proxy.models import ProxyConfig
+from horizon.proxy.server import (
     BUILTIN_COMPRESSOR_FLAGS,
     _apply_compressor_selection,
 )
-from headroom.transforms import compressor_registry as cr_module
-from headroom.transforms.compressor_registry import (
+from horizon.transforms import compressor_registry as cr_module
+from horizon.transforms.compressor_registry import (
     CompressInput,
     CompressorDescriptor,
     CompressOutput,
 )
-from headroom.transforms.content_router import (
+from horizon.transforms.content_router import (
     _BUILTIN_COMPRESSOR_DESCRIPTORS,
     ContentRouter,
     ContentRouterConfig,
@@ -153,7 +153,7 @@ def test_only_unmatched_selection_warns_that_builtins_are_disabled(
 ) -> None:
     """A typo'd selection must be diagnosable from the startup log."""
     config = ContentRouterConfig()
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         _apply_compressor_selection(config, {"smart_krusher"})
     # Behavior is unchanged — the opt-in "exactly these" contract still holds.
     assert not any(_enable_flags(config).values())
@@ -167,7 +167,7 @@ def test_mixed_selection_warns_only_about_unmatched_names(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     config = ContentRouterConfig()
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         _apply_compressor_selection(config, {"kompress", "does_not_exist"})
     assert _enable_flags(config)["enable_kompress"] is True
     text = " ".join(r.getMessage() for r in caplog.records)
@@ -178,7 +178,7 @@ def test_mixed_selection_warns_only_about_unmatched_names(
 def test_matched_selection_emits_no_warning(caplog: pytest.LogCaptureFixture) -> None:
     for selection in ({"kompress"}, {"*"}):
         config = ContentRouterConfig()
-        with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+        with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
             _apply_compressor_selection(config, selection)
     assert not caplog.records
 
@@ -254,7 +254,7 @@ def test_builtin_entry_without_router_is_inert_passthrough() -> None:
 
 
 def test_discovery_merges_external_compressor(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A discovered `headroom.compressor` entry point joins the built-in inventory."""
+    """A discovered `horizon.compressor` entry point joins the built-in inventory."""
 
     class _FakeExternal:
         @property

@@ -1,8 +1,8 @@
-"""Tests for headroom.proxy.verbosity_controller — the AIMD state machine."""
+"""Tests for horizon.proxy.verbosity_controller — the AIMD state machine."""
 
 from __future__ import annotations
 
-from headroom.proxy.verbosity_controller import (
+from horizon.proxy.verbosity_controller import (
     ControllerState,
     Signal,
     VerbosityController,

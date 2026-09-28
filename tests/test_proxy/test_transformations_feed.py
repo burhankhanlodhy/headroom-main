@@ -7,8 +7,8 @@ pytest.importorskip("fastapi")
 
 from httpx import ASGITransport, AsyncClient
 
-from headroom.proxy.models import RequestLog
-from headroom.proxy.server import create_app
+from horizon.proxy.models import RequestLog
+from horizon.proxy.server import create_app
 
 
 @pytest.fixture

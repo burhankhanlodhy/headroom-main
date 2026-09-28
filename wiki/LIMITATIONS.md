@@ -1,8 +1,8 @@
-# Headroom Limitations & Known Behavior
+# Horizon Limitations & Known Behavior
 
-Honest documentation of when Headroom helps, when it doesn't, and what to watch out for.
+Honest documentation of when Horizon helps, when it doesn't, and what to watch out for.
 
-## When Headroom Helps (and When It Doesn't)
+## When Horizon Helps (and When It Doesn't)
 
 | Content Type | Compression | Latency Impact | Best For |
 |---|---|---|---|
@@ -20,7 +20,7 @@ See [LATENCY_BENCHMARKS.md](LATENCY_BENCHMARKS.md) for full data with per-scenar
 
 ## Code Compression
 
-Headroom includes an AST-aware CodeCompressor (tree-sitter, 8 languages) but it's gated behind safety protections that prevent it from firing in most real-world scenarios. This is intentional.
+Horizon includes an AST-aware CodeCompressor (tree-sitter, 8 languages) but it's gated behind safety protections that prevent it from firing in most real-world scenarios. This is intentional.
 
 **Why code mostly passes through:**
 
@@ -30,9 +30,9 @@ Headroom includes an AST-aware CodeCompressor (tree-sitter, 8 languages) but it'
 
 **Why this is the right default**: Code is almost always fetched because the user wants to work with it. Compressing function bodies would remove exactly what they need. LLMs like Claude are excellent at navigating large code files without compression.
 
-**Where code savings come from**: Headroom does not strip function bodies from active code or drop old code messages. Code savings come from compressing the newest content blocks (live-zone-only compression) when they are not protected, leaving the conversation history intact.
+**Where code savings come from**: Horizon does not strip function bodies from active code or drop old code messages. Code savings come from compressing the newest content blocks (live-zone-only compression) when they are not protected, leaving the conversation history intact.
 
-**Override**: Set `protect_analysis_context=False` in `ContentRouterConfig` for aggressive code compression. Requires `headroom-ai[code]` for tree-sitter.
+**Override**: Set `protect_analysis_context=False` in `ContentRouterConfig` for aggressive code compression. Requires `horizon-ai[code]` for tree-sitter.
 
 ## JSON Compression Constraints
 
@@ -75,12 +75,12 @@ These are kept even if they exceed the K budget.
 
 ## ML Text Compression (Kompress, opt-in)
 
-- **Requires**: `headroom-ai[ml]` — downloads model weights and needs GPU/CPU RAM for inference
+- **Requires**: `horizon-ai[ml]` — downloads model weights and needs GPU/CPU RAM for inference
 - **First call**: model-load latency (cached globally after)
 - **Latency**: Adds overhead that doesn't break even on fast models. Use for **cost savings**, not speed
 - **Thread safety**: Single global model instance with lock — sequential access under concurrency
 
-> The earlier LLMLingua-2 integration (`headroom-ai[llmlingua]`) was retired and is no longer installable.
+> The earlier LLMLingua-2 integration (`horizon-ai[llmlingua]`) was retired and is no longer installable.
 
 ## Error Handling
 
@@ -98,7 +98,7 @@ Errors are logged at WARNING level and never propagated to callers.
 The Tool Output Intelligence Network (TOIN) learns compression patterns from usage. For new tool types:
 
 - No learned patterns exist → falls back to statistical heuristics
-- Confidence below `toin_confidence_threshold` (default 0.5 at the runtime `SmartCrusherConfig` used by `ContentRouter`; the separate `headroom.config.SmartCrusherConfig` dataclass defaults to 0.3 but is not wired into the router unless explicitly passed) → TOIN hints ignored
+- Confidence below `toin_confidence_threshold` (default 0.5 at the runtime `SmartCrusherConfig` used by `ContentRouter`; the separate `horizon.config.SmartCrusherConfig` dataclass defaults to 0.3 but is not wired into the router unless explicitly passed) → TOIN hints ignored
 - Patterns build up over time as tools are used repeatedly
 - Cross-session learning requires persistence (`TelemetryConfig.storage_path`)
 
@@ -136,4 +136,4 @@ The Tool Output Intelligence Network (TOIN) learns compression patterns from usa
 | `protect_analysis_context` | True | Protect code when user asks about it |
 | `protect_recent_code` | 4 | Messages from end to protect code |
 | `skip_user_messages` | True | Never compress user messages |
-| `toin_confidence_threshold` | 0.5 (transforms-level `SmartCrusherConfig`, the one actually used by `ContentRouter`; the exported `headroom.config.SmartCrusherConfig` defaults to 0.3 but isn't wired in by default) | Minimum TOIN confidence to apply hints |
+| `toin_confidence_threshold` | 0.5 (transforms-level `SmartCrusherConfig`, the one actually used by `ContentRouter`; the exported `horizon.config.SmartCrusherConfig` defaults to 0.3 but isn't wired in by default) | Minimum TOIN confidence to apply hints |

@@ -3,15 +3,15 @@
 Each test here corresponds to a defect that shipped in 0.37.0 and was found by
 running the documented examples against langchain-core 1.6:
 
-1. ``HeadroomChatModel.bind_tools()`` returned a model that emitted no tool
+1. ``HorizonChatModel.bind_tools()`` returned a model that emitted no tool
    calls, because ``_generate`` called the private method on the
    ``RunnableBinding`` and the bound kwargs were dropped.
-2. ``wrap_tools_with_headroom`` produced tools that raised ``TypeError`` on
+2. ``wrap_tools_with_horizon`` produced tools that raised ``TypeError`` on
    invoke, because ``StructuredTool`` calls its ``func`` with unpacked kwargs
    while ``BaseTool.invoke`` takes a single input.
 3. The wrapped tool lost the original ``args_schema``, so a model saw a tool
    with no parameters.
-4. ``HeadroomDocumentCompressor`` silently subclassed a local stub rather than
+4. ``HorizonDocumentCompressor`` silently subclassed a local stub rather than
    LangChain's ``BaseDocumentCompressor``, so retrievers rejected it.
 """
 
@@ -69,11 +69,11 @@ class TestBindToolsSurvivesWrapping:
     """Defect 1: bound kwargs must reach the underlying model."""
 
     def test_bound_tools_reach_generate(self):
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
         _RecordingModel.last_kwargs = {}
         inner = _RecordingModel(messages=iter([AIMessage("ok")]))
-        wrapped = HeadroomChatModel(inner).bind_tools([query_database])
+        wrapped = HorizonChatModel(inner).bind_tools([query_database])
 
         wrapped.invoke("call the tool")
 
@@ -83,19 +83,19 @@ class TestBindToolsSurvivesWrapping:
         )
 
     def test_unbound_model_passes_no_tools(self):
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
         _RecordingModel.last_kwargs = {}
         inner = _RecordingModel(messages=iter([AIMessage("ok")]))
-        HeadroomChatModel(inner).invoke("hello")
+        HorizonChatModel(inner).invoke("hello")
 
         assert "tools" not in _RecordingModel.last_kwargs
 
     def test_unwrap_binding_ignores_non_bindings(self):
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
         inner = GenericFakeChatModel(messages=iter([AIMessage("ok")]))
-        model, kwargs = HeadroomChatModel._unwrap_binding(inner)
+        model, kwargs = HorizonChatModel._unwrap_binding(inner)
 
         assert model is inner
         assert kwargs == {}
@@ -105,18 +105,18 @@ class TestWrappedToolIsUsable:
     """Defects 2 and 3: the wrapped tool must invoke, and keep its schema."""
 
     def test_invoke_with_keyword_arguments(self):
-        from headroom.integrations import wrap_tools_with_headroom
+        from horizon.integrations import wrap_tools_with_horizon
 
-        wrapped = wrap_tools_with_headroom([query_database], min_chars_to_compress=1000)[0]
+        wrapped = wrap_tools_with_horizon([query_database], min_chars_to_compress=1000)[0]
         out = wrapped.invoke({"query": "signups"})
 
         assert isinstance(out, str) and out
         assert len(out) < len(BIG_RESULT)
 
     def test_argument_schema_is_preserved(self):
-        from headroom.integrations import wrap_tools_with_headroom
+        from horizon.integrations import wrap_tools_with_horizon
 
-        wrapped = wrap_tools_with_headroom([query_database])[0]
+        wrapped = wrap_tools_with_horizon([query_database])[0]
 
         assert sorted(wrapped.args_schema.model_fields) == ["query"], (
             "the wrapped tool advertises different parameters than the original, "
@@ -124,16 +124,16 @@ class TestWrappedToolIsUsable:
         )
 
     def test_async_invoke_compresses(self):
-        from headroom.integrations import wrap_tools_with_headroom
+        from horizon.integrations import wrap_tools_with_horizon
 
-        wrapped = wrap_tools_with_headroom([query_database], min_chars_to_compress=1000)[0]
+        wrapped = wrap_tools_with_horizon([query_database], min_chars_to_compress=1000)[0]
         out = asyncio.run(wrapped.ainvoke({"query": "signups"}))
 
         assert len(out) < len(BIG_RESULT)
 
     def test_unusable_args_schema_falls_back_to_inference(self):
         """A tool carrying a schema LangChain cannot use must still wrap."""
-        from headroom.integrations.langchain.agents import HeadroomToolWrapper
+        from horizon.integrations.langchain.agents import HorizonToolWrapper
 
         class OddTool:
             name = "odd"
@@ -143,7 +143,7 @@ class TestWrappedToolIsUsable:
             def invoke(self, value):
                 return "small"
 
-        wrapper = HeadroomToolWrapper(tool=OddTool())
+        wrapper = HorizonToolWrapper(tool=OddTool())
         assert wrapper.as_langchain_tool().name == "odd"
 
 
@@ -153,12 +153,12 @@ class TestDocumentCompressorBaseClass:
     def test_is_langchain_base_document_compressor(self):
         from langchain_core.documents.compressor import BaseDocumentCompressor
 
-        from headroom.integrations import HeadroomDocumentCompressor
+        from horizon.integrations import HorizonDocumentCompressor
 
-        compressor = HeadroomDocumentCompressor(max_documents=10)
+        compressor = HorizonDocumentCompressor(max_documents=10)
 
         assert isinstance(compressor, BaseDocumentCompressor), (
-            "HeadroomDocumentCompressor fell back to the local stub base class; "
+            "HorizonDocumentCompressor fell back to the local stub base class; "
             "ContextualCompressionRetriever validates against the real one and "
             "would reject this compressor"
         )
@@ -166,10 +166,10 @@ class TestDocumentCompressorBaseClass:
     def test_compresses_down_to_max_documents(self):
         from langchain_core.documents import Document
 
-        from headroom.integrations import HeadroomDocumentCompressor
+        from horizon.integrations import HorizonDocumentCompressor
 
         docs = [Document(page_content=f"Python is a language. item {i}") for i in range(50)]
-        out = HeadroomDocumentCompressor(max_documents=10, min_relevance=0.0).compress_documents(
+        out = HorizonDocumentCompressor(max_documents=10, min_relevance=0.0).compress_documents(
             docs, "What is Python?"
         )
 

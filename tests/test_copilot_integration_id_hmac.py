@@ -17,9 +17,9 @@ Reported from a Copilot CLI session:
 ``apply_copilot_api_auth`` applied the integration ID with *set-default*
 semantics (``_set_header_default`` returns early when the header is already
 present) BEFORE deciding whose token to use. The client always sends one, so
-when Headroom replaced the token — the common case, logged as ``incoming token
+when Horizon replaced the token — the common case, logged as ``incoming token
 not suitable (kind=unknown), will replace`` — the request went out carrying the
-CLIENT's integration ID next to HEADROOM's token, minted under ``vscode-chat``.
+CLIENT's integration ID next to HORIZON's token, minted under ``vscode-chat``.
 
 The second log line is why nothing caught it sooner: seeing a proxy URL, the
 Copilot client reports ``authType=hmac`` and skips its own token validation,
@@ -35,8 +35,8 @@ import asyncio
 
 import pytest
 
-from headroom import copilot_auth
-from headroom.copilot_auth import (
+from horizon import copilot_auth
+from horizon.copilot_auth import (
     CopilotAPIToken,
     apply_copilot_api_auth,
     resolve_copilot_integration_id,
@@ -201,7 +201,7 @@ def test_non_copilot_upstream_is_untouched(monkeypatch) -> None:
 # The cache must not hand one integration another's token
 # --------------------------------------------------------------------------- #
 def test_tokens_are_cached_per_integration_id(monkeypatch) -> None:
-    from headroom.copilot_auth import CopilotTokenProvider
+    from horizon.copilot_auth import CopilotTokenProvider
 
     provider = CopilotTokenProvider()
     exchanged: list[str | None] = []

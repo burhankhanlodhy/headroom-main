@@ -22,7 +22,7 @@ import json
 
 import pytest
 
-from headroom.proxy.stream_output_tokens import (
+from horizon.proxy.stream_output_tokens import (
     TEXT_CHARS_PER_TOKEN,
     WIRE_BYTES_PER_TOKEN,
     estimate_output_tokens,

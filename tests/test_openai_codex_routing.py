@@ -11,7 +11,7 @@ import httpx
 import pytest
 from fastapi import Request
 
-from headroom.proxy.handlers.openai import (
+from horizon.proxy.handlers.openai import (
     OpenAIHandlerMixin,
     _is_allowed_websocket_origin,
     _openai_responses_unit_cache_key,
@@ -226,24 +226,24 @@ class _DummyOpenAIHandler(OpenAIHandlerMixin):
         return _ResponseStub()
 
     async def _run_compression_in_executor(self, fn, *, timeout: float):
-        # Test stub for HeadroomProxy._run_compression_in_executor.
+        # Test stub for HorizonProxy._run_compression_in_executor.
         # The real implementation runs `fn` on a bounded thread pool with
         # a wall-clock timeout; tests just need the callable invoked
         # synchronously so MagicMock call_count assertions fire.
         return fn()
 
     async def _count_tokens_offloaded(self, model, messages):  # noqa: ANN001, ANN201
-        # Test stub for HeadroomProxy._count_tokens_offloaded: resolve the
+        # Test stub for HorizonProxy._count_tokens_offloaded: resolve the
         # tokenizer and count inline (the real method offloads to the executor).
-        from headroom.tokenizers import get_tokenizer
+        from horizon.tokenizers import get_tokenizer
 
         tokenizer = get_tokenizer(model)
         return tokenizer, tokenizer.count_messages(messages)
 
     async def _record_request_outcome(self, outcome) -> None:
         # Test stub: delegates to the production funnel so wire shape
-        # matches HeadroomProxy._record_request_outcome.
-        from headroom.proxy.outcome import emit_request_outcome
+        # matches HorizonProxy._record_request_outcome.
+        from horizon.proxy.outcome import emit_request_outcome
 
         await emit_request_outcome(self, outcome)
 
@@ -439,7 +439,7 @@ def test_handle_openai_responses_routes_chatgpt_auth_to_backend_api(monkeypatch)
     )
     handler = _DummyOpenAIHandler()
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -474,7 +474,7 @@ def test_handle_openai_responses_strips_codex_lite_header_upstream(monkeypatch):
     )
     handler = _DummyOpenAIHandler()
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -496,7 +496,7 @@ def test_handle_openai_responses_chatgpt_auth_skips_memory_tools(monkeypatch):
     )
     request = _build_request(
         {"model": "gpt-5.4", "input": "hello", "store": True},
-        {"Authorization": f"Bearer {token}", "x-headroom-user-id": "user-1"},
+        {"Authorization": f"Bearer {token}", "x-horizon-user-id": "user-1"},
     )
     handler = _DummyOpenAIHandler()
     memory_handler = _MemoryToolsOnlyHandler()
@@ -505,7 +505,7 @@ def test_handle_openai_responses_chatgpt_auth_skips_memory_tools(monkeypatch):
         compute_session_id=lambda *a, **k: "sess-chatgpt-no-memory-tools",
     )
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -537,7 +537,7 @@ def test_handle_openai_responses_chatgpt_codex_timeout_fails_open(monkeypatch):
         raise asyncio.TimeoutError()
 
     handler._compress_openai_responses_payload_in_executor = timeout_compression
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -553,7 +553,7 @@ def test_handle_openai_responses_chatgpt_codex_timeout_fails_open(monkeypatch):
 def test_handle_openai_responses_api_auth_store_false_injects_stateless_memory_tools(monkeypatch):
     request = _build_request(
         {"model": "gpt-4o-mini", "input": "hello", "store": False},
-        {"Authorization": "Bearer sk-test", "x-headroom-user-id": "user-1"},
+        {"Authorization": "Bearer sk-test", "x-horizon-user-id": "user-1"},
     )
     handler = _DummyOpenAIHandler()
     memory_handler = _MemoryToolsOnlyHandler()
@@ -562,7 +562,7 @@ def test_handle_openai_responses_api_auth_store_false_injects_stateless_memory_t
         compute_session_id=lambda *a, **k: "sess-api-memory-tools",
     )
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -618,11 +618,11 @@ def test_openai_responses_memory_continuation_is_zdr_safe(store, include, monkey
         body["store"] = store
     request = _build_request(
         body,
-        {"Authorization": "Bearer sk-test", "x-headroom-user-id": "user-1"},
+        {"Authorization": "Bearer sk-test", "x-horizon-user-id": "user-1"},
     )
     handler = _ZdrResponsesHandler()
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -685,7 +685,7 @@ def test_handle_openai_responses_routes_api_key_auth_direct_to_openai(monkeypatc
     )
     handler = _DummyOpenAIHandler()
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -725,7 +725,7 @@ def test_handle_openai_responses_non_stream_adapts_sse_upstream(monkeypatch):
     )
     handler = _SSEUpstreamHandler()
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -757,7 +757,7 @@ def test_handle_openai_responses_non_stream_passes_through_unparseable_sse(monke
     )
     handler = _SSEUpstreamHandler()
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -788,7 +788,7 @@ def test_handle_openai_responses_stream_skips_python_compression(monkeypatch):
     handler = _DummyOpenAIHandler()
     handler.config.optimize = True
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -817,13 +817,13 @@ def test_handle_openai_responses_memory_timeout_fails_open(monkeypatch):
 
     request = _build_request(
         {"model": "gpt-5.4", "input": "hello"},
-        {"Authorization": "Bearer sk-test", "x-headroom-user-id": "user-1"},
+        {"Authorization": "Bearer sk-test", "x-horizon-user-id": "user-1"},
     )
     handler = _DummyOpenAIHandler()
     handler.memory_handler = _SlowMemoryHandler()
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
-    monkeypatch.setattr("headroom.proxy.handlers.openai.asyncio.wait_for", _timeout_wait_for)
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.proxy.handlers.openai.asyncio.wait_for", _timeout_wait_for)
 
     response = anyio.run(handler.handle_openai_responses, request)
 
@@ -851,7 +851,7 @@ def test_codex_responses_timeout_fails_open_in_standalone_proxy(monkeypatch):
     handler = _DummyOpenAIHandler()
     handler.config.optimize = True
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
     monkeypatch.setattr(
         handler,
         "_compress_openai_responses_payload",
@@ -885,31 +885,31 @@ class _DummyWebSocket:
 
 
 def test_websocket_origin_policy_allows_native_clients_without_origin(monkeypatch):
-    monkeypatch.delenv("HEADROOM_WS_ORIGINS", raising=False)
-    monkeypatch.delenv("HEADROOM_CORS_ORIGINS", raising=False)
+    monkeypatch.delenv("HORIZON_WS_ORIGINS", raising=False)
+    monkeypatch.delenv("HORIZON_CORS_ORIGINS", raising=False)
 
     assert _is_allowed_websocket_origin({"authorization": "Bearer token"}) is True
 
 
 def test_websocket_origin_policy_allows_loopback_origins_by_default(monkeypatch):
-    monkeypatch.delenv("HEADROOM_WS_ORIGINS", raising=False)
-    monkeypatch.delenv("HEADROOM_CORS_ORIGINS", raising=False)
+    monkeypatch.delenv("HORIZON_WS_ORIGINS", raising=False)
+    monkeypatch.delenv("HORIZON_CORS_ORIGINS", raising=False)
 
     assert _is_allowed_websocket_origin({"origin": "http://localhost:3000"}) is True
     assert _is_allowed_websocket_origin({"origin": "https://127.0.0.1:8787"}) is True
 
 
 def test_websocket_origin_policy_requires_config_for_remote_origins(monkeypatch):
-    monkeypatch.delenv("HEADROOM_WS_ORIGINS", raising=False)
-    monkeypatch.delenv("HEADROOM_CORS_ORIGINS", raising=False)
+    monkeypatch.delenv("HORIZON_WS_ORIGINS", raising=False)
+    monkeypatch.delenv("HORIZON_CORS_ORIGINS", raising=False)
 
     assert _is_allowed_websocket_origin({"origin": "https://remote.example"}) is False
     assert _is_allowed_websocket_origin({"origin": "http://"}) is False
 
 
 def test_websocket_origin_policy_can_be_pinned_with_env(monkeypatch):
-    monkeypatch.setenv("HEADROOM_WS_ORIGINS", "https://dash.example.com")
-    monkeypatch.delenv("HEADROOM_CORS_ORIGINS", raising=False)
+    monkeypatch.setenv("HORIZON_WS_ORIGINS", "https://dash.example.com")
+    monkeypatch.delenv("HORIZON_CORS_ORIGINS", raising=False)
 
     assert _is_allowed_websocket_origin({"origin": "https://dash.example.com"}) is True
     assert _is_allowed_websocket_origin({"origin": "http://localhost:3000"}) is False
@@ -924,7 +924,7 @@ def test_handle_openai_responses_ws_resolves_codex_routing_headers():
 
     with patch.dict(sys.modules, {"websockets": MagicMock()}):
         with patch(
-            "headroom.proxy.handlers.openai._resolve_codex_routing_headers",
+            "horizon.proxy.handlers.openai._resolve_codex_routing_headers",
             side_effect=SentinelError("resolved"),
         ):
             with pytest.raises(SentinelError, match="resolved"):
@@ -935,12 +935,12 @@ def test_handle_openai_responses_ws_closes_unconfigured_origin(monkeypatch):
     handler = _DummyOpenAIHandler()
     websocket = _DummyWebSocket({"origin": "https://remote.example"})
 
-    monkeypatch.delenv("HEADROOM_WS_ORIGINS", raising=False)
-    monkeypatch.delenv("HEADROOM_CORS_ORIGINS", raising=False)
+    monkeypatch.delenv("HORIZON_WS_ORIGINS", raising=False)
+    monkeypatch.delenv("HORIZON_CORS_ORIGINS", raising=False)
 
     with patch.dict(sys.modules, {"websockets": MagicMock()}):
         with patch(
-            "headroom.proxy.handlers.openai._resolve_codex_routing_headers",
+            "horizon.proxy.handlers.openai._resolve_codex_routing_headers",
             side_effect=AssertionError("routing should not run"),
         ):
             anyio.run(handler.handle_openai_responses_ws, websocket)
@@ -960,7 +960,7 @@ def _savings_handler(monkeypatch, saved: int) -> _DummyOpenAIHandler:
     """A responses handler whose compression removes ``saved`` tokens per
     request and whose metrics call is captured, so the funnel's booked
     ``tokens_saved`` can be read back."""
-    from headroom.proxy.conversation_savings import reset_conversation_savings
+    from horizon.proxy.conversation_savings import reset_conversation_savings
 
     reset_conversation_savings()
     handler = _DummyOpenAIHandler()
@@ -971,7 +971,7 @@ def _savings_handler(monkeypatch, saved: int) -> _DummyOpenAIHandler:
         return payload, True, saved, ["router:text"], None, 1_000, 900, 500, {}
 
     handler._compress_openai_responses_payload_in_executor = compress
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _DummyTokenizer())
     return handler
 
 

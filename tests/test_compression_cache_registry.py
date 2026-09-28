@@ -1,6 +1,6 @@
 """Session-level lifecycle of the compression-cache registry.
 
-Covers the two eviction paths on ``HeadroomProxy._get_compression_cache``:
+Covers the two eviction paths on ``HorizonProxy._get_compression_cache``:
 
 * capacity eviction must be LRU by *access* (a busy long-lived session
   survives; the idlest session goes), not FIFO by creation, and
@@ -21,7 +21,7 @@ pytest.importorskip("fastapi")
 
 
 def _make_proxy():
-    from headroom.proxy.server import ProxyConfig, create_app
+    from horizon.proxy.server import ProxyConfig, create_app
 
     config = ProxyConfig(
         optimize=False,
@@ -40,7 +40,7 @@ def _make_proxy():
 
 def test_capacity_eviction_is_lru_not_fifo(monkeypatch) -> None:
     """At capacity, the idlest session is evicted — not the oldest-created."""
-    import headroom.proxy.server as server_mod
+    import horizon.proxy.server as server_mod
 
     monkeypatch.setattr(server_mod, "MAX_COMPRESSION_CACHE_SESSIONS", 4)
     proxy = _make_proxy()
@@ -59,7 +59,7 @@ def test_capacity_eviction_is_lru_not_fifo(monkeypatch) -> None:
 
 def test_capacity_eviction_count_respects_small_caps(monkeypatch) -> None:
     """A cap below 4 still evicts at least one session instead of looping."""
-    import headroom.proxy.server as server_mod
+    import horizon.proxy.server as server_mod
 
     monkeypatch.setattr(server_mod, "MAX_COMPRESSION_CACHE_SESSIONS", 2)
     proxy = _make_proxy()
@@ -74,7 +74,7 @@ def test_capacity_eviction_count_respects_small_caps(monkeypatch) -> None:
 
 def test_idle_ttl_sweep_evicts_expired_sessions(monkeypatch) -> None:
     """A session idle past the TTL is reclaimed by the lazy sweep."""
-    import headroom.proxy.server as server_mod
+    import horizon.proxy.server as server_mod
 
     monkeypatch.setattr(server_mod, "COMPRESSION_CACHE_TTL_SECONDS", 100.0)
     proxy = _make_proxy()
@@ -98,7 +98,7 @@ def test_idle_ttl_sweep_evicts_expired_sessions(monkeypatch) -> None:
 
 def test_access_refreshes_ttl_clock(monkeypatch) -> None:
     """Accessing a session resets its idle clock, so it survives the sweep."""
-    import headroom.proxy.server as server_mod
+    import horizon.proxy.server as server_mod
 
     monkeypatch.setattr(server_mod, "COMPRESSION_CACHE_TTL_SECONDS", 100.0)
     proxy = _make_proxy()
@@ -120,7 +120,7 @@ def test_access_refreshes_ttl_clock(monkeypatch) -> None:
 
 def test_sweep_is_rate_limited(monkeypatch) -> None:
     """Within the cleanup interval, even an expired session is not swept."""
-    import headroom.proxy.server as server_mod
+    import horizon.proxy.server as server_mod
 
     monkeypatch.setattr(server_mod, "COMPRESSION_CACHE_TTL_SECONDS", 100.0)
     proxy = _make_proxy()
@@ -138,7 +138,7 @@ def test_ttl_sweep_never_evicts_a_session_mid_turn(monkeypatch) -> None:
     """Popping a session whose turn lock is held splits the lock across two
     cache instances: the straggler and its retry then run unserialized and
     the retry's empty cache recompresses previously-returned bytes."""
-    import headroom.proxy.server as server_mod
+    import horizon.proxy.server as server_mod
 
     monkeypatch.setattr(server_mod, "COMPRESSION_CACHE_TTL_SECONDS", 100.0)
     proxy = _make_proxy()
@@ -167,7 +167,7 @@ def test_ttl_sweep_never_evicts_a_session_mid_turn(monkeypatch) -> None:
 
 
 def test_capacity_eviction_skips_locked_sessions(monkeypatch) -> None:
-    import headroom.proxy.server as server_mod
+    import horizon.proxy.server as server_mod
 
     monkeypatch.setattr(server_mod, "MAX_COMPRESSION_CACHE_SESSIONS", 2)
     proxy = _make_proxy()

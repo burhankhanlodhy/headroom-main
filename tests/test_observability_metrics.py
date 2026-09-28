@@ -10,17 +10,17 @@ import pytest
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import InMemoryMetricReader
 
-from headroom.observability import (
-    HeadroomOtelMetrics,
+from horizon.observability import (
+    HorizonOtelMetrics,
     get_otel_meter,
     register_otel_metric_attribute_provider,
     reset_otel_metrics,
     set_otel_metrics,
     unregister_otel_metric_attribute_provider,
 )
-from headroom.proxy.prometheus_metrics import PrometheusMetrics
-from headroom.telemetry.context import MAX_DISTINCT_MODELS
-from headroom.transforms.pipeline import TransformPipeline
+from horizon.proxy.prometheus_metrics import PrometheusMetrics
+from horizon.telemetry.context import MAX_DISTINCT_MODELS
+from horizon.transforms.pipeline import TransformPipeline
 
 
 def _collect_metrics(reader: InMemoryMetricReader) -> dict[str, Any]:
@@ -42,10 +42,10 @@ def _find_point(metric: Any, **expected_attributes: Any) -> Any:
     raise AssertionError(f"No datapoint matched attributes: {expected_attributes}")
 
 
-def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
+def test_horizon_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     reader = InMemoryMetricReader()
     provider = MeterProvider(metric_readers=[reader])
-    otel_metrics = HeadroomOtelMetrics(meter_provider=provider)
+    otel_metrics = HorizonOtelMetrics(meter_provider=provider)
 
     otel_metrics.record_proxy_request(
         provider="anthropic",
@@ -88,7 +88,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
 
     metrics = _collect_metrics(reader)
 
-    requests = metrics["headroom.proxy.requests"]
+    requests = metrics["horizon.proxy.requests"]
     request_point = _find_point(
         requests,
         provider="anthropic",
@@ -97,7 +97,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     )
     assert request_point.value == 1
 
-    saved_tokens = metrics["headroom.proxy.tokens.saved"]
+    saved_tokens = metrics["horizon.proxy.tokens.saved"]
     saved_point = _find_point(
         saved_tokens,
         provider="anthropic",
@@ -106,7 +106,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     )
     assert saved_point.value == 60
 
-    tool_schema_saved = metrics["headroom.proxy.tokens.tool_schema_saved"]
+    tool_schema_saved = metrics["horizon.proxy.tokens.tool_schema_saved"]
     tool_schema_point = _find_point(
         tool_schema_saved,
         provider="anthropic",
@@ -115,31 +115,31 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     )
     assert tool_schema_point.value == 15
 
-    attempted_input = metrics["headroom.proxy.tokens.attempted_input"]
+    attempted_input = metrics["horizon.proxy.tokens.attempted_input"]
     attempted_point = _find_point(
         attempted_input,
         **{
-            "headroom.project": "checkout",
-            "headroom.client": "claude-code",
+            "horizon.project": "checkout",
+            "horizon.client": "claude-code",
         },
     )
     assert attempted_point.value == 165
 
-    output_saved = metrics["headroom.proxy.tokens.output_saved"]
+    output_saved = metrics["horizon.proxy.tokens.output_saved"]
     output_saved_point = _find_point(
         output_saved,
         **{
-            "headroom.project": "checkout",
-            "headroom.client": "claude-code",
+            "horizon.project": "checkout",
+            "horizon.client": "claude-code",
         },
     )
     assert output_saved_point.value == 8
 
-    savings_usd = metrics["headroom.proxy.savings.usd"]
+    savings_usd = metrics["horizon.proxy.savings.usd"]
     compression_usd = _find_point(savings_usd, source="compression", estimated=True)
     assert compression_usd.value == pytest.approx(0.001)
 
-    compression_saved = metrics["headroom.compression.tokens.saved"]
+    compression_saved = metrics["horizon.compression.tokens.saved"]
     compression_saved_point = _find_point(
         compression_saved,
         provider="anthropic",
@@ -147,7 +147,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     )
     assert compression_saved_point.value == 45
 
-    latency = metrics["headroom.proxy.request.duration"]
+    latency = metrics["horizon.proxy.request.duration"]
     latency_point = _find_point(
         latency,
         provider="anthropic",
@@ -157,7 +157,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     assert latency_point.count == 1
     assert latency_point.sum == pytest.approx(0.0185)
 
-    ttl_tokens = metrics["headroom.proxy.cache.write_ttl_tokens"]
+    ttl_tokens = metrics["horizon.proxy.cache.write_ttl_tokens"]
     five_minute_ttl = _find_point(
         ttl_tokens,
         provider="anthropic",
@@ -166,7 +166,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     )
     assert five_minute_ttl.value == 10
 
-    compression_runs = metrics["headroom.compression.runs"]
+    compression_runs = metrics["horizon.compression.runs"]
     compression_point = _find_point(
         compression_runs,
         provider="anthropic",
@@ -174,7 +174,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     )
     assert compression_point.value == 1
 
-    stage_duration = metrics["headroom.compression.stage.duration"]
+    stage_duration = metrics["horizon.compression.stage.duration"]
     router_stage = _find_point(
         stage_duration,
         provider="anthropic",
@@ -186,7 +186,7 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
 
     assert len(stage_duration.data.data_points) == 1
 
-    waste_tokens = metrics["headroom.compression.waste.tokens"]
+    waste_tokens = metrics["horizon.compression.waste.tokens"]
     waste_point = _find_point(
         waste_tokens,
         provider="anthropic",
@@ -196,10 +196,10 @@ def test_headroom_otel_metrics_records_proxy_and_pipeline_metrics() -> None:
     assert waste_point.value == 12
 
 
-def test_get_otel_meter_uses_headrooms_configured_provider() -> None:
+def test_get_otel_meter_uses_horizons_configured_provider() -> None:
     reader = InMemoryMetricReader()
     provider = MeterProvider(metric_readers=[reader])
-    set_otel_metrics(HeadroomOtelMetrics(meter_provider=provider))
+    set_otel_metrics(HorizonOtelMetrics(meter_provider=provider))
 
     try:
         meter = get_otel_meter("example.integration", "1.0.0")
@@ -215,13 +215,13 @@ def test_get_otel_meter_uses_headrooms_configured_provider() -> None:
 def test_request_attribute_provider_enriches_core_and_savings_metrics() -> None:
     reader = InMemoryMetricReader()
     provider = MeterProvider(metric_readers=[reader])
-    otel_metrics = HeadroomOtelMetrics(meter_provider=provider)
+    otel_metrics = HorizonOtelMetrics(meter_provider=provider)
 
     def identity_attributes() -> dict[str, str]:
         return {
-            "headroom.org": "acme",
-            "headroom.team": "payments",
-            "headroom.user": "alice",
+            "horizon.org": "acme",
+            "horizon.team": "payments",
+            "horizon.user": "alice",
             # Canonical call-site dimensions must win over an extension.
             "model": "must-not-override",
             "source": "must-not-override",
@@ -243,19 +243,19 @@ def test_request_attribute_provider_enriches_core_and_savings_metrics() -> None:
 
         metrics = _collect_metrics(reader)
         request = _find_point(
-            metrics["headroom.proxy.requests"],
+            metrics["horizon.proxy.requests"],
             model="claude-sonnet-4-5",
             **{
-                "headroom.org": "acme",
-                "headroom.team": "payments",
-                "headroom.user": "alice",
+                "horizon.org": "acme",
+                "horizon.team": "payments",
+                "horizon.user": "alice",
             },
         )
         assert request.value == 1
         attributed = _find_point(
-            metrics["headroom.savings.attributed.tokens"],
+            metrics["horizon.savings.attributed.tokens"],
             source="tool_search",
-            **{"headroom.user": "alice"},
+            **{"horizon.user": "alice"},
         )
         assert attributed.value == 20
     finally:
@@ -265,7 +265,7 @@ def test_request_attribute_provider_enriches_core_and_savings_metrics() -> None:
 def test_failing_request_attribute_provider_is_fail_open() -> None:
     reader = InMemoryMetricReader()
     provider = MeterProvider(metric_readers=[reader])
-    otel_metrics = HeadroomOtelMetrics(meter_provider=provider)
+    otel_metrics = HorizonOtelMetrics(meter_provider=provider)
 
     def broken_provider() -> dict[str, str]:
         raise RuntimeError("identity unavailable")
@@ -274,7 +274,7 @@ def test_failing_request_attribute_provider_is_fail_open() -> None:
     try:
         otel_metrics.record_proxy_failed(provider="openai", model="gpt-5")
         point = _find_point(
-            _collect_metrics(reader)["headroom.proxy.requests.failed"],
+            _collect_metrics(reader)["horizon.proxy.requests.failed"],
             provider="openai",
             model="gpt-5",
         )
@@ -327,18 +327,18 @@ def test_transform_pipeline_simulate_skips_metric_recording() -> None:
 def test_proxy_failure_and_rate_limit_metrics_include_provider_labels() -> None:
     reader = InMemoryMetricReader()
     provider = MeterProvider(metric_readers=[reader])
-    otel_metrics = HeadroomOtelMetrics(meter_provider=provider)
+    otel_metrics = HorizonOtelMetrics(meter_provider=provider)
 
     otel_metrics.record_proxy_failed(provider="openai")
     otel_metrics.record_proxy_rate_limited(provider="anthropic", model="claude-sonnet")
 
     metrics = _collect_metrics(reader)
 
-    failed_point = _find_point(metrics["headroom.proxy.requests.failed"], provider="openai")
+    failed_point = _find_point(metrics["horizon.proxy.requests.failed"], provider="openai")
     assert failed_point.value == 1
 
     rate_limited_point = _find_point(
-        metrics["headroom.proxy.requests.rate_limited"],
+        metrics["horizon.proxy.requests.rate_limited"],
         provider="anthropic",
         model="claude-sonnet",
     )
@@ -358,7 +358,7 @@ async def test_prometheus_metrics_reads_late_configured_otel_metrics() -> None:
         assert spy.failed_calls == [{"provider": "openai", "model": None}]
         # ``source`` reaches OTel too — the split must not exist in Prometheus only.
         assert spy.rate_limited_calls == [
-            {"provider": "anthropic", "model": "claude-sonnet", "source": "headroom"}
+            {"provider": "anthropic", "model": "claude-sonnet", "source": "horizon"}
         ]
     finally:
         reset_otel_metrics()
@@ -374,14 +374,14 @@ async def test_prometheus_metrics_forwards_rate_limit_source_to_otel() -> None:
 
     try:
         await metrics.record_rate_limited(provider="anthropic", source="upstream")
-        await metrics.record_rate_limited(provider="anthropic", source="headroom")
+        await metrics.record_rate_limited(provider="anthropic", source="horizon")
         # An unrecognised value is clamped rather than exported as a new label.
         await metrics.record_rate_limited(provider="anthropic", source="nonsense")
 
         assert [call["source"] for call in spy.rate_limited_calls] == [
             "upstream",
-            "headroom",
-            "headroom",
+            "horizon",
+            "horizon",
         ]
     finally:
         reset_otel_metrics()
@@ -390,20 +390,20 @@ async def test_prometheus_metrics_forwards_rate_limit_source_to_otel() -> None:
 def test_otel_rate_limited_counter_carries_source_attribute() -> None:
     reader = InMemoryMetricReader()
     provider = MeterProvider(metric_readers=[reader])
-    otel_metrics = HeadroomOtelMetrics(meter_provider=provider)
+    otel_metrics = HorizonOtelMetrics(meter_provider=provider)
 
     otel_metrics.record_proxy_rate_limited(provider="anthropic", source="upstream")
-    otel_metrics.record_proxy_rate_limited(provider="openai", source="headroom")
+    otel_metrics.record_proxy_rate_limited(provider="openai", source="horizon")
 
     metrics = _collect_metrics(reader)
     upstream = _find_point(
-        metrics["headroom.proxy.requests.rate_limited"], provider="anthropic", source="upstream"
+        metrics["horizon.proxy.requests.rate_limited"], provider="anthropic", source="upstream"
     )
-    headroom_side = _find_point(
-        metrics["headroom.proxy.requests.rate_limited"], provider="openai", source="headroom"
+    horizon_side = _find_point(
+        metrics["horizon.proxy.requests.rate_limited"], provider="openai", source="horizon"
     )
     assert upstream.value == 1
-    assert headroom_side.value == 1
+    assert horizon_side.value == 1
 
 
 @pytest.mark.asyncio
@@ -417,7 +417,7 @@ async def test_prometheus_metrics_forwards_savings_drilldown_fields_to_otel(
         "provider_cache": 0.0,
     }
     monkeypatch.setattr(
-        "headroom.proxy.prometheus_metrics.estimate_request_savings_usd",
+        "horizon.proxy.prometheus_metrics.estimate_request_savings_usd",
         lambda *_args, **_kwargs: expected_usd,
     )
     spy = _SpyProxyMetrics()
@@ -515,7 +515,7 @@ async def test_prometheus_metrics_model_cardinality_warns_once(
 ) -> None:
     """Bucketing into "other" logs exactly one warning, not one per request."""
     metrics = PrometheusMetrics(stateless=True)
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         for i in range(MAX_DISTINCT_MODELS + 10):
             await metrics.record_request(
                 provider="openai",
@@ -566,6 +566,6 @@ async def test_prometheus_metrics_export_bounds_model_series() -> None:
             latency_ms=1.0,
         )
     text = await metrics.export()
-    series = text.count("headroom_requests_by_model{")
+    series = text.count("horizon_requests_by_model{")
     assert series <= MAX_DISTINCT_MODELS + 1
-    assert 'headroom_requests_by_model{model="other"}' in text
+    assert 'horizon_requests_by_model{model="other"}' in text

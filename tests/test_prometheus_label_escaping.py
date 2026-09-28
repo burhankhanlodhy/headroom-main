@@ -21,7 +21,7 @@ import re
 
 import pytest
 
-from headroom.proxy.prometheus_metrics import PrometheusMetrics
+from horizon.proxy.prometheus_metrics import PrometheusMetrics
 
 # A label whose value contains only unreserved characters or well-formed escape
 # pairs. An unescaped quote inside a value stops this matching, which is exactly
@@ -103,8 +103,8 @@ async def test_quote_in_model_is_escaped() -> None:
 
     text = await metrics.export()
 
-    assert 'headroom_requests_by_model{model="claude-sonnet-4-5\\"evil"} 1' in text
-    assert 'headroom_requests_by_model{model="claude-sonnet-4-5"evil"}' not in text
+    assert 'horizon_requests_by_model{model="claude-sonnet-4-5\\"evil"} 1' in text
+    assert 'horizon_requests_by_model{model="claude-sonnet-4-5"evil"}' not in text
 
 
 @pytest.mark.asyncio
@@ -115,8 +115,8 @@ async def test_quote_in_provider_is_escaped() -> None:
 
     text = await metrics.export()
 
-    assert 'headroom_requests_by_provider{provider="anth\\"ropic"} 1' in text
-    assert 'headroom_requests_by_provider{provider="anth"ropic"}' not in text
+    assert 'horizon_requests_by_provider{provider="anth\\"ropic"} 1' in text
+    assert 'horizon_requests_by_provider{provider="anth"ropic"}' not in text
 
 
 @pytest.mark.asyncio
@@ -129,8 +129,8 @@ async def test_backslash_and_newline_in_model_are_escaped() -> None:
     text = await metrics.export()
 
     # Backslash first, so the escapes this inserts are not re-escaped.
-    assert 'headroom_requests_by_model{model="back\\\\slash"} 1' in text
-    assert 'headroom_requests_by_model{model="line\\nfeed"} 1' in text
+    assert 'horizon_requests_by_model{model="back\\\\slash"} 1' in text
+    assert 'horizon_requests_by_model{model="line\\nfeed"} 1' in text
     # The line feed must not survive as a real newline splitting the sample.
     assert "line\nfeed" not in text
 
@@ -154,15 +154,15 @@ async def test_provider_cache_families_escape_provider() -> None:
     text = await metrics.export()
 
     families = [
-        "headroom_cache_read_tokens_total",
-        "headroom_cache_write_tokens_total",
-        "headroom_cache_write_ttl_tokens_total",
-        "headroom_cache_write_ttl_requests_total",
-        "headroom_uncached_input_tokens_total",
-        "headroom_provider_cache_requests_total",
-        "headroom_provider_cache_hit_requests_total",
-        "headroom_provider_cache_bust_total",
-        "headroom_provider_cache_bust_write_tokens_total",
+        "horizon_cache_read_tokens_total",
+        "horizon_cache_write_tokens_total",
+        "horizon_cache_write_ttl_tokens_total",
+        "horizon_cache_write_ttl_requests_total",
+        "horizon_uncached_input_tokens_total",
+        "horizon_provider_cache_requests_total",
+        "horizon_provider_cache_hit_requests_total",
+        "horizon_provider_cache_bust_total",
+        "horizon_provider_cache_bust_write_tokens_total",
     ]
     for family in families:
         assert f'{family}{{provider="anth\\"ropic"' in text, f"{family} left provider raw"
@@ -177,7 +177,7 @@ async def test_cache_miss_attribution_escapes_both_labels() -> None:
     text = await metrics.export()
 
     assert (
-        'headroom_cache_miss_attribution_total{provider="anth\\"ropic",reason="ttl\\"expiry"} 1'
+        'horizon_cache_miss_attribution_total{provider="anth\\"ropic",reason="ttl\\"expiry"} 1'
         in text
     )
 
@@ -228,10 +228,10 @@ async def test_non_string_label_values_are_coerced() -> None:
 
     text = await metrics.export()
 
-    assert 'headroom_requests_by_model{model="123"} 1' in text
-    assert 'headroom_requests_by_provider{provider="456"} 1' in text
-    assert 'headroom_cache_read_tokens_total{provider="456"}' in text
-    assert 'headroom_cache_miss_attribution_total{provider="456",reason="789"} 1' in text
+    assert 'horizon_requests_by_model{model="123"} 1' in text
+    assert 'horizon_requests_by_provider{provider="456"} 1' in text
+    assert 'horizon_cache_read_tokens_total{provider="456"}' in text
+    assert 'horizon_cache_miss_attribution_total{provider="456",reason="789"} 1' in text
 
 
 @pytest.mark.asyncio
@@ -242,8 +242,8 @@ async def test_well_formed_values_are_emitted_unchanged() -> None:
 
     text = await metrics.export()
 
-    assert 'headroom_requests_by_provider{provider="anthropic"} 1' in text
-    assert 'headroom_requests_by_model{model="claude-sonnet-4-5"} 1' in text
+    assert 'horizon_requests_by_provider{provider="anthropic"} 1' in text
+    assert 'horizon_requests_by_model{model="claude-sonnet-4-5"} 1' in text
 
 
 @pytest.mark.asyncio
@@ -265,9 +265,9 @@ async def test_export_is_utf8_encodable_with_surrogate_model() -> None:
     text.encode("utf-8")
     # And the healthy series is still readable, i.e. the poison did not corrupt
     # the surrounding output.
-    assert 'headroom_requests_by_model{model="clean-model"} 1' in text
+    assert 'horizon_requests_by_model{model="clean-model"} 1' in text
     # Legitimate astral characters (a real emoji is one code point, encodable)
     # are preserved, not scrubbed — only un-encodable lone surrogates change.
     metrics2 = PrometheusMetrics()
     await _record(metrics2, model="gpt-\U0001f600")
-    assert 'headroom_requests_by_model{model="gpt-\U0001f600"} 1' in await metrics2.export()
+    assert 'horizon_requests_by_model{model="gpt-\U0001f600"} 1' in await metrics2.export()

@@ -5,9 +5,9 @@ import types
 
 import pytest
 
-import headroom.providers as providers
-from headroom.install.models import ManagedMutation
-from headroom.providers import install_registry
+import horizon.providers as providers
+from horizon.install.models import ManagedMutation
+from horizon.providers import install_registry
 
 
 def test_providers_package_resolves_exports_lazily_and_caches_them(monkeypatch) -> None:
@@ -25,7 +25,7 @@ def test_providers_package_resolves_exports_lazily_and_caches_them(monkeypatch) 
     try:
         assert module.OpenAIProvider is sentinel
         assert module.OpenAIProvider is sentinel
-        assert import_calls == ["headroom.providers.openai"]
+        assert import_calls == ["horizon.providers.openai"]
         assert "OpenAIProvider" in module.__dir__()
     finally:
         module.__dict__.pop("OpenAIProvider", None)

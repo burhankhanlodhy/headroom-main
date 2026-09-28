@@ -1,12 +1,12 @@
 """Org-scale sizing knobs: shared-process stores must be tunable and safe.
 
-One Headroom process shared by many users (gateway sidecar/pool) stresses
+One Horizon process shared by many users (gateway sidecar/pool) stresses
 stores that were sized for a single user's workload:
 
 * the per-session compression-cache entry cap
-  (``HEADROOM_COMPRESSION_CACHE_MAX_ENTRIES``),
+  (``HORIZON_COMPRESSION_CACHE_MAX_ENTRIES``),
 * the process-wide frozen-verdicts store
-  (``HEADROOM_FROZEN_VERDICTS_MAX``), and
+  (``HORIZON_FROZEN_VERDICTS_MAX``), and
 * the session registry under churn (active sessions must survive a flood
   of transient ones — the LRU property at scale).
 
@@ -21,7 +21,7 @@ pytest.importorskip("fastapi")
 
 
 def _make_proxy():
-    from headroom.proxy.server import ProxyConfig, create_app
+    from horizon.proxy.server import ProxyConfig, create_app
 
     config = ProxyConfig(
         optimize=False,
@@ -44,7 +44,7 @@ def _make_proxy():
 
 
 def test_compression_cache_entry_cap_is_plumbed(monkeypatch) -> None:
-    import headroom.proxy.server as server_mod
+    import horizon.proxy.server as server_mod
 
     monkeypatch.setattr(server_mod, "COMPRESSION_CACHE_MAX_ENTRIES", 123)
     proxy = _make_proxy()
@@ -54,23 +54,23 @@ def test_compression_cache_entry_cap_is_plumbed(monkeypatch) -> None:
 def test_compression_cache_entry_cap_env_parsing(monkeypatch) -> None:
     import importlib
 
-    import headroom.proxy.helpers as helpers_mod
+    import horizon.proxy.helpers as helpers_mod
 
-    monkeypatch.setenv("HEADROOM_COMPRESSION_CACHE_MAX_ENTRIES", "50000")
+    monkeypatch.setenv("HORIZON_COMPRESSION_CACHE_MAX_ENTRIES", "50000")
     importlib.reload(helpers_mod)
     assert helpers_mod.COMPRESSION_CACHE_MAX_ENTRIES == 50000
 
     # Floor: an absurdly small value cannot disable the cache.
-    monkeypatch.setenv("HEADROOM_COMPRESSION_CACHE_MAX_ENTRIES", "1")
+    monkeypatch.setenv("HORIZON_COMPRESSION_CACHE_MAX_ENTRIES", "1")
     importlib.reload(helpers_mod)
     assert helpers_mod.COMPRESSION_CACHE_MAX_ENTRIES == 100
 
     # Garbage falls back to the default.
-    monkeypatch.setenv("HEADROOM_COMPRESSION_CACHE_MAX_ENTRIES", "banana")
+    monkeypatch.setenv("HORIZON_COMPRESSION_CACHE_MAX_ENTRIES", "banana")
     importlib.reload(helpers_mod)
     assert helpers_mod.COMPRESSION_CACHE_MAX_ENTRIES == 10000
 
-    monkeypatch.delenv("HEADROOM_COMPRESSION_CACHE_MAX_ENTRIES")
+    monkeypatch.delenv("HORIZON_COMPRESSION_CACHE_MAX_ENTRIES")
     importlib.reload(helpers_mod)
     assert helpers_mod.COMPRESSION_CACHE_MAX_ENTRIES == 10000
 
@@ -80,19 +80,19 @@ def test_compression_cache_ttl_env_rejects_non_finite(monkeypatch) -> None:
     must fall back to the default like any other unparseable value."""
     import importlib
 
-    import headroom.proxy.helpers as helpers_mod
+    import horizon.proxy.helpers as helpers_mod
 
     for bad in ("nan", "inf", "-inf"):
-        monkeypatch.setenv("HEADROOM_COMPRESSION_CACHE_TTL_SECONDS", bad)
+        monkeypatch.setenv("HORIZON_COMPRESSION_CACHE_TTL_SECONDS", bad)
         importlib.reload(helpers_mod)
         assert helpers_mod.COMPRESSION_CACHE_TTL_SECONDS == 3900.0, bad
 
     # Below the 600s floor clamps up; above it passes through.
-    monkeypatch.setenv("HEADROOM_COMPRESSION_CACHE_TTL_SECONDS", "60")
+    monkeypatch.setenv("HORIZON_COMPRESSION_CACHE_TTL_SECONDS", "60")
     importlib.reload(helpers_mod)
     assert helpers_mod.COMPRESSION_CACHE_TTL_SECONDS == 600.0
 
-    monkeypatch.delenv("HEADROOM_COMPRESSION_CACHE_TTL_SECONDS")
+    monkeypatch.delenv("HORIZON_COMPRESSION_CACHE_TTL_SECONDS")
     importlib.reload(helpers_mod)
     assert helpers_mod.COMPRESSION_CACHE_TTL_SECONDS == 3900.0
 
@@ -103,27 +103,27 @@ def test_compression_cache_ttl_env_rejects_non_finite(monkeypatch) -> None:
 
 
 def test_frozen_verdicts_cap_env(monkeypatch) -> None:
-    from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+    from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
 
-    monkeypatch.setenv("HEADROOM_FROZEN_VERDICTS_MAX", "65536")
+    monkeypatch.setenv("HORIZON_FROZEN_VERDICTS_MAX", "65536")
     assert ContentRouter(ContentRouterConfig())._frozen_verdicts_max == 65536
 
     # Floor: cannot be sized below 256.
-    monkeypatch.setenv("HEADROOM_FROZEN_VERDICTS_MAX", "1")
+    monkeypatch.setenv("HORIZON_FROZEN_VERDICTS_MAX", "1")
     assert ContentRouter(ContentRouterConfig())._frozen_verdicts_max == 256
 
     # Garbage falls back to the default.
-    monkeypatch.setenv("HEADROOM_FROZEN_VERDICTS_MAX", "banana")
+    monkeypatch.setenv("HORIZON_FROZEN_VERDICTS_MAX", "banana")
     assert ContentRouter(ContentRouterConfig())._frozen_verdicts_max == 4096
 
-    monkeypatch.delenv("HEADROOM_FROZEN_VERDICTS_MAX")
+    monkeypatch.delenv("HORIZON_FROZEN_VERDICTS_MAX")
     assert ContentRouter(ContentRouterConfig())._frozen_verdicts_max == 4096
 
 
 def test_frozen_verdicts_eviction_honors_configured_cap(monkeypatch) -> None:
-    from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+    from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
 
-    monkeypatch.setenv("HEADROOM_FROZEN_VERDICTS_MAX", "256")
+    monkeypatch.setenv("HORIZON_FROZEN_VERDICTS_MAX", "256")
     router = ContentRouter(ContentRouterConfig())
     for key in range(300):
         router._record_frozen_verdict(key, True)
@@ -140,7 +140,7 @@ def test_frozen_verdicts_eviction_honors_configured_cap(monkeypatch) -> None:
 
 
 def test_active_sessions_survive_transient_flood(monkeypatch) -> None:
-    import headroom.proxy.server as server_mod
+    import horizon.proxy.server as server_mod
 
     monkeypatch.setattr(server_mod, "MAX_COMPRESSION_CACHE_SESSIONS", 100)
     proxy = _make_proxy()

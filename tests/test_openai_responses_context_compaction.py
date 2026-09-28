@@ -3,12 +3,12 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any
 
-from headroom.proxy.handlers.openai import (
+from horizon.proxy.handlers.openai import (
     OpenAIHandlerMixin,
     _compact_openai_responses_tools,
     _openai_responses_context_budget,
 )
-from headroom.transforms.content_router import (
+from horizon.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
@@ -217,7 +217,7 @@ class _StubPipeline:
 
 class _HandlerHarness(OpenAIHandlerMixin):
     """Minimal subclass exposing just the deps the unit-extraction path
-    actually reads. The full HeadroomProxy ctor wires dozens of unrelated
+    actually reads. The full HorizonProxy ctor wires dozens of unrelated
     services; this keeps the test focused on the gate behavior."""
 
     def __init__(self, router: ContentRouter):
@@ -335,7 +335,7 @@ def test_compression_pass_debug_logs_are_suppressed(caplog) -> None:
         ],
     }
 
-    caplog.set_level(_logging.INFO, logger="headroom.proxy")
+    caplog.set_level(_logging.INFO, logger="horizon.proxy")
     handler._compress_openai_responses_payload(
         payload_a, model="gpt-5.5", request_id="hr_shared_request"
     )
@@ -442,7 +442,7 @@ def test_responses_turn_hook_message_fold_is_applied_and_counted() -> None:
     not just tools. The fold must be written back to the outbound payload AND its
     token saving added to tokens_saved — before, this path only wrote tools back,
     so a message fold was silently dropped and uncounted."""
-    from headroom.proxy.turn_hooks import clear_turn_hooks, register_turn_hook
+    from horizon.proxy.turn_hooks import clear_turn_hooks, register_turn_hook
 
     class FoldInput:
         name = "fold_input"

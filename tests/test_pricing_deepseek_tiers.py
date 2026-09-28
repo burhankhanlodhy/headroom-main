@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from headroom.pricing.deepseek_tiers import (
+from horizon.pricing.deepseek_tiers import (
     LEGACY_MODEL_IDS,
     OFF_PEAK_RATES_PER_1M,
     PEAK_MULTIPLIER,

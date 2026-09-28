@@ -2,7 +2,7 @@
 
 `total_input_cost_usd` has been tracked since the tracker existed; the tokens
 the model EMITTED were priced nowhere durable. Any "what share of my bill did
-Headroom remove" figure therefore had to divide savings that include output
+Horizon remove" figure therefore had to divide savings that include output
 shaping by an input-only denominator, which overstates the rate. These pin the
 new `total_output_cost_usd` on the lifetime block and its per-bucket delta on
 the rollup series, plus the legacy-checkpoint path.
@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import types
 
-from headroom.proxy import savings_tracker as st
-from headroom.proxy.savings_tracker import SavingsTracker, _normalize_history_entry
+from horizon.proxy import savings_tracker as st
+from horizon.proxy.savings_tracker import SavingsTracker, _normalize_history_entry
 
 
 def _priced_litellm() -> types.SimpleNamespace:

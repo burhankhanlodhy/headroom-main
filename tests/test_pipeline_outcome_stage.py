@@ -21,7 +21,7 @@ import dataclasses
 
 import pytest
 
-from headroom.pipeline import (
+from horizon.pipeline import (
     CANONICAL_PIPELINE_STAGES,
     OutcomeSnapshot,
     PipelineEvent,
@@ -104,21 +104,21 @@ class TestDiscoveryGate:
     """Installing a package must not silently start rewriting live requests."""
 
     def test_discovery_is_off_without_an_explicit_enable(self, monkeypatch):
-        monkeypatch.delenv("HEADROOM_PIPELINE_EXTENSIONS", raising=False)
+        monkeypatch.delenv("HORIZON_PIPELINE_EXTENSIONS", raising=False)
         assert discover_pipeline_extensions() == []
 
     def test_empty_env_does_not_enable(self, monkeypatch):
-        monkeypatch.setenv("HEADROOM_PIPELINE_EXTENSIONS", "   ,  ,")
+        monkeypatch.setenv("HORIZON_PIPELINE_EXTENSIONS", "   ,  ,")
         assert discover_pipeline_extensions() == []
 
     def test_explicit_argument_beats_the_env(self, monkeypatch):
-        monkeypatch.setenv("HEADROOM_PIPELINE_EXTENSIONS", "something")
+        monkeypatch.setenv("HORIZON_PIPELINE_EXTENSIONS", "something")
         assert discover_pipeline_extensions(["definitely-not-installed"]) == []
 
     def test_directly_passed_extensions_are_unaffected_by_the_gate(self, monkeypatch):
         """Constructing an extension and handing it over is already explicit
         consent — the gate covers entry-point discovery only."""
-        monkeypatch.delenv("HEADROOM_PIPELINE_EXTENSIONS", raising=False)
+        monkeypatch.delenv("HORIZON_PIPELINE_EXTENSIONS", raising=False)
         rec = _Recorder()
         mgr = PipelineExtensionManager(extensions=[rec], discover=True)
         assert mgr.enabled

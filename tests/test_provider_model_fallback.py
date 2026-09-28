@@ -9,19 +9,19 @@ from unittest.mock import patch
 
 import pytest
 
-from headroom.providers.anthropic import (
+from horizon.providers.anthropic import (
     AnthropicProvider,
     _infer_model_tier,
 )
-from headroom.providers.anthropic import (
+from horizon.providers.anthropic import (
     _load_custom_model_config as anthropic_load_config,
 )
-from headroom.providers.google import GeminiTokenCounter, GoogleProvider
-from headroom.providers.openai import (
+from horizon.providers.google import GeminiTokenCounter, GoogleProvider
+from horizon.providers.openai import (
     OpenAIProvider,
     _infer_model_family,
 )
-from headroom.providers.openai import (
+from horizon.providers.openai import (
     _load_custom_model_config as openai_load_config,
 )
 
@@ -33,7 +33,7 @@ class TestGoogleModelFallback:
         """Future Gemini models should not hard-fail token counting."""
         provider = GoogleProvider()
 
-        with patch("headroom.models.registry.get_model_pricing", return_value=None):
+        with patch("horizon.models.registry.get_model_pricing", return_value=None):
             assert provider.supports_model("gemini-3-pro-preview")
             assert provider.get_context_limit("gemini-3-pro-preview") == 1000000
             assert isinstance(
@@ -45,7 +45,7 @@ class TestGoogleModelFallback:
         """LiteLLM-style Gemini ids should resolve through the Google provider."""
         provider = GoogleProvider()
 
-        with patch("headroom.models.registry.get_model_pricing", return_value=None):
+        with patch("horizon.models.registry.get_model_pricing", return_value=None):
             assert provider.supports_model("gemini/gemini-3-pro-preview")
             assert provider.get_context_limit("gemini/gemini-3-pro-preview") == 1000000
 
@@ -53,7 +53,7 @@ class TestGoogleModelFallback:
         """Moving lookup through ModelRegistry must keep legacy Gemini limits."""
         provider = GoogleProvider()
 
-        with patch("headroom.models.registry.get_model_pricing", return_value=None):
+        with patch("horizon.models.registry.get_model_pricing", return_value=None):
             assert provider.get_context_limit("gemini-1.5-pro-latest") == 2000000
             assert provider.get_context_limit("gemini-1.0-pro") == 32768
 
@@ -186,7 +186,7 @@ class TestAnthropicConfigLoading:
         """Test loading config from JSON env var."""
         config = {"context_limits": {"test-model": 300000}}
 
-        with patch.dict(os.environ, {"HEADROOM_MODEL_LIMITS": json.dumps(config)}):
+        with patch.dict(os.environ, {"HORIZON_MODEL_LIMITS": json.dumps(config)}):
             loaded = anthropic_load_config()
             assert loaded["context_limits"]["test-model"] == 300000
 
@@ -198,12 +198,12 @@ class TestAnthropicConfigLoading:
             config_path = Path(tmpdir) / "model_limits.json"
             config_path.write_text(json.dumps(config))
 
-            with patch.dict(os.environ, {"HEADROOM_MODEL_LIMITS": str(config_path)}):
+            with patch.dict(os.environ, {"HORIZON_MODEL_LIMITS": str(config_path)}):
                 loaded = anthropic_load_config()
                 assert loaded["context_limits"]["file-model"] == 400000
 
     def test_load_from_config_file(self):
-        """Test loading from ~/.headroom/models.json."""
+        """Test loading from ~/.horizon/models.json."""
         config = {
             "anthropic": {
                 "context_limits": {"config-model": 250000},
@@ -212,7 +212,7 @@ class TestAnthropicConfigLoading:
         }
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            config_dir = Path(tmpdir) / ".headroom"
+            config_dir = Path(tmpdir) / ".horizon"
             config_dir.mkdir()
             config_file = config_dir / "models.json"
             config_file.write_text(json.dumps(config))
@@ -227,13 +227,13 @@ class TestAnthropicConfigLoading:
         file_config = {"anthropic": {"context_limits": {"test-model": 200000}}}
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            config_dir = Path(tmpdir) / ".headroom"
+            config_dir = Path(tmpdir) / ".horizon"
             config_dir.mkdir()
             config_file = config_dir / "models.json"
             config_file.write_text(json.dumps(file_config))
 
             with patch.object(Path, "home", return_value=Path(tmpdir)):
-                with patch.dict(os.environ, {"HEADROOM_MODEL_LIMITS": json.dumps(env_config)}):
+                with patch.dict(os.environ, {"HORIZON_MODEL_LIMITS": json.dumps(env_config)}):
                     loaded = anthropic_load_config()
                     # Env var should win
                     assert loaded["context_limits"]["test-model"] == 100000
@@ -242,7 +242,7 @@ class TestAnthropicConfigLoading:
     def test_non_object_env_var_falls_back_to_defaults(self, raw):
         """A valid-JSON-but-not-an-object env var must warn and use defaults,
         not crash provider init with AttributeError on ``loaded.get``."""
-        with patch.dict(os.environ, {"HEADROOM_MODEL_LIMITS": raw}):
+        with patch.dict(os.environ, {"HORIZON_MODEL_LIMITS": raw}):
             loaded = anthropic_load_config()
             assert loaded == {"context_limits": {}, "pricing": {}}
 
@@ -250,13 +250,13 @@ class TestAnthropicConfigLoading:
         """A JSON *object* using the intuitive-but-wrong flat shape
         ``{"my-model": 262144}`` is silently ignored by the loader.
 
-        The unknown-model warning tells operators to "set HEADROOM_MODEL_LIMITS",
+        The unknown-model warning tells operators to "set HORIZON_MODEL_LIMITS",
         so the flat shape is the natural first guess. Without a diagnostic the
         operator sees the conservative default silently persist and has no way
         to tell the config was never applied. Assert we now say so explicitly.
         """
-        with patch.dict(os.environ, {"HEADROOM_MODEL_LIMITS": '{"qwen3.8": 262144}'}):
-            with caplog.at_level(logging.WARNING, logger="headroom.providers.anthropic"):
+        with patch.dict(os.environ, {"HORIZON_MODEL_LIMITS": '{"qwen3.8": 262144}'}):
+            with caplog.at_level(logging.WARNING, logger="horizon.providers.anthropic"):
                 loaded = anthropic_load_config()
         assert loaded == {"context_limits": {}, "pricing": {}}
         assert "NO EFFECT" in caplog.text
@@ -265,8 +265,8 @@ class TestAnthropicConfigLoading:
     def test_correct_shape_env_var_does_not_warn(self, caplog):
         """The documented nested shape must apply cleanly and stay silent."""
         cfg = '{"context_limits": {"qwen3.8": 262144}}'
-        with patch.dict(os.environ, {"HEADROOM_MODEL_LIMITS": cfg}):
-            with caplog.at_level(logging.WARNING, logger="headroom.providers.anthropic"):
+        with patch.dict(os.environ, {"HORIZON_MODEL_LIMITS": cfg}):
+            with caplog.at_level(logging.WARNING, logger="horizon.providers.anthropic"):
                 loaded = anthropic_load_config()
         assert loaded["context_limits"]["qwen3.8"] == 262144
         assert "NO EFFECT" not in caplog.text
@@ -276,8 +276,8 @@ class TestAnthropicConfigLoading:
         OpenAI loader. The Anthropic loader consumes nothing from it, which is
         correct, so it must not claim the config had no effect."""
         cfg = '{"openai": {"context_limits": {"gpt-x": 400000}}}'
-        with patch.dict(os.environ, {"HEADROOM_MODEL_LIMITS": cfg}):
-            with caplog.at_level(logging.WARNING, logger="headroom.providers.anthropic"):
+        with patch.dict(os.environ, {"HORIZON_MODEL_LIMITS": cfg}):
+            with caplog.at_level(logging.WARNING, logger="horizon.providers.anthropic"):
                 loaded = anthropic_load_config()
         assert loaded == {"context_limits": {}, "pricing": {}}
         assert "NO EFFECT" not in caplog.text
@@ -286,15 +286,15 @@ class TestAnthropicConfigLoading:
         """An explicit ``anthropic`` section that carries none of the consumed
         keys is the same silent no-op as the flat shape, so it warns."""
         cfg = '{"anthropic": {"qwen3.8": 262144}}'
-        with patch.dict(os.environ, {"HEADROOM_MODEL_LIMITS": cfg}):
-            with caplog.at_level(logging.WARNING, logger="headroom.providers.anthropic"):
+        with patch.dict(os.environ, {"HORIZON_MODEL_LIMITS": cfg}):
+            with caplog.at_level(logging.WARNING, logger="horizon.providers.anthropic"):
                 anthropic_load_config()
         assert "NO EFFECT" in caplog.text
 
     def test_non_object_config_file_falls_back_to_defaults(self):
         """A models.json whose top level is not an object must not crash."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            config_dir = Path(tmpdir) / ".headroom"
+            config_dir = Path(tmpdir) / ".horizon"
             config_dir.mkdir()
             (config_dir / "models.json").write_text("[1, 2, 3]")
 
@@ -402,7 +402,7 @@ class TestOpenAIConfigLoading:
         """Test loading config from JSON env var."""
         config = {"openai": {"context_limits": {"test-model": 300000}}}
 
-        with patch.dict(os.environ, {"HEADROOM_MODEL_LIMITS": json.dumps(config)}):
+        with patch.dict(os.environ, {"HORIZON_MODEL_LIMITS": json.dumps(config)}):
             loaded = openai_load_config()
             assert loaded["context_limits"]["test-model"] == 300000
 
@@ -414,7 +414,7 @@ class TestOpenAIConfigLoading:
             config_path = Path(tmpdir) / "model_limits.json"
             config_path.write_text(json.dumps(config))
 
-            with patch.dict(os.environ, {"HEADROOM_MODEL_LIMITS": str(config_path)}):
+            with patch.dict(os.environ, {"HORIZON_MODEL_LIMITS": str(config_path)}):
                 loaded = openai_load_config()
                 assert loaded["pricing"]["test-model"] == [5.0, 15.0]
 
@@ -422,7 +422,7 @@ class TestOpenAIConfigLoading:
     def test_non_object_env_var_falls_back_to_defaults(self, raw):
         """A valid-JSON-but-not-an-object env var must warn and use defaults,
         not crash provider init with AttributeError on ``loaded.get``."""
-        with patch.dict(os.environ, {"HEADROOM_MODEL_LIMITS": raw}):
+        with patch.dict(os.environ, {"HORIZON_MODEL_LIMITS": raw}):
             loaded = openai_load_config()
             assert loaded == {"context_limits": {}, "pricing": {}, "encodings": {}}
 
@@ -431,13 +431,13 @@ class TestCrossProviderConsistency:
     """Tests for consistency across providers."""
 
     def test_both_providers_use_same_env_var(self):
-        """Test that both providers use HEADROOM_MODEL_LIMITS."""
+        """Test that both providers use HORIZON_MODEL_LIMITS."""
         config = {
             "anthropic": {"context_limits": {"anthropic-model": 100000}},
             "openai": {"context_limits": {"openai-model": 200000}},
         }
 
-        with patch.dict(os.environ, {"HEADROOM_MODEL_LIMITS": json.dumps(config)}):
+        with patch.dict(os.environ, {"HORIZON_MODEL_LIMITS": json.dumps(config)}):
             anthropic = anthropic_load_config()
             openai = openai_load_config()
 
@@ -456,8 +456,8 @@ class TestCrossProviderConsistency:
     def test_both_providers_warn_for_unknown_models(self):
         """Test that both providers warn for unknown models."""
         # Clear warning caches
-        from headroom.providers import anthropic as anthropic_module
-        from headroom.providers import openai as openai_module
+        from horizon.providers import anthropic as anthropic_module
+        from horizon.providers import openai as openai_module
 
         anthropic_module._UNKNOWN_MODEL_WARNINGS.clear()
         openai_module._UNKNOWN_MODEL_WARNINGS.clear()

@@ -8,16 +8,16 @@ import json
 
 import pytest
 
-from headroom.proxy import runtime_env as rt
+from horizon.proxy import runtime_env as rt
 
 pytest.importorskip("fastapi")
 pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy import server as proxy_server  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
-from headroom.rollout import resolve_rollout  # noqa: E402
+from horizon.proxy import server as proxy_server  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.rollout import resolve_rollout  # noqa: E402
 
 _RUNTIME_ENV_BODY_CAP = 64 * 1024
 
@@ -51,56 +51,56 @@ def _clean_runtime_env(monkeypatch):
 
 
 def test_getenv_falls_back_to_environment(monkeypatch):
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
-    assert rt.getenv("HEADROOM_OUTPUT_SHAPER") == "1"
-    assert rt.getenv("HEADROOM_VERBOSITY_LEVEL", "2") == "2"  # unset -> default
-    assert rt.getenv("HEADROOM_VERBOSITY_LEVEL") is None
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
+    assert rt.getenv("HORIZON_OUTPUT_SHAPER") == "1"
+    assert rt.getenv("HORIZON_VERBOSITY_LEVEL", "2") == "2"  # unset -> default
+    assert rt.getenv("HORIZON_VERBOSITY_LEVEL") is None
 
 
 def test_getenv_override_wins_over_environment(monkeypatch):
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "0")
-    rt.set_overrides({"HEADROOM_OUTPUT_SHAPER": "1"})
-    assert rt.getenv("HEADROOM_OUTPUT_SHAPER") == "1"
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "0")
+    rt.set_overrides({"HORIZON_OUTPUT_SHAPER": "1"})
+    assert rt.getenv("HORIZON_OUTPUT_SHAPER") == "1"
 
 
 def test_set_overrides_ignores_unknown_keys_and_non_strings():
     applied = rt.set_overrides(
         {
-            "HEADROOM_OUTPUT_SHAPER": "1",
+            "HORIZON_OUTPUT_SHAPER": "1",
             "NOT_A_KNOB": "x",
-            "HEADROOM_VERBOSITY_LEVEL": 3,  # non-string ignored
+            "HORIZON_VERBOSITY_LEVEL": 3,  # non-string ignored
         }
     )
-    assert applied == {"HEADROOM_OUTPUT_SHAPER": "1"}
+    assert applied == {"HORIZON_OUTPUT_SHAPER": "1"}
     assert rt.getenv("NOT_A_KNOB") is None
     # The rejected non-string did not become an override.
-    assert rt.getenv("HEADROOM_VERBOSITY_LEVEL") is None
+    assert rt.getenv("HORIZON_VERBOSITY_LEVEL") is None
 
 
 def test_explicit_env_returns_only_explicitly_set_knobs():
     environ = {
-        "HEADROOM_OUTPUT_SHAPER": "1",
-        "HEADROOM_VERBOSITY_LEVEL": "   ",  # blank -> not "explicitly set"
+        "HORIZON_OUTPUT_SHAPER": "1",
+        "HORIZON_VERBOSITY_LEVEL": "   ",  # blank -> not "explicitly set"
         "PATH": "/usr/bin",  # not a knob
     }
     assert rt.explicit_env(environ) == {
-        "HEADROOM_OUTPUT_SHAPER": "1",
+        "HORIZON_OUTPUT_SHAPER": "1",
     }
 
 
 def test_effective_runtime_env_reports_override_or_none(monkeypatch):
-    rt.set_overrides({"HEADROOM_OUTPUT_SHAPER": "1"})
+    rt.set_overrides({"HORIZON_OUTPUT_SHAPER": "1"})
     eff = rt.effective_runtime_env()
-    assert eff["HEADROOM_OUTPUT_SHAPER"] == "1"  # from override
-    assert eff["HEADROOM_VERBOSITY_LEVEL"] is None  # unset
+    assert eff["HORIZON_OUTPUT_SHAPER"] == "1"  # from override
+    assert eff["HORIZON_VERBOSITY_LEVEL"] is None  # unset
     # Every registered knob is reported.
     assert set(eff) == {knob.env for knob in rt.RUNTIME_ENV_KNOBS}
 
 
 def test_clear_overrides_resets(monkeypatch):
-    rt.set_overrides({"HEADROOM_OUTPUT_SHAPER": "1"})
+    rt.set_overrides({"HORIZON_OUTPUT_SHAPER": "1"})
     rt.clear_overrides()
-    assert rt.getenv("HEADROOM_OUTPUT_SHAPER") is None
+    assert rt.getenv("HORIZON_OUTPUT_SHAPER") is None
 
 
 # ---------------------------------------------------------------------------
@@ -109,23 +109,23 @@ def test_clear_overrides_resets(monkeypatch):
 
 
 def test_override_enables_output_shaper_without_env():
-    from headroom.proxy.output_shaper import OutputShaperSettings
+    from horizon.proxy.output_shaper import OutputShaperSettings
 
     assert OutputShaperSettings.from_env().enabled is False
-    rt.set_overrides({"HEADROOM_OUTPUT_SHAPER": "1", "HEADROOM_VERBOSITY_LEVEL": "3"})
+    rt.set_overrides({"HORIZON_OUTPUT_SHAPER": "1", "HORIZON_VERBOSITY_LEVEL": "3"})
     settings = OutputShaperSettings.from_env()
     assert settings.enabled is True
     assert settings.verbosity_level == 3
 
 
 def test_override_changes_astgrep_threshold_without_env():
-    from headroom.proxy.interceptors import astgrep
+    from horizon.proxy.interceptors import astgrep
 
     assert astgrep._min_chars_to_rewrite() == 500
-    rt.set_overrides({"HEADROOM_INTERCEPT_READ_MIN_CHARS": "999"})
+    rt.set_overrides({"HORIZON_INTERCEPT_READ_MIN_CHARS": "999"})
     assert astgrep._min_chars_to_rewrite() == 999
     # Bad value falls back to the documented default rather than raising.
-    rt.set_overrides({"HEADROOM_INTERCEPT_READ_MIN_CHARS": "not-an-int"})
+    rt.set_overrides({"HORIZON_INTERCEPT_READ_MIN_CHARS": "not-an-int"})
     assert astgrep._min_chars_to_rewrite() == 500
 
 
@@ -136,7 +136,7 @@ def test_override_changes_astgrep_threshold_without_env():
 
 @pytest.fixture
 def loopback_client(monkeypatch):
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,
@@ -152,43 +152,43 @@ def test_health_exposes_runtime_env(loopback_client):
     config = loopback_client.get("/health").json()["config"]
     assert "runtime_env" in config
     assert set(config["runtime_env"]) == {knob.env for knob in rt.RUNTIME_ENV_KNOBS}
-    assert config["runtime_env"]["HEADROOM_OUTPUT_SHAPER"] is None
+    assert config["runtime_env"]["HORIZON_OUTPUT_SHAPER"] is None
 
 
 def test_admin_runtime_env_applies_and_reflects_in_health(loopback_client):
     resp = loopback_client.post(
         "/admin/runtime-env",
-        json={"HEADROOM_OUTPUT_SHAPER": "1", "HEADROOM_VERBOSITY_LEVEL": "3", "BOGUS": "x"},
+        json={"HORIZON_OUTPUT_SHAPER": "1", "HORIZON_VERBOSITY_LEVEL": "3", "BOGUS": "x"},
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["applied"] == {"HEADROOM_OUTPUT_SHAPER": "1", "HEADROOM_VERBOSITY_LEVEL": "3"}
-    assert body["runtime_env"]["HEADROOM_OUTPUT_SHAPER"] == "1"
+    assert body["applied"] == {"HORIZON_OUTPUT_SHAPER": "1", "HORIZON_VERBOSITY_LEVEL": "3"}
+    assert body["runtime_env"]["HORIZON_OUTPUT_SHAPER"] == "1"
     # And it is observable on the live /health surface.
     health = loopback_client.get("/health").json()["config"]["runtime_env"]
-    assert health["HEADROOM_OUTPUT_SHAPER"] == "1"
-    assert health["HEADROOM_VERBOSITY_LEVEL"] == "3"
+    assert health["HORIZON_OUTPUT_SHAPER"] == "1"
+    assert health["HORIZON_VERBOSITY_LEVEL"] == "3"
 
 
 @pytest.mark.parametrize(
     ("rollout", "expected_enabled", "expected_reason"),
     [
-        (resolve_rollout({"HEADROOM_ROLLOUT_CHANNEL": "beta"}), True, "legacy_alias"),
+        (resolve_rollout({"HORIZON_ROLLOUT_CHANNEL": "beta"}), True, "legacy_alias"),
         # Was ``(resolve_rollout({}), False, "blocked_by_channel")`` while
         # ``proxy_output_shaper`` was BETA: on the default channel the admin
         # POST could not enable it. The feature is now STABLE and on by
         # default, so the same POST is honoured. The escalation-refusal
         # property this case used to cover cannot be reproduced through this
         # endpoint any more — ``/admin/runtime-env`` re-resolves exactly one
-        # rollout alias, ``HEADROOM_OUTPUT_SHAPER`` (see server.py), so there
+        # rollout alias, ``HORIZON_OUTPUT_SHAPER`` (see server.py), so there
         # is no second, still-gated feature to point it at. Channel gating
         # itself stays covered in test_rollout.py.
         (resolve_rollout({}), True, "legacy_alias"),
         (
             resolve_rollout(
                 {
-                    "HEADROOM_ROLLOUT_CHANNEL": "beta",
-                    "HEADROOM_DISABLE_FEATURES": "proxy_output_shaper",
+                    "HORIZON_ROLLOUT_CHANNEL": "beta",
+                    "HORIZON_DISABLE_FEATURES": "proxy_output_shaper",
                 }
             ),
             False,
@@ -210,7 +210,7 @@ def test_admin_runtime_env_reresolves_running_rollout_without_weakening_policy(
     )
     with TestClient(app, base_url="http://127.0.0.1", client=("127.0.0.1", 12345)) as client:
         before = client.get("/stats?cached=1").json()["rollout"]
-        response = client.post("/admin/runtime-env", json={"HEADROOM_OUTPUT_SHAPER": "1"})
+        response = client.post("/admin/runtime-env", json={"HORIZON_OUTPUT_SHAPER": "1"})
         after = client.get("/stats?cached=1").json()["rollout"]
 
     decision = next(item for item in after["features"] if item["name"] == "proxy_output_shaper")
@@ -227,8 +227,8 @@ def test_admin_runtime_env_rejects_non_object(loopback_client):
 
 
 def test_admin_runtime_env_rejects_process_local_update_with_multiple_workers(monkeypatch):
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
-    rollout = resolve_rollout({"HEADROOM_ROLLOUT_CHANNEL": "beta"})
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
+    rollout = resolve_rollout({"HORIZON_ROLLOUT_CHANNEL": "beta"})
     config = ProxyConfig(
         worker_processes=2,
         rollout=rollout,
@@ -241,13 +241,13 @@ def test_admin_runtime_env_rejects_process_local_update_with_multiple_workers(mo
     before_digest = rollout.snapshot_digest
 
     with TestClient(app, base_url="http://127.0.0.1", client=("127.0.0.1", 12345)) as client:
-        response = client.post("/admin/runtime-env", json={"HEADROOM_OUTPUT_SHAPER": "1"})
+        response = client.post("/admin/runtime-env", json={"HORIZON_OUTPUT_SHAPER": "1"})
         after = client.get("/stats").json()["rollout"]
 
     assert response.status_code == 409
     assert response.json()["worker_processes"] == 2
     assert "restart" in response.json()["error"]
-    assert rt.getenv("HEADROOM_OUTPUT_SHAPER") is None
+    assert rt.getenv("HORIZON_OUTPUT_SHAPER") is None
     assert after["snapshot_digest"] == before_digest
 
 
@@ -260,9 +260,9 @@ def test_admin_runtime_env_is_loopback_only():
     )
     app = create_app(config)
     with TestClient(app, base_url="http://127.0.0.1", client=("10.0.0.1", 54321)) as external:
-        resp = external.post("/admin/runtime-env", json={"HEADROOM_OUTPUT_SHAPER": "1"})
+        resp = external.post("/admin/runtime-env", json={"HORIZON_OUTPUT_SHAPER": "1"})
     assert resp.status_code == 404  # invisible to non-loopback callers
-    assert rt.getenv("HEADROOM_OUTPUT_SHAPER") is None  # nothing applied
+    assert rt.getenv("HORIZON_OUTPUT_SHAPER") is None  # nothing applied
 
 
 # ---------------------------------------------------------------------------
@@ -289,7 +289,7 @@ async def _chunked(body: bytes, chunk_size: int = 4096):
 
 
 async def test_admin_runtime_env_accepts_body_at_the_cap_without_content_length(monkeypatch):
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,
@@ -313,7 +313,7 @@ async def test_admin_runtime_env_accepts_body_at_the_cap_without_content_length(
 
 async def test_admin_runtime_env_rejects_oversized_chunked_body(monkeypatch):
     """No Content-Length at all (the chunked/streamed case) must still be capped."""
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,
@@ -342,7 +342,7 @@ async def test_admin_runtime_env_rejects_oversized_chunked_body(monkeypatch):
     assert resp.status_code == 413
     assert real_loads(resp.content) == {"error": "request body too large"}
     assert not json_loads_calls  # the oversized body was never parsed
-    assert rt.getenv("HEADROOM_OUTPUT_SHAPER") is None
+    assert rt.getenv("HORIZON_OUTPUT_SHAPER") is None
 
 
 async def test_admin_runtime_env_rejects_body_exceeding_declared_content_length(monkeypatch):
@@ -353,7 +353,7 @@ async def test_admin_runtime_env_rejects_body_exceeding_declared_content_length(
     actually streams well past the 64 KiB cap -- exactly the mismatch the
     original Content-Length-only guard was blind to.
     """
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,
@@ -382,7 +382,7 @@ async def test_admin_runtime_env_rejects_body_exceeding_declared_content_length(
     assert resp.status_code == 413
     assert real_loads(resp.content) == {"error": "request body too large"}
     assert not json_loads_calls  # the oversized body was never parsed
-    assert rt.getenv("HEADROOM_OUTPUT_SHAPER") is None
+    assert rt.getenv("HORIZON_OUTPUT_SHAPER") is None
 
 
 # ---------------------------------------------------------------------------
@@ -393,10 +393,10 @@ async def test_admin_runtime_env_rejects_body_exceeding_declared_content_length(
 def test_push_runtime_env_posts_explicit_env(monkeypatch):
     import urllib.request
 
-    from headroom.cli import wrap
+    from horizon.cli import wrap
 
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
-    monkeypatch.setenv("HEADROOM_VERBOSITY_LEVEL", "3")
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
+    monkeypatch.setenv("HORIZON_VERBOSITY_LEVEL", "3")
 
     captured = {}
 
@@ -422,15 +422,15 @@ def test_push_runtime_env_posts_explicit_env(monkeypatch):
     import json
 
     assert json.loads(captured["body"]) == {
-        "HEADROOM_OUTPUT_SHAPER": "1",
-        "HEADROOM_VERBOSITY_LEVEL": "3",
+        "HORIZON_OUTPUT_SHAPER": "1",
+        "HORIZON_VERBOSITY_LEVEL": "3",
     }
 
 
 def test_push_runtime_env_noop_when_nothing_set(monkeypatch):
     import urllib.request
 
-    from headroom.cli import wrap
+    from horizon.cli import wrap
 
     def boom(*a, **k):  # must never be called
         raise AssertionError("should not POST when nothing is explicitly set")
@@ -442,9 +442,9 @@ def test_push_runtime_env_noop_when_nothing_set(monkeypatch):
 def test_push_runtime_env_noop_when_no_proxy(monkeypatch):
     import urllib.request
 
-    from headroom.cli import wrap
+    from horizon.cli import wrap
 
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
     monkeypatch.setattr(
         urllib.request, "urlopen", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no POST"))
     )
@@ -454,9 +454,9 @@ def test_push_runtime_env_noop_when_no_proxy(monkeypatch):
 def test_push_runtime_env_swallows_unreachable_proxy(monkeypatch):
     import urllib.request
 
-    from headroom.cli import wrap
+    from horizon.cli import wrap
 
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
 
     def refused(*a, **k):
         raise OSError("connection refused")

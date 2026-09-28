@@ -32,13 +32,13 @@ httpx = pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.cache.backends import InMemoryBackend  # noqa: E402
-from headroom.cache.compression_store import (  # noqa: E402
+from horizon.cache.backends import InMemoryBackend  # noqa: E402
+from horizon.cache.compression_store import (  # noqa: E402
     get_compression_store,
     reset_compression_store,
 )
-from headroom.ccr.tool_injection import create_ccr_tool_definition  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.ccr.tool_injection import create_ccr_tool_definition  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 def _config() -> ProxyConfig:
@@ -193,7 +193,7 @@ def test_the_healthy_path_is_untouched() -> None:
 def test_an_unresolved_retrieve_call_is_not_relayed() -> None:
     """Failing closed here is deliberate and stays that way.
 
-    The buffered path exists to resolve ``headroom_retrieve`` server-side. A
+    The buffered path exists to resolve ``horizon_retrieve`` server-side. A
     response still carrying one is precisely the case the handler already fails
     closed on — relaying it would hand the client a tool call it is not expected
     to service and a marker nobody expanded.
@@ -206,7 +206,7 @@ def test_an_unresolved_retrieve_call_is_not_relayed() -> None:
                 {
                     "type": "tool_use",
                     "id": "toolu_ccr",
-                    "name": "headroom_retrieve",
+                    "name": "horizon_retrieve",
                     "input": {"hash_key": "deadbeefcafe"},
                 }
             ],

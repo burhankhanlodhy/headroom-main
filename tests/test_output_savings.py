@@ -1,4 +1,4 @@
-"""Tests for headroom.proxy.output_savings — the counterfactual estimator."""
+"""Tests for horizon.proxy.output_savings — the counterfactual estimator."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from headroom.proxy.output_savings import (
+from horizon.proxy.output_savings import (
     MEASURED_MIN_CLUSTERS,
     BaselineModel,
     SavingsLedger,
@@ -696,7 +696,7 @@ SAMPLE_KEY = stratum_key(
 
 class TestFlushDurability:
     def test_crash_mid_write_leaves_previous_ledger_intact(self, tmp_path, monkeypatch):
-        import headroom.fsutil
+        import horizon.fsutil
 
         path = str(tmp_path / "output_savings.json")
         key = SAMPLE_KEY
@@ -709,7 +709,7 @@ class TestFlushDurability:
         def _die_before_rename(*args, **kwargs):
             raise OSError(5, "simulated crash before rename")
 
-        monkeypatch.setattr(headroom.fsutil.os, "replace", _die_before_rename)
+        monkeypatch.setattr(horizon.fsutil.os, "replace", _die_before_rename)
         recorder.record_from_labels([stratum_label("treatment", key), SHAPED], 210)
         recorder.flush()  # OSError swallowed by the recorder — fail-open by design
 
@@ -733,11 +733,11 @@ class TestFlushDurability:
         import asyncio
         import threading
 
-        from headroom.proxy.outcome import RequestOutcome, emit_request_outcome
+        from horizon.proxy.outcome import RequestOutcome, emit_request_outcome
 
         path = str(tmp_path / "output_savings.json")
         recorder = SavingsRecorder(path, flush_every=1)
-        monkeypatch.setattr("headroom.proxy.output_savings.get_recorder", lambda: recorder)
+        monkeypatch.setattr("horizon.proxy.output_savings.get_recorder", lambda: recorder)
 
         saved_on_threads = []
         real_save = SavingsLedger.save
@@ -780,7 +780,7 @@ class TestFlushDurability:
 class TestModelledTier:
     """The fallback for a deployment with no counterfactual of its own.
 
-    The factor table ships EMPTY: open-source Headroom applies steering but
+    The factor table ships EMPTY: open-source Horizon applies steering but
     does not claim a savings figure it has not measured. Factors arrive either
     from a holdout (which outranks this tier entirely) or from an extension
     calling ``register_modelled_factors``. These tests therefore register their
@@ -792,7 +792,7 @@ class TestModelledTier:
     @pytest.fixture
     def factors():
         """Install factors for level 3, then restore the real table."""
-        from headroom.proxy.output_savings import (
+        from horizon.proxy.output_savings import (
             MODELLED_REDUCTION,
             register_modelled_factors,
         )
@@ -807,7 +807,7 @@ class TestModelledTier:
 
     @staticmethod
     def _ledger_with(observed_total: int, n: int):
-        from headroom.proxy.output_savings import SavingsLedger, stratum_key
+        from horizon.proxy.output_savings import SavingsLedger, stratum_key
 
         ledger = SavingsLedger()
         key = stratum_key(
@@ -825,7 +825,7 @@ class TestModelledTier:
         on this deployment's traffic, which is the failure mode the tiering
         exists to prevent.
         """
-        from headroom.proxy.output_savings import MODELLED_REDUCTION
+        from horizon.proxy.output_savings import MODELLED_REDUCTION
 
         assert MODELLED_REDUCTION == {}
         led = self._ledger_with(5_000, 5)
@@ -836,7 +836,7 @@ class TestModelledTier:
 
     def test_nonsense_factors_are_rejected_at_registration(self):
         """r=0 and r=1 break the r/(1-r) inversion; catch it at the door."""
-        from headroom.proxy.output_savings import register_modelled_factors
+        from horizon.proxy.output_savings import register_modelled_factors
 
         for bad in ((0.0, 0.4), (1.0, 1.0), (-0.1, 0.4), (0.5, 1.2)):
             with pytest.raises(ValueError):
@@ -855,7 +855,7 @@ class TestModelledTier:
         snapshots them fails on every remeasure while testing nothing about
         the arithmetic it exists to protect.
         """
-        from headroom.proxy.output_savings import MODELLED_REDUCTION
+        from horizon.proxy.output_savings import MODELLED_REDUCTION
 
         ledger = self._ledger_with(10_000, 10)
         est = ledger.estimate_from_model(3)
@@ -872,7 +872,7 @@ class TestModelledTier:
         assert est is not None and est.kind == "modelled"
 
     def test_band_is_the_two_provider_spread(self, factors):
-        from headroom.proxy.output_savings import MODELLED_REDUCTION
+        from horizon.proxy.output_savings import MODELLED_REDUCTION
 
         low, high = MODELLED_REDUCTION[3]
         est = self._ledger_with(5_000, 5).estimate_from_model(3)
@@ -886,13 +886,13 @@ class TestModelledTier:
         assert self._ledger_with(5_000, 5).estimate_from_model(1) is None
 
     def test_no_traffic_yields_nothing(self):
-        from headroom.proxy.output_savings import SavingsLedger
+        from horizon.proxy.output_savings import SavingsLedger
 
         assert SavingsLedger().estimate_from_model(3) is None
 
     def test_a_real_baseline_supersedes_the_model(self):
         """The modelled tier is last resort; a learned baseline outranks it."""
-        from headroom.proxy.output_savings import BaselineModel, SavingsLedger, stratum_key
+        from horizon.proxy.output_savings import BaselineModel, SavingsLedger, stratum_key
 
         key = stratum_key(
             turn_kind="new_user_ask", input_tokens=1000, model="claude-sonnet-5", has_tools=False

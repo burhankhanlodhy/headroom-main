@@ -24,7 +24,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.proxy.server import ProxyConfig, create_app
 
 
 def _make_cached_proxy_client() -> TestClient:
@@ -177,7 +177,7 @@ def test_different_custom_upstream_not_served_from_cache(monkeypatch) -> None:
         return True
 
     monkeypatch.setattr(
-        "headroom.providers.proxy_routes.is_safe_upstream_url_async",
+        "horizon.providers.proxy_routes.is_safe_upstream_url_async",
         allow_example_upstream,
     )
 
@@ -209,12 +209,12 @@ def test_different_custom_upstream_not_served_from_cache(monkeypatch) -> None:
 
         first = client.post(
             "/v1/messages",
-            headers={**headers, "x-headroom-base-url": "https://gateway-a.example"},
+            headers={**headers, "x-horizon-base-url": "https://gateway-a.example"},
             json=body,
         )
         second = client.post(
             "/v1/messages",
-            headers={**headers, "x-headroom-base-url": "https://gateway-b.example"},
+            headers={**headers, "x-horizon-base-url": "https://gateway-b.example"},
             json=body,
         )
 

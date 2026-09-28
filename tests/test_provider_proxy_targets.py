@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from headroom.providers.proxy_targets import (
+from horizon.providers.proxy_targets import (
     api_target,
     select_passthrough_base_url,
     vertex_target_for_location,
 )
-from headroom.providers.registry import DEFAULT_VERTEX_API_URL
-from headroom.proxy import upstream_guard
+from horizon.providers.registry import DEFAULT_VERTEX_API_URL
+from horizon.proxy import upstream_guard
 
 
 def _proxy(**legacy_targets: str):
@@ -70,7 +70,7 @@ def test_select_passthrough_base_url_handles_special_auth_modes() -> None:
         assert (
             select_passthrough_base_url(
                 proxy,
-                {"api-key": "azure", "x-headroom-base-url": "https://azure.example/base/"},
+                {"api-key": "azure", "x-horizon-base-url": "https://azure.example/base/"},
             )
             == "https://azure.example/base"
         )

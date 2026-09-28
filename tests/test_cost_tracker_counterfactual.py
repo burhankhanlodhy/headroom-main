@@ -24,7 +24,7 @@ MODEL = anthropic_pricing_model()
 
 def test_savings_at_list_price():
     """savings_usd = tokens_saved * model list input price."""
-    from headroom.proxy.server import CostTracker
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker()
     model = MODEL
@@ -42,7 +42,7 @@ def test_savings_at_list_price():
     # Savings should be 100k tokens * list input price (NOT affected by cache mix)
     import litellm
 
-    from headroom.pricing.litellm_pricing import resolve_litellm_model
+    from horizon.pricing.litellm_pricing import resolve_litellm_model
 
     resolved = resolve_litellm_model(model)
     info = litellm.model_cost.get(resolved, {})
@@ -55,7 +55,7 @@ def test_savings_at_list_price():
 
 def test_savings_monotonic():
     """Adding more saved tokens always increases savings_usd."""
-    from headroom.proxy.server import CostTracker
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker()
     model = MODEL
@@ -72,7 +72,7 @@ def test_savings_monotonic():
 
 def test_savings_zero_when_no_tokens_saved():
     """No tokens saved → savings_usd is 0."""
-    from headroom.proxy.server import CostTracker
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker()
     model = MODEL
@@ -86,7 +86,7 @@ def test_savings_zero_when_no_tokens_saved():
 
 def test_negative_token_savings_are_clamped_to_zero():
     """Estimator artifacts must not reduce cumulative savings below reality."""
-    from headroom.proxy.server import CostTracker
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker()
 
@@ -99,7 +99,7 @@ def test_negative_token_savings_are_clamped_to_zero():
 
 def test_multi_model_savings():
     """Savings across multiple models use each model's own list price."""
-    from headroom.proxy.server import CostTracker
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker()
 
@@ -116,15 +116,15 @@ def test_multi_model_savings():
     assert len(stats["per_model"]) == 2
 
 
-def test_no_cost_without_headroom_field():
-    """cost_without_headroom_usd should NOT be in stats (removed to avoid confusion)."""
-    from headroom.proxy.server import CostTracker
+def test_no_cost_without_horizon_field():
+    """cost_without_horizon_usd should NOT be in stats (removed to avoid confusion)."""
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker()
     ct.record_tokens(MODEL, tokens_saved=10_000, tokens_sent=5_000)
     stats = ct.stats()
 
-    assert "cost_without_headroom_usd" not in stats
+    assert "cost_without_horizon_usd" not in stats
 
 
 def test_budget_enforced_after_recording_costs():
@@ -133,7 +133,7 @@ def test_budget_enforced_after_recording_costs():
     Regression test: _costs was never written, so check_budget always
     returned (True, budget_limit) and budgets were silently unenforced.
     """
-    from headroom.proxy.server import CostTracker
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker(budget_limit_usd=0.0001, budget_period="daily")
     allowed, remaining = ct.check_budget()
@@ -158,7 +158,7 @@ def test_budget_input_cost_counted_without_usage_breakdown():
     """When the call site has no API usage breakdown (cache/uncached all 0),
     tokens_sent must be used as the input count — input cost must not be
     silently dropped from the budget."""
-    from headroom.proxy.server import CostTracker
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker(budget_limit_usd=100.0)
     ct.record_tokens(

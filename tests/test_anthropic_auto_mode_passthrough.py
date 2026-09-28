@@ -7,15 +7,15 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from headroom.proxy.anthropic_wire import (
+from horizon.proxy.anthropic_wire import (
     AnthropicSSEEnvelope,
     build_anthropic_upstream_url,
     has_dangerous_tool_use_beta,
     is_safeguard_capable_request,
     strip_safeguard_payload,
 )
-from headroom.proxy.handlers.streaming import StreamingMixin
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.proxy.handlers.streaming import StreamingMixin
+from horizon.proxy.server import ProxyConfig, create_app
 
 FIXTURES = Path(__file__).parent / "fixtures" / "anthropic"
 

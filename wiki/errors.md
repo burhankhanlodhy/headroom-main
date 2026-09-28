@@ -1,12 +1,12 @@
 # Error Handling
 
-Headroom provides explicit exceptions for debugging, with a safety guarantee that compression failures never break your LLM calls.
+Horizon provides explicit exceptions for debugging, with a safety guarantee that compression failures never break your LLM calls.
 
 ## Exception Hierarchy
 
 ```python
-from headroom import (
-    HeadroomError,  # Base class - catch all Headroom errors
+from horizon import (
+    HorizonError,  # Base class - catch all Horizon errors
     ConfigurationError,  # Invalid configuration
     ProviderError,  # Provider issues (unknown model, etc.)
     StorageError,  # Database/storage failures
@@ -18,15 +18,15 @@ from headroom import (
 ## Usage
 
 ```python
-from headroom import (
-    HeadroomClient,
-    HeadroomError,
+from horizon import (
+    HorizonClient,
+    HorizonError,
     ConfigurationError,
     StorageError,
 )
 
 try:
-    client = HeadroomClient(...)
+    client = HorizonClient(...)
     response = client.chat.completions.create(...)
 
 except ConfigurationError as e:
@@ -35,10 +35,10 @@ except ConfigurationError as e:
 
 except StorageError as e:
     print(f"Storage issue: {e}")
-    # Headroom continues to work, just without metrics persistence
+    # Horizon continues to work, just without metrics persistence
 
-except HeadroomError as e:
-    print(f"Headroom error: {e}")
+except HorizonError as e:
+    print(f"Horizon error: {e}")
 ```
 
 ## Exception Types
@@ -54,7 +54,7 @@ Raised when configuration is invalid.
 # - Invalid model context limit
 
 try:
-    client = HeadroomClient(
+    client = HorizonClient(
         original_client=OpenAI(),
         provider=OpenAIProvider(),
         default_mode="invalid_mode",  # Will raise ConfigurationError
@@ -126,7 +126,7 @@ if not result["valid"]:
 
 **If compression fails, the original content passes through unchanged.**
 
-This is a core design principle. Your LLM calls never fail due to Headroom:
+This is a core design principle. Your LLM calls never fail due to Horizon:
 
 ```python
 # Even if SmartCrusher encounters unexpected data:
@@ -147,17 +147,17 @@ import logging
 logging.basicConfig(level=logging.WARNING)
 
 # Now you'll see warnings when compression is skipped:
-# WARNING:headroom.transforms.smart_crusher:Skipping compression: invalid JSON
+# WARNING:horizon.transforms.smart_crusher:Skipping compression: invalid JSON
 ```
 
 ## Error Details
 
-All Headroom exceptions include a `details` dict with context:
+All Horizon exceptions include a `details` dict with context:
 
 ```python
 try:
-    client = HeadroomClient(...)
-except HeadroomError as e:
+    client = HorizonClient(...)
+except HorizonError as e:
     print(f"Error: {e}")
     print(f"Type: {type(e).__name__}")
     print(f"Details: {e.details}")
@@ -205,12 +205,12 @@ except StorageError:
 ### 3. Validate on Startup
 
 ```python
-client = HeadroomClient(...)
+client = HorizonClient(...)
 
 # Validate once at startup
 result = client.validate_setup()
 if not result["valid"]:
-    raise SystemExit(f"Headroom setup invalid: {result['issues']}")
+    raise SystemExit(f"Horizon setup invalid: {result['issues']}")
 
 # Then use client normally
 response = client.chat.completions.create(...)
@@ -226,8 +226,8 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 # Shows detailed transform decisions
-# DEBUG:headroom.transforms.smart_crusher:Analyzing 1000 items...
-# DEBUG:headroom.transforms.smart_crusher:Kept 15 items (errors: 2, anomalies: 3)
+# DEBUG:horizon.transforms.smart_crusher:Analyzing 1000 items...
+# DEBUG:horizon.transforms.smart_crusher:Kept 15 items (errors: 2, anomalies: 3)
 ```
 
 ### Check Stats After Error
@@ -235,7 +235,7 @@ logging.basicConfig(level=logging.DEBUG)
 ```python
 try:
     response = client.chat.completions.create(...)
-except HeadroomError:
+except HorizonError:
     # Check what happened
     stats = client.get_stats()
     print(f"Last request stats: {stats}")

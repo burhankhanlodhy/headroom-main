@@ -9,7 +9,7 @@ from unittest.mock import patch
 import click
 import pytest
 
-from headroom.providers.claude.vscode import (
+from horizon.providers.claude.vscode import (
     claude_user_settings_path,
     configure_vscode_claude_settings,
     remove_vscode_claude_settings,
@@ -69,7 +69,7 @@ def test_configure_and_remove_preserve_unrelated_and_previous_values(tmp_path: P
         "ENABLE_TOOL_SEARCH": "false",
     }
     assert restored["permissions"] == {"allow": ["Read"]}
-    assert not (tmp_path / ".headroom-vscode-claude.json").exists()
+    assert not (tmp_path / ".horizon-vscode-claude.json").exists()
 
 
 def test_reconfigure_updates_port_without_losing_original_values(tmp_path: Path) -> None:
@@ -97,7 +97,7 @@ def test_configure_1m_snapshots_selected_model_and_restores_exact_value(
 
     configure_vscode_claude_settings(path, "http://127.0.0.1:8787", context_1m=True)
     configured = json.loads(path.read_text(encoding="utf-8"))
-    state = json.loads((tmp_path / ".headroom-vscode-claude.json").read_text(encoding="utf-8"))
+    state = json.loads((tmp_path / ".horizon-vscode-claude.json").read_text(encoding="utf-8"))
     assert configured["model"] == "claude-sonnet-5[1m]"
     assert state["model"] == {
         "previous": {"present": True, "value": " claude-sonnet-5 "},
@@ -116,7 +116,7 @@ def test_configure_1m_is_idempotent_and_does_not_double_suffix(tmp_path: Path) -
     configure_vscode_claude_settings(path, "http://127.0.0.1:9999", context_1m=True)
 
     configured = json.loads(path.read_text(encoding="utf-8"))
-    state = json.loads((tmp_path / ".headroom-vscode-claude.json").read_text(encoding="utf-8"))
+    state = json.loads((tmp_path / ".horizon-vscode-claude.json").read_text(encoding="utf-8"))
     assert configured["model"] == "claude-opus-5[1m]"
     assert state["model"]["previous"] == {"present": True, "value": "claude-opus-5[1m]"}
     assert remove_vscode_claude_settings(path)
@@ -128,7 +128,7 @@ def test_configure_1m_preserves_present_empty_model(tmp_path: Path) -> None:
     path.write_text('{"model":""}', encoding="utf-8")
 
     configure_vscode_claude_settings(path, "http://127.0.0.1:8787", context_1m=True)
-    state = json.loads((tmp_path / ".headroom-vscode-claude.json").read_text(encoding="utf-8"))
+    state = json.loads((tmp_path / ".horizon-vscode-claude.json").read_text(encoding="utf-8"))
     assert state["model"]["previous"] == {"present": True, "value": ""}
     assert remove_vscode_claude_settings(path)
     assert json.loads(path.read_text(encoding="utf-8"))["model"] == ""
@@ -138,18 +138,18 @@ def test_configure_1m_uses_fallback_and_disable_restores_missing_model(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = tmp_path / "settings.json"
-    monkeypatch.setenv("HEADROOM_1M_MODEL", "claude-opus-9")
+    monkeypatch.setenv("HORIZON_1M_MODEL", "claude-opus-9")
 
     configure_vscode_claude_settings(path, "http://127.0.0.1:8787", context_1m=True)
     assert json.loads(path.read_text(encoding="utf-8"))["model"] == "claude-opus-9[1m]"
 
-    monkeypatch.setenv("HEADROOM_1M_MODEL", "claude-opus-10")
+    monkeypatch.setenv("HORIZON_1M_MODEL", "claude-opus-10")
     configure_vscode_claude_settings(path, "http://127.0.0.1:8787", context_1m=True)
     assert json.loads(path.read_text(encoding="utf-8"))["model"] == "claude-opus-10[1m]"
 
     assert configure_vscode_claude_settings(path, "http://127.0.0.1:9999") == "updated"
     configured = json.loads(path.read_text(encoding="utf-8"))
-    state = json.loads((tmp_path / ".headroom-vscode-claude.json").read_text(encoding="utf-8"))
+    state = json.loads((tmp_path / ".horizon-vscode-claude.json").read_text(encoding="utf-8"))
     assert "model" not in configured
     assert "model" not in state
     assert configured["env"]["ANTHROPIC_BASE_URL"] == "http://127.0.0.1:9999"
@@ -163,7 +163,7 @@ def test_legacy_v1_sidecar_can_add_and_restore_model_state(tmp_path: Path) -> No
     configure_vscode_claude_settings(path, "http://127.0.0.1:8787")
     configure_vscode_claude_settings(path, "http://127.0.0.1:8787", context_1m=True)
 
-    state = json.loads((tmp_path / ".headroom-vscode-claude.json").read_text(encoding="utf-8"))
+    state = json.loads((tmp_path / ".horizon-vscode-claude.json").read_text(encoding="utf-8"))
     assert state["version"] == 1
     assert state["model"]["previous"] == {"present": False, "value": None}
     assert remove_vscode_claude_settings(path)
@@ -179,7 +179,7 @@ def test_configure_1m_rejects_non_string_model_without_writes(tmp_path: Path) ->
         configure_vscode_claude_settings(path, "http://127.0.0.1:8787", context_1m=True)
 
     assert json.loads(path.read_text(encoding="utf-8")) == original
-    assert not (tmp_path / ".headroom-vscode-claude.json").exists()
+    assert not (tmp_path / ".horizon-vscode-claude.json").exists()
 
 
 def test_configure_without_1m_preserves_unmanaged_model_and_nested_values(tmp_path: Path) -> None:
@@ -206,7 +206,7 @@ def test_model_conflicts_fail_closed_on_configure_and_remove(tmp_path: Path) -> 
     payload = json.loads(path.read_text(encoding="utf-8"))
     payload["model"] = "user-selected-model"
     path.write_text(json.dumps(payload), encoding="utf-8")
-    state_path = tmp_path / ".headroom-vscode-claude.json"
+    state_path = tmp_path / ".horizon-vscode-claude.json"
     state_before = state_path.read_text(encoding="utf-8")
 
     with pytest.raises(click.ClickException, match="managed model"):
@@ -224,7 +224,7 @@ def test_resolve_vscode_claude_model_is_read_only(tmp_path: Path) -> None:
 
     assert resolve_vscode_claude_model(path) == "claude-opus-5[1m]"
     assert path.read_text(encoding="utf-8") == '{"model":"claude-opus-5"}'
-    assert not (tmp_path / ".headroom-vscode-claude.json").exists()
+    assert not (tmp_path / ".horizon-vscode-claude.json").exists()
 
 
 def test_resolve_vscode_claude_model_for_instructions_falls_back_for_non_string(
@@ -233,17 +233,17 @@ def test_resolve_vscode_claude_model_for_instructions_falls_back_for_non_string(
     path = tmp_path / "settings.json"
     original = '{"model":{"name":"opus"}}'
     path.write_text(original, encoding="utf-8")
-    monkeypatch.setenv("HEADROOM_1M_MODEL", "claude-opus-9")
+    monkeypatch.setenv("HORIZON_1M_MODEL", "claude-opus-9")
 
     with pytest.raises(click.ClickException, match="non-string"):
         resolve_vscode_claude_model(path)
 
     assert resolve_vscode_claude_model_for_instructions(path) == "claude-opus-9[1m]"
     assert path.read_text(encoding="utf-8") == original
-    assert not (tmp_path / ".headroom-vscode-claude.json").exists()
+    assert not (tmp_path / ".horizon-vscode-claude.json").exists()
 
 
-def test_remove_deletes_settings_created_only_for_headroom(tmp_path: Path) -> None:
+def test_remove_deletes_settings_created_only_for_horizon(tmp_path: Path) -> None:
     path = tmp_path / "settings.json"
     configure_vscode_claude_settings(path, "http://127.0.0.1:8787/p/demo")
     assert path.exists()
@@ -272,7 +272,7 @@ def test_configure_refuses_unreadable_settings(tmp_path: Path) -> None:
     path = tmp_path / "settings.json"
     path.write_text("{}", encoding="utf-8")
     with (
-        patch("headroom.providers.claude.vscode.fsutil.read_text", side_effect=OSError("denied")),
+        patch("horizon.providers.claude.vscode.fsutil.read_text", side_effect=OSError("denied")),
         pytest.raises(click.ClickException, match="Could not read Claude settings"),
     ):
         configure_vscode_claude_settings(path, "http://127.0.0.1:8787")
@@ -286,7 +286,7 @@ def test_empty_existing_settings_is_restored_as_existing_file(tmp_path: Path) ->
     assert json.loads(path.read_text(encoding="utf-8")) == {}
 
 
-def test_remove_without_headroom_state_is_noop(tmp_path: Path) -> None:
+def test_remove_without_horizon_state_is_noop(tmp_path: Path) -> None:
     assert not remove_vscode_claude_settings(tmp_path / "settings.json")
 
 
@@ -344,7 +344,7 @@ def test_remove_refuses_incomplete_state(
 ) -> None:
     path = tmp_path / "settings.json"
     configure_vscode_claude_settings(path, "http://127.0.0.1:8787")
-    state_path = tmp_path / ".headroom-vscode-claude.json"
+    state_path = tmp_path / ".horizon-vscode-claude.json"
     state = json.loads(state_path.read_text(encoding="utf-8"))
     state.update(state_update)
     state_path.write_text(json.dumps(state), encoding="utf-8")
@@ -356,7 +356,7 @@ def test_reconfigure_refuses_incomplete_or_conflicting_state(tmp_path: Path) -> 
     path = tmp_path / "settings.json"
     proxy_url = "http://127.0.0.1:8787"
     configure_vscode_claude_settings(path, proxy_url)
-    state_path = tmp_path / ".headroom-vscode-claude.json"
+    state_path = tmp_path / ".horizon-vscode-claude.json"
     state_path.write_text("{}", encoding="utf-8")
     with pytest.raises(click.ClickException, match="unsupported or incomplete"):
         configure_vscode_claude_settings(path, proxy_url)
@@ -373,7 +373,7 @@ def test_reconfigure_refuses_incomplete_or_conflicting_state(tmp_path: Path) -> 
 def test_remove_refuses_missing_state_keys(tmp_path: Path) -> None:
     path = tmp_path / "settings.json"
     configure_vscode_claude_settings(path, "http://127.0.0.1:8787")
-    state_path = tmp_path / ".headroom-vscode-claude.json"
+    state_path = tmp_path / ".horizon-vscode-claude.json"
     state_path.write_text("{}", encoding="utf-8")
 
     with pytest.raises(click.ClickException, match="unsupported or incomplete"):

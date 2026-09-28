@@ -21,9 +21,9 @@ import base64
 
 import pytest
 
-from headroom.tokenizer import Tokenizer
-from headroom.tokenizers import get_tokenizer
-from headroom.transforms.content_router import _netcost_message_tokens
+from horizon.tokenizer import Tokenizer
+from horizon.tokenizers import get_tokenizer
+from horizon.transforms.content_router import _netcost_message_tokens
 
 
 @pytest.fixture

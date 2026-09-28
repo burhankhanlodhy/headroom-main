@@ -22,7 +22,7 @@ pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 from tests._gemini_live import skip_if_gemini_quota_exhausted  # noqa: E402
 
 

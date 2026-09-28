@@ -7,7 +7,7 @@ the local ``compress`` gained a ``ccr_original`` keyword and the remote one did
 not.
 
 ContentRouter passes ``ccr_original`` whenever custom tags are protected. On any
-deployment with ``HEADROOM_KOMPRESS_ENDPOINT`` set — which is exactly the
+deployment with ``HORIZON_KOMPRESS_ENDPOINT`` set — which is exactly the
 sandboxed/enterprise install the remote compressor exists for — every such
 request raised
 
@@ -33,8 +33,8 @@ import inspect
 
 import pytest
 
-from headroom.transforms.kompress_compressor import KompressCompressor
-from headroom.transforms.kompress_remote import RemoteKompressCompressor
+from horizon.transforms.kompress_compressor import KompressCompressor
+from horizon.transforms.kompress_remote import RemoteKompressCompressor
 
 
 def _kwargs(fn) -> set[str]:
@@ -107,7 +107,7 @@ class _FakeClient:
 
 
 def _compressor(monkeypatch, *, enable_ccr: bool, payload: dict):
-    monkeypatch.setenv("HEADROOM_KOMPRESS_ENDPOINT", "https://ml.example.invalid")
+    monkeypatch.setenv("HORIZON_KOMPRESS_ENDPOINT", "https://ml.example.invalid")
     c = RemoteKompressCompressor("https://ml.example.invalid")
     c._client = _FakeClient(payload)  # type: ignore[assignment]
     c.config.enable_ccr = enable_ccr
@@ -119,7 +119,7 @@ def _compressor(monkeypatch, *, enable_ccr: bool, payload: dict):
 
 # 60 words: "short" saves 59, past the marker cost gate (CCR_MARKER_COST_WORDS).
 ORIGINAL = "real secret block " * 60
-PLACEHOLDER = "{{HEADROOM_TAG_0}} " * 60
+PLACEHOLDER = "{{HORIZON_TAG_0}} " * 60
 
 
 def test_passing_ccr_original_no_longer_raises(monkeypatch) -> None:
@@ -151,7 +151,7 @@ def test_ccr_stores_the_pre_protection_text_not_the_placeholder(monkeypatch) -> 
         stored["tokens"] = original_tokens
         return "cafebabe"
 
-    monkeypatch.setattr("headroom.transforms.kompress_remote.store_kompress_in_ccr", _fake_store)
+    monkeypatch.setattr("horizon.transforms.kompress_remote.store_kompress_in_ccr", _fake_store)
     c = _compressor(
         monkeypatch,
         enable_ccr=True,
@@ -161,7 +161,7 @@ def test_ccr_stores_the_pre_protection_text_not_the_placeholder(monkeypatch) -> 
     result = c.compress(PLACEHOLDER, ccr_original=ORIGINAL)
 
     assert stored["original"] == ORIGINAL
-    assert "HEADROOM_TAG" not in stored["original"]
+    assert "HORIZON_TAG" not in stored["original"]
     # Token count describes what was actually stored, not the placeholder.
     assert stored["tokens"] == len(ORIGINAL.split())
     assert result.cache_key == "cafebabe"
@@ -175,7 +175,7 @@ def test_the_common_path_without_an_override_is_unchanged(monkeypatch) -> None:
         stored["tokens"] = original_tokens
         return "d00d"
 
-    monkeypatch.setattr("headroom.transforms.kompress_remote.store_kompress_in_ccr", _fake_store)
+    monkeypatch.setattr("horizon.transforms.kompress_remote.store_kompress_in_ccr", _fake_store)
     c = _compressor(
         monkeypatch,
         enable_ccr=True,
@@ -200,12 +200,12 @@ def test_remote_marker_gate_measures_the_whole_payload_like_local(monkeypatch) -
     retokenizes: 100 -> 103), and a real saving reports that measurement."""
     import hashlib
 
-    from headroom.transforms.kompress_compressor import ccr_retrieval_marker, payload_tokens
+    from horizon.transforms.kompress_compressor import ccr_retrieval_marker, payload_tokens
 
     def _store(original, compressed, original_tokens):  # noqa: ANN001
         return hashlib.sha256(original.encode()).hexdigest()[:24]
 
-    monkeypatch.setattr("headroom.transforms.kompress_remote.store_kompress_in_ccr", _store)
+    monkeypatch.setattr("horizon.transforms.kompress_remote.store_kompress_in_ccr", _store)
     for source, drop in (
         (" ".join(["alpha"] * 99 + ["nfs"]), 41),
         (" ".join(["alpha"] * 36 + ["bureaucratic"] + ["alpha"] * 63), 36),

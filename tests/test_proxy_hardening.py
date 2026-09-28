@@ -1,9 +1,9 @@
 """Tests for the Tier-2 pilot hardening features:
 
-- 2.1 optional inbound auth token (HEADROOM_PROXY_TOKEN) on the data plane
+- 2.1 optional inbound auth token (HORIZON_PROXY_TOKEN) on the data plane
 - 3.1 response security headers
 - 2.4 admin/state-mutating audit log
-- 2.2 air-gap master switch (HEADROOM_OFFLINE)
+- 2.2 air-gap master switch (HORIZON_OFFLINE)
 """
 
 from __future__ import annotations
@@ -16,10 +16,10 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from headroom.cache.compression_store import reset_compression_store
-from headroom.offline import apply_offline_env, is_offline
-from headroom.proxy.audit import is_auditable_path
-from headroom.proxy.server import ProxyConfig, WebSocketAuthMiddleware, create_app
+from horizon.cache.compression_store import reset_compression_store
+from horizon.offline import apply_offline_env, is_offline
+from horizon.proxy.audit import is_auditable_path
+from horizon.proxy.server import ProxyConfig, WebSocketAuthMiddleware, create_app
 
 NONLOOPBACK = ("203.0.113.5", 44444)  # TEST-NET-3, never loopback
 LOOPBACK = ("127.0.0.1", 12345)
@@ -67,7 +67,7 @@ class TestInboundAuthToken:
     def test_token_set_accepts_custom_header(self):
         app = _make_app(proxy_token="s3cr3t-token")
         with TestClient(app, base_url="http://testserver", client=NONLOOPBACK) as c:
-            resp = c.get("/stats", headers={"X-Headroom-Proxy-Token": "s3cr3t-token"})
+            resp = c.get("/stats", headers={"X-Horizon-Proxy-Token": "s3cr3t-token"})
             assert resp.status_code != 401
 
     def test_token_set_accepts_custom_header_with_upstream_oauth(self):
@@ -78,7 +78,7 @@ class TestInboundAuthToken:
                 "/stats",
                 headers={
                     "Authorization": "Bearer oauth-subscription-token",
-                    "X-Headroom-Proxy-Token": "s3cr3t-token",
+                    "X-Horizon-Proxy-Token": "s3cr3t-token",
                 },
             )
             assert resp.status_code != 401
@@ -187,7 +187,7 @@ class TestWebSocketAuthMiddleware:
         downstream = _SpyApp()
         mw = WebSocketAuthMiddleware(downstream, proxy_token="s3cr3t-token")
 
-        sent = await _drive(mw, _ws_scope(headers=[("x-headroom-proxy-token", "s3cr3t-token")]))
+        sent = await _drive(mw, _ws_scope(headers=[("x-horizon-proxy-token", "s3cr3t-token")]))
 
         assert downstream.called is True
         assert not _closed_with_policy_violation(sent)
@@ -202,7 +202,7 @@ class TestWebSocketAuthMiddleware:
             _ws_scope(
                 headers=[
                     ("authorization", "Bearer oauth-subscription-token"),
-                    ("x-headroom-proxy-token", "s3cr3t-token"),
+                    ("x-horizon-proxy-token", "s3cr3t-token"),
                 ]
             ),
         )
@@ -303,7 +303,7 @@ class TestWebSocketRoutesAreGatedInTheApp:
 
         with TestClient(app, base_url="http://testserver", client=NONLOOPBACK) as c:
             try:
-                with c.websocket_connect(path, headers={"X-Headroom-Proxy-Token": "s3cr3t-token"}):
+                with c.websocket_connect(path, headers={"X-Horizon-Proxy-Token": "s3cr3t-token"}):
                     pass
             except Exception:  # noqa: BLE001 - route may fail with no upstream
                 pass
@@ -313,7 +313,7 @@ class TestWebSocketRoutesAreGatedInTheApp:
 
 def _record_ws_handler_reached(app, monkeypatch):
     """Spy both WebSocket route families; returns a callable reporting arrival."""
-    from headroom.providers import proxy_routes
+    from horizon.providers import proxy_routes
 
     seen: list[str] = []
 
@@ -375,7 +375,7 @@ class TestAdminAuditLog:
                 messages.append(record.getMessage())
 
         handler = _Capture()
-        audit_logger = logging.getLogger("headroom.audit")
+        audit_logger = logging.getLogger("horizon.audit")
         audit_logger.setLevel(logging.INFO)
         audit_logger.addHandler(handler)
         try:
@@ -387,7 +387,7 @@ class TestAdminAuditLog:
 
         assert messages, "expected an audit record for /cache/clear"
         assert any("/cache/clear" in m for m in messages)
-        assert any("headroom_admin_audit" in m for m in messages)
+        assert any("horizon_admin_audit" in m for m in messages)
         assert any('"source_ip": "127.0.0.1"' in m for m in messages)
 
 
@@ -396,24 +396,24 @@ class TestAdminAuditLog:
 
 class TestOfflineSwitch:
     def test_is_offline_reads_env(self, monkeypatch):
-        monkeypatch.delenv("HEADROOM_OFFLINE", raising=False)
+        monkeypatch.delenv("HORIZON_OFFLINE", raising=False)
         assert is_offline() is False
-        monkeypatch.setenv("HEADROOM_OFFLINE", "1")
+        monkeypatch.setenv("HORIZON_OFFLINE", "1")
         assert is_offline() is True
-        monkeypatch.setenv("HEADROOM_OFFLINE", "off")
+        monkeypatch.setenv("HORIZON_OFFLINE", "off")
         assert is_offline() is False
 
     def test_offline_disables_telemetry(self, monkeypatch):
-        from headroom.telemetry.toggles import is_telemetry_enabled
+        from horizon.telemetry.toggles import is_telemetry_enabled
 
-        monkeypatch.setenv("HEADROOM_TELEMETRY", "on")
-        monkeypatch.setenv("HEADROOM_OFFLINE", "1")
+        monkeypatch.setenv("HORIZON_TELEMETRY", "on")
+        monkeypatch.setenv("HORIZON_OFFLINE", "1")
         assert is_telemetry_enabled() is False  # offline overrides the opt-in
 
     def test_apply_offline_env_sets_hf_offline(self, monkeypatch):
         monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)
         monkeypatch.delenv("TRANSFORMERS_OFFLINE", raising=False)
-        monkeypatch.setenv("HEADROOM_OFFLINE", "1")
+        monkeypatch.setenv("HORIZON_OFFLINE", "1")
         apply_offline_env()
         import os
 

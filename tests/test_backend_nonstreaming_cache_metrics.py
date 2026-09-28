@@ -2,7 +2,7 @@
 
 Sibling of ``tests/test_backend_streaming_cache_metrics.py`` (issue #327).
 That file fixed the *streaming* backend paths so cache reads/writes reach the
-``PERF`` log line consumed by ``headroom perf``. The **non-streaming** backend
+``PERF`` log line consumed by ``horizon perf``. The **non-streaming** backend
 paths were left behind — the same bug class on the parallel code path:
 
 * ``AnthropicHandlerMixin`` non-streaming backend branch
@@ -19,7 +19,7 @@ paths were left behind — the same bug class on the parallel code path:
   ``RequestOutcome``, so the funnel (Prometheus / cost tracker / RequestLog /
   PERF) all see zeros.
 
-Both surface to the user as "Cache write: 0 tokens" in ``headroom perf``,
+Both surface to the user as "Cache write: 0 tokens" in ``horizon perf``,
 identical to the streaming regression that motivated issue #327.
 """
 
@@ -37,8 +37,8 @@ httpx = pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.backends.base import BackendResponse  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.backends.base import BackendResponse  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 PERF_RE = re.compile(
     r"\bcache_read=(?P<cr>\d+)\s+cache_write=(?P<cw>\d+)\s+cache_hit_pct=(?P<chp>\d+)"
@@ -63,11 +63,11 @@ def _find_perf_record(records: list[logging.LogRecord]) -> tuple[int, int, int]:
 class _ListHandler(logging.Handler):
     """Tiny direct handler that survives the proxy disabling propagation.
 
-    ``caplog`` attaches to root; ``headroom.proxy.helpers._setup_file_logging``
-    flips ``logging.getLogger("headroom").propagate = False`` once a proxy
+    ``caplog`` attaches to root; ``horizon.proxy.helpers._setup_file_logging``
+    flips ``logging.getLogger("horizon").propagate = False`` once a proxy
     instance is constructed in the test, after which root-attached handlers
-    stop receiving headroom-namespaced records. Attaching directly to
-    ``headroom.proxy`` sidesteps that.
+    stop receiving horizon-namespaced records. Attaching directly to
+    ``horizon.proxy`` sidesteps that.
     """
 
     def __init__(self) -> None:
@@ -80,7 +80,7 @@ class _ListHandler(logging.Handler):
 
 def _attach_proxy_log_capture():
     handler = _ListHandler()
-    target = logging.getLogger("headroom.proxy")
+    target = logging.getLogger("horizon.proxy")
     target.addHandler(handler)
     prior_level = target.level
     target.setLevel(logging.INFO)
@@ -179,7 +179,7 @@ def test_openai_backend_nonstreaming_emits_perf_with_cache_read_and_inferred_wri
 
     log_handle = _attach_proxy_log_capture()
     try:
-        with patch("headroom.proxy.server.AnyLLMBackend", return_value=backend):
+        with patch("horizon.proxy.server.AnyLLMBackend", return_value=backend):
             app = create_app(config)
             with TestClient(app) as client:
                 resp = client.post(
@@ -229,7 +229,7 @@ def test_openai_backend_nonstreaming_perf_zeros_when_upstream_omits_cache_usage(
 
     log_handle = _attach_proxy_log_capture()
     try:
-        with patch("headroom.proxy.server.AnyLLMBackend", return_value=backend):
+        with patch("horizon.proxy.server.AnyLLMBackend", return_value=backend):
             app = create_app(config)
             with TestClient(app) as client:
                 resp = client.post(
@@ -290,7 +290,7 @@ def test_anthropic_backend_nonstreaming_emits_perf_with_cache_read_and_write() -
 
     log_handle = _attach_proxy_log_capture()
     try:
-        with patch("headroom.proxy.server.AnyLLMBackend", return_value=backend):
+        with patch("horizon.proxy.server.AnyLLMBackend", return_value=backend):
             app = create_app(config)
             with TestClient(app) as client:
                 resp = client.post(
@@ -340,7 +340,7 @@ def test_anthropic_backend_nonstreaming_perf_zeros_when_upstream_omits_cache_usa
 
     log_handle = _attach_proxy_log_capture()
     try:
-        with patch("headroom.proxy.server.AnyLLMBackend", return_value=backend):
+        with patch("horizon.proxy.server.AnyLLMBackend", return_value=backend):
             app = create_app(config)
             with TestClient(app) as client:
                 resp = client.post(
@@ -376,7 +376,7 @@ def test_anthropic_backend_nonstreaming_uncached_from_usage_input_tokens() -> No
     was reported as 0. Here ``usage.input_tokens=1000`` while the live zone is a
     couple of tokens, so the two behaviours are distinguishable.
     """
-    from headroom.proxy.server import HeadroomProxy
+    from horizon.proxy.server import HorizonProxy
 
     config = ProxyConfig(
         optimize=False,
@@ -402,15 +402,15 @@ def test_anthropic_backend_nonstreaming_uncached_from_usage_input_tokens() -> No
     backend = _make_anthropic_backend(body)
 
     captured: list[Any] = []
-    orig_record = HeadroomProxy._record_request_outcome
+    orig_record = HorizonProxy._record_request_outcome
 
     async def _spy(self, outcome):  # noqa: ANN001, ANN202
         captured.append(outcome)
         return await orig_record(self, outcome)
 
     with (
-        patch("headroom.proxy.server.AnyLLMBackend", return_value=backend),
-        patch.object(HeadroomProxy, "_record_request_outcome", _spy),
+        patch("horizon.proxy.server.AnyLLMBackend", return_value=backend),
+        patch.object(HorizonProxy, "_record_request_outcome", _spy),
     ):
         app = create_app(config)
         with TestClient(app) as client:
@@ -441,7 +441,7 @@ def test_anthropic_backend_nonstreaming_uncached_falls_back_when_input_tokens_ab
     would do). With no cache counters the derivation is just the live-zone
     tokenizer count, so the recorded value is a positive estimate, not 0.
     """
-    from headroom.proxy.server import HeadroomProxy
+    from horizon.proxy.server import HorizonProxy
 
     config = ProxyConfig(
         optimize=False,
@@ -464,15 +464,15 @@ def test_anthropic_backend_nonstreaming_uncached_falls_back_when_input_tokens_ab
     backend = _make_anthropic_backend(body)
 
     captured: list[Any] = []
-    orig_record = HeadroomProxy._record_request_outcome
+    orig_record = HorizonProxy._record_request_outcome
 
     async def _spy(self, outcome):  # noqa: ANN001, ANN202
         captured.append(outcome)
         return await orig_record(self, outcome)
 
     with (
-        patch("headroom.proxy.server.AnyLLMBackend", return_value=backend),
-        patch.object(HeadroomProxy, "_record_request_outcome", _spy),
+        patch("horizon.proxy.server.AnyLLMBackend", return_value=backend),
+        patch.object(HorizonProxy, "_record_request_outcome", _spy),
     ):
         app = create_app(config)
         with TestClient(app) as client:
@@ -509,7 +509,7 @@ def test_anthropic_backend_nonstreaming_present_null_cache_counters_do_not_crash
     calls, raising ``TypeError`` that the outer handler turned into a failed
     request instead of a normal 200 with zeroed counters.
     """
-    from headroom.proxy.server import HeadroomProxy
+    from horizon.proxy.server import HorizonProxy
 
     config = ProxyConfig(
         optimize=False,
@@ -535,7 +535,7 @@ def test_anthropic_backend_nonstreaming_present_null_cache_counters_do_not_crash
     backend = _make_anthropic_backend(body)
 
     captured: list[Any] = []
-    orig_record = HeadroomProxy._record_request_outcome
+    orig_record = HorizonProxy._record_request_outcome
 
     async def _spy(self, outcome):  # noqa: ANN001, ANN202
         captured.append(outcome)
@@ -544,8 +544,8 @@ def test_anthropic_backend_nonstreaming_present_null_cache_counters_do_not_crash
     log_handle = _attach_proxy_log_capture()
     try:
         with (
-            patch("headroom.proxy.server.AnyLLMBackend", return_value=backend),
-            patch.object(HeadroomProxy, "_record_request_outcome", _spy),
+            patch("horizon.proxy.server.AnyLLMBackend", return_value=backend),
+            patch.object(HorizonProxy, "_record_request_outcome", _spy),
         ):
             app = create_app(config)
             with TestClient(app) as client:

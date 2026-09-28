@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import time
 
-import headroom.transforms.kompress_compressor as kc
-from headroom.transforms.content_detector import ContentType
-from headroom.transforms.content_router import (
+import horizon.transforms.kompress_compressor as kc
+from horizon.transforms.content_detector import ContentType
+from horizon.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
     RouterCompressionResult,
     RoutingDecision,
 )
-from headroom.transforms.kompress_compressor import KompressCompressor, KompressConfig
+from horizon.transforms.kompress_compressor import KompressCompressor, KompressConfig
 
 
 class _Tokenizer:
@@ -63,7 +63,7 @@ def test_single_cache_miss_fails_open_at_deadline(monkeypatch, caplog):
         return _compression_result(content, "compressed output")
 
     monkeypatch.setattr(router, "compress", slow_compress)
-    monkeypatch.setenv("HEADROOM_COMPRESSION_DEADLINE_MS", "10")
+    monkeypatch.setenv("HORIZON_COMPRESSION_DEADLINE_MS", "10")
 
     started = time.perf_counter()
     result = router.apply(
@@ -87,7 +87,7 @@ def test_single_cache_miss_preserves_under_deadline_output(monkeypatch):
             content, "compressed output"
         ),
     )
-    monkeypatch.setenv("HEADROOM_COMPRESSION_DEADLINE_MS", "1000")
+    monkeypatch.setenv("HORIZON_COMPRESSION_DEADLINE_MS", "1000")
 
     result = router.apply(
         _messages(),
@@ -108,7 +108,7 @@ def test_single_cache_miss_preserves_disabled_deadline(monkeypatch):
             content, "compressed output"
         ),
     )
-    monkeypatch.setenv("HEADROOM_COMPRESSION_DEADLINE_MS", "0")
+    monkeypatch.setenv("HORIZON_COMPRESSION_DEADLINE_MS", "0")
 
     result = router.apply(
         _messages(),
@@ -169,7 +169,7 @@ def test_single_cache_miss_deadline_starts_before_kompress_load(monkeypatch, cap
             compressor.compress(content).compressed,
         ),
     )
-    monkeypatch.setenv("HEADROOM_COMPRESSION_DEADLINE_MS", "10")
+    monkeypatch.setenv("HORIZON_COMPRESSION_DEADLINE_MS", "10")
 
     started = time.perf_counter()
     result = router.apply(

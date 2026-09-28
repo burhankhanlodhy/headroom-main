@@ -11,7 +11,7 @@ from tests._dotenv import importorskip_no_env_leak
 
 importorskip_no_env_leak("litellm")
 
-from headroom.backends.litellm import (  # noqa: E402  (must follow importorskip)
+from horizon.backends.litellm import (  # noqa: E402  (must follow importorskip)
     LiteLLMBackend,
     _bedrock_profiles_cache,
     _bedrock_region_prefix,
@@ -154,7 +154,7 @@ class TestFetchBedrockInferenceProfiles:
         mock_session.client.return_value = mock_client
         mock_boto3.Session.return_value = mock_session
 
-        with patch("headroom.backends.litellm.boto3", mock_boto3, create=True):
+        with patch("horizon.backends.litellm.boto3", mock_boto3, create=True):
             # Patch the import inside the function
             _fetch_bedrock_inference_profiles.__code__  # noqa: B018
             _bedrock_profiles_cache.clear()
@@ -250,7 +250,7 @@ class TestBedrockModelMapping:
     def test_eu_region_maps_correctly(self):
         """EU region should produce eu.anthropic.* model IDs."""
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={
                 "claude-sonnet-4-20250514": "bedrock/eu.anthropic.claude-sonnet-4-20250514-v1:0",
             },
@@ -262,7 +262,7 @@ class TestBedrockModelMapping:
     def test_us_region_maps_correctly(self):
         """US region should produce us.anthropic.* model IDs."""
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={
                 "claude-sonnet-4-20250514": "bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0",
             },
@@ -274,7 +274,7 @@ class TestBedrockModelMapping:
     def test_fallback_for_unknown_model_in_eu(self):
         """Unknown models in EU should get eu.anthropic.* fallback, not bare 'bedrock/claude-...'."""
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={},
         ):
             backend = LiteLLMBackend(provider="bedrock", region="eu-west-1")
@@ -284,7 +284,7 @@ class TestBedrockModelMapping:
     def test_fallback_for_unknown_model_in_ap(self):
         """Unknown models in AP should get apac.anthropic.* fallback."""
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={},
         ):
             backend = LiteLLMBackend(provider="bedrock", region="ap-southeast-1")
@@ -294,7 +294,7 @@ class TestBedrockModelMapping:
     def test_bedrock_format_passthrough(self):
         """Already-formatted Bedrock IDs should pass through unchanged."""
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={},
         ):
             backend = LiteLLMBackend(provider="bedrock", region="eu-central-1")
@@ -305,7 +305,7 @@ class TestBedrockModelMapping:
     def test_anthropic_dot_format_normalized(self):
         """Raw Bedrock IDs like 'anthropic.claude-...-v1:0' should normalize and map."""
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={
                 "claude-sonnet-4-20250514": "bedrock/eu.anthropic.claude-sonnet-4-20250514-v1:0",
             },
@@ -317,7 +317,7 @@ class TestBedrockModelMapping:
     def test_region_prefixed_format_normalized(self):
         """'eu.anthropic.claude-...-v1:0' should normalize and map."""
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={
                 "claude-sonnet-4-20250514": "bedrock/eu.anthropic.claude-sonnet-4-20250514-v1:0",
             },
@@ -329,7 +329,7 @@ class TestBedrockModelMapping:
     def test_arn_passthrough(self):
         """Application inference profile ARNs must use the converse route."""
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={},
         ):
             backend = LiteLLMBackend(provider="bedrock", region="ap-southeast-2")
@@ -340,7 +340,7 @@ class TestBedrockModelMapping:
     def test_ap_southeast_2_uses_au_prefix(self):
         """ap-southeast-2 (Sydney/Australia) should use 'au.' prefix, not 'apac.'."""
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={},
         ):
             backend = LiteLLMBackend(provider="bedrock", region="ap-southeast-2")
@@ -348,13 +348,13 @@ class TestBedrockModelMapping:
             assert result == "bedrock/au.anthropic.claude-sonnet-4-5-20250929-v1:0"
 
     def test_override_pins_plain_name_to_app_profile_arn(self, monkeypatch):
-        """HEADROOM_BEDROCK_MODEL_MAP pins a plain name to a specific app
+        """HORIZON_BEDROCK_MODEL_MAP pins a plain name to a specific app
         profile ARN and routes it via the converse endpoint, winning over
         the discovered map."""
         arn = "arn:aws:bedrock:ap-southeast-1:1:application-inference-profile/x57j1esjrt66"
-        monkeypatch.setenv("HEADROOM_BEDROCK_MODEL_MAP", f"claude-sonnet-5={arn}")
+        monkeypatch.setenv("HORIZON_BEDROCK_MODEL_MAP", f"claude-sonnet-5={arn}")
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             # Discovery also has a system-defined sonnet-5; the override must win.
             return_value={"claude-sonnet-5": "bedrock/global.anthropic.claude-sonnet-5"},
         ):
@@ -364,9 +364,9 @@ class TestBedrockModelMapping:
     def test_override_absent_falls_through_to_discovery(self, monkeypatch):
         """A model not pinned in the override map resolves via discovery."""
         arn = "arn:aws:bedrock:ap-southeast-1:1:application-inference-profile/x57j1esjrt66"
-        monkeypatch.setenv("HEADROOM_BEDROCK_MODEL_MAP", f"claude-sonnet-5={arn}")
+        monkeypatch.setenv("HORIZON_BEDROCK_MODEL_MAP", f"claude-sonnet-5={arn}")
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={"claude-opus-4-8": "bedrock/global.anthropic.claude-opus-4-8"},
         ):
             backend = LiteLLMBackend(provider="bedrock", region="ap-southeast-1")
@@ -383,7 +383,7 @@ class TestBedrockModelMapping:
         # for the same underlying model (the bad case: wrong profile selected).
         bad_app_profile = "bedrock/arn:aws:bedrock:ap-southeast-2:002037730852:application-inference-profile/6lgt8epqa0wf"
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={"claude-opus-4-8": bad_app_profile},
         ):
             backend = LiteLLMBackend(provider="bedrock", region="ap-southeast-2")
@@ -395,7 +395,7 @@ class TestBedrockModelMapping:
     def test_cross_region_prefixes_all_pass_through(self):
         """All five cross-region prefix families pass through without remapping."""
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={},
         ):
             backend = LiteLLMBackend(provider="bedrock", region="us-east-1")
@@ -429,7 +429,7 @@ class TestBedrockModelMapping:
         profile in the discovery map."""
         bad_app_profile = "bedrock/arn:aws:bedrock:ap-southeast-2:002037730852:application-inference-profile/6lgt8epqa0wf"
         with patch(
-            "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+            "horizon.backends.litellm._fetch_bedrock_inference_profiles",
             return_value={"claude-opus-4-8": bad_app_profile},
         ):
             backend = LiteLLMBackend(provider="bedrock", region="ap-southeast-2")
@@ -508,28 +508,28 @@ class TestNormalizeBedrockProfileId:
 
 
 # =============================================================================
-# HEADROOM_BEDROCK_MODEL_MAP operator override parsing
+# HORIZON_BEDROCK_MODEL_MAP operator override parsing
 # =============================================================================
 
 
 class TestParseBedrockModelOverrides:
-    """Test the HEADROOM_BEDROCK_MODEL_MAP override parser."""
+    """Test the HORIZON_BEDROCK_MODEL_MAP override parser."""
 
     def test_none_and_empty_yield_empty(self):
-        from headroom.backends.litellm import _parse_bedrock_model_overrides
+        from horizon.backends.litellm import _parse_bedrock_model_overrides
 
         assert _parse_bedrock_model_overrides(None) == {}
         assert _parse_bedrock_model_overrides("") == {}
         assert _parse_bedrock_model_overrides("   ") == {}
 
     def test_single_pair(self):
-        from headroom.backends.litellm import _parse_bedrock_model_overrides
+        from horizon.backends.litellm import _parse_bedrock_model_overrides
 
         arn = "arn:aws:bedrock:ap-southeast-1:1:application-inference-profile/x57j1esjrt66"
         assert _parse_bedrock_model_overrides(f"claude-sonnet-5={arn}") == {"claude-sonnet-5": arn}
 
     def test_multiple_pairs_and_whitespace(self):
-        from headroom.backends.litellm import _parse_bedrock_model_overrides
+        from horizon.backends.litellm import _parse_bedrock_model_overrides
 
         raw = " claude-sonnet-5=arn:a , claude-opus-4-8=arn:b "
         assert _parse_bedrock_model_overrides(raw) == {
@@ -538,7 +538,7 @@ class TestParseBedrockModelOverrides:
         }
 
     def test_skips_malformed_entries(self):
-        from headroom.backends.litellm import _parse_bedrock_model_overrides
+        from horizon.backends.litellm import _parse_bedrock_model_overrides
 
         # Missing "=" and blank segments are skipped, valid pairs survive.
         assert _parse_bedrock_model_overrides("garbage,,claude-sonnet-5=arn:a,=noname") == {
@@ -588,10 +588,10 @@ class TestBedrockProfileForwardedToCompletion:
 
         with (
             patch(
-                "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+                "horizon.backends.litellm._fetch_bedrock_inference_profiles",
                 return_value=_MODEL_MAP_US,
             ),
-            patch("headroom.backends.litellm.acompletion", side_effect=fake_acompletion),
+            patch("horizon.backends.litellm.acompletion", side_effect=fake_acompletion),
         ):
             backend = LiteLLMBackend(
                 provider="bedrock", region="us-east-1", profile_name="my-sso-profile"
@@ -615,10 +615,10 @@ class TestBedrockProfileForwardedToCompletion:
 
         with (
             patch(
-                "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+                "horizon.backends.litellm._fetch_bedrock_inference_profiles",
                 return_value=_MODEL_MAP_US,
             ),
-            patch("headroom.backends.litellm.acompletion", side_effect=fake_acompletion),
+            patch("horizon.backends.litellm.acompletion", side_effect=fake_acompletion),
         ):
             backend = LiteLLMBackend(
                 provider="bedrock", region="us-east-1", profile_name="my-sso-profile"
@@ -639,10 +639,10 @@ class TestBedrockProfileForwardedToCompletion:
 
         with (
             patch(
-                "headroom.backends.litellm._fetch_bedrock_inference_profiles",
+                "horizon.backends.litellm._fetch_bedrock_inference_profiles",
                 return_value=_MODEL_MAP_US,
             ),
-            patch("headroom.backends.litellm.acompletion", side_effect=fake_acompletion),
+            patch("horizon.backends.litellm.acompletion", side_effect=fake_acompletion),
         ):
             backend = LiteLLMBackend(provider="bedrock", region="us-east-1")
             await backend.send_message(body=_BODY, headers={})

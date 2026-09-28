@@ -6,7 +6,7 @@ only two of the three CCR subsystems, though — markers and tool injection —
 leaving ``ccr_handle_responses`` on, which has no flag and no env var of its own.
 
 That mattered because the buffered ``stream: false`` path keys off
-``headroom_retrieve`` being present in the *request's* tools, and the client can
+``horizon_retrieve`` being present in the *request's* tools, and the client can
 put it there itself: the bundled OpenCode plugin registers the tool
 unconditionally. So `--no-ccr` left the buffered path fully armed for exactly
 the clients it was recommended to, and a turn whose history still held a
@@ -27,24 +27,24 @@ httpx = pytest.importorskip("httpx")
 from click.testing import CliRunner  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.cache.backends import InMemoryBackend  # noqa: E402
-from headroom.cache.compression_store import (  # noqa: E402
+from horizon.cache.backends import InMemoryBackend  # noqa: E402
+from horizon.cache.compression_store import (  # noqa: E402
     get_compression_store,
     reset_compression_store,
 )
-from headroom.ccr.tool_injection import create_ccr_tool_definition  # noqa: E402
-from headroom.cli.main import main  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.ccr.tool_injection import create_ccr_tool_definition  # noqa: E402
+from horizon.cli.main import main  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 def _config_for(args: list[str], env: dict[str, str] | None = None) -> ProxyConfig:
-    """Run `headroom proxy ...` far enough to capture the ProxyConfig it builds."""
+    """Run `horizon proxy ...` far enough to capture the ProxyConfig it builds."""
     captured: dict[str, ProxyConfig] = {}
 
     def mock_run_server(config, **kwargs):  # noqa: ANN001, ANN003
         captured["config"] = config
 
-    with patch("headroom.proxy.server.run_server", mock_run_server):
+    with patch("horizon.proxy.server.run_server", mock_run_server):
         result = CliRunner().invoke(main, args, env=env or {}, catch_exceptions=False)
 
     assert result.exit_code == 0, result.output
@@ -64,7 +64,7 @@ def test_no_ccr_flag_disables_response_handling() -> None:
 
 
 def test_no_ccr_env_var_disables_response_handling() -> None:
-    config = _config_for(["proxy"], env={"HEADROOM_NO_CCR": "1"})
+    config = _config_for(["proxy"], env={"HORIZON_NO_CCR": "1"})
 
     assert config.ccr_inject_tool is False
     assert config.ccr_inject_marker is False

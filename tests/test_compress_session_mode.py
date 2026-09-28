@@ -1,7 +1,7 @@
 """Session-aware /v1/compress (sidecar mode) + the /v1/usage relay.
 
 Contract under test: a gateway that owns routing (e.g. Kong) sends the RAW
-conversation plus a session id every turn; Headroom keeps the byte-replay
+conversation plus a session id every turn; Horizon keeps the byte-replay
 state itself and returns a byte-identical prefix; the gateway forwards the
 result verbatim and may relay provider usage via POST /v1/usage to make
 freeze decisions exact.
@@ -21,7 +21,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 def _make_client() -> TestClient:
@@ -128,7 +128,7 @@ def test_session_key_is_not_spoofable_via_string_prefix() -> None:
         proxy = client.app.state.proxy
         keys = [k for k in proxy._compression_caches if "sneaky" in k]
         assert keys == [f"{SESSION_KEY_PREFIX}compress:sneaky"]
-        # NUL cannot appear in an HTTP header value, so no x-headroom-session-id
+        # NUL cannot appear in an HTTP header value, so no x-horizon-session-id
         # on the proxy path can collide with this key.
         assert all("\x00" in k for k in keys)
 
@@ -151,7 +151,7 @@ def test_second_turn_replays_first_turn_bytes() -> None:
         assert turn1["tokens_saved"] > 0
 
         # Turn 2: the caller resends the RAW history (as real clients do) plus
-        # the new turns. Headroom must return the OLD prefix byte-identical to
+        # the new turns. Horizon must return the OLD prefix byte-identical to
         # what it handed back on turn 1 — that is what the provider cached.
         turn2_history = history + [
             {"role": "assistant", "content": "The top items are listed above."},
@@ -224,26 +224,26 @@ def test_prefix_stable_even_after_tracker_state_loss() -> None:
 
 
 def test_header_session_id_ignored_by_default() -> None:
-    """Deployments whose gateways stamp x-headroom-session-id on ALL traffic
+    """Deployments whose gateways stamp x-horizon-session-id on ALL traffic
     must not silently flip stateless /v1/compress callers into session mode
     (or blend conversations sharing one header value into one replay state)."""
     with _make_client() as client:
         resp = client.post(
             "/v1/compress",
             json={"model": "gpt-4o", "messages": _big_tool_history(), "config": {}},
-            headers={"x-headroom-session-id": "conv-header"},
+            headers={"x-horizon-session-id": "conv-header"},
         )
         assert resp.status_code == 200, resp.text
         assert "session" not in resp.json()
 
 
 def test_header_session_id_works_with_env_opt_in(monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_COMPRESS_SESSION_FROM_HEADER", "1")
+    monkeypatch.setenv("HORIZON_COMPRESS_SESSION_FROM_HEADER", "1")
     with _make_client() as client:
         resp = client.post(
             "/v1/compress",
             json={"model": "gpt-4o", "messages": _big_tool_history(), "config": {}},
-            headers={"x-headroom-session-id": "conv-header"},
+            headers={"x-horizon-session-id": "conv-header"},
         )
         assert resp.status_code == 200, resp.text
         assert resp.json()["session"]["id"] == "conv-header"
@@ -435,7 +435,7 @@ def test_explicit_frozen_count_still_wins_when_larger() -> None:
 def test_compress_503_when_turn_lock_busy(monkeypatch) -> None:
     """A concurrent turn for the same session must fail fast with a 503,
     not park an executor worker on an untimed lock acquire."""
-    import headroom.proxy.handlers.openai as openai_mod
+    import horizon.proxy.handlers.openai as openai_mod
 
     monkeypatch.setattr(openai_mod, "_SESSION_TURN_LOCK_TIMEOUT_SECONDS", 0.05)
     with _make_client() as client:
@@ -470,7 +470,7 @@ def test_compress_503_when_turn_lock_busy(monkeypatch) -> None:
 def test_usage_503_when_turn_lock_busy(monkeypatch) -> None:
     """/v1/usage must take the same turn lock as the compress turn — an
     unlocked update races the executor and rolls tracker snapshots back."""
-    import headroom.proxy.handlers.openai as openai_mod
+    import horizon.proxy.handlers.openai as openai_mod
 
     monkeypatch.setattr(openai_mod, "_SESSION_TURN_LOCK_TIMEOUT_SECONDS", 0.05)
     with _make_client() as client:

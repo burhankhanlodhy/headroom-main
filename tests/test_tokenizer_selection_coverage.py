@@ -11,7 +11,7 @@ Two selection gaps, both measured against real counters on identical text:
    for the wrapped ids gateways send. ``bedrock/anthropic.claude-3-5-sonnet``,
    ``vertex_ai/claude-…``, ``openrouter/anthropic/claude-…``, ``azure/gpt-4o``
    and Bedrock's ``us.anthropic.claude-…`` all matched nothing. LiteLLM's
-   ``headroom`` guardrail passes exactly these forms.
+   ``horizon`` guardrail passes exactly these forms.
 
 The estimator is a legitimate FALLBACK; the bug is reaching it when a real
 tokenizer for that family exists.
@@ -21,8 +21,8 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.tokenizers import get_tokenizer
-from headroom.tokenizers.registry import _name_candidates
+from horizon.tokenizers import get_tokenizer
+from horizon.tokenizers.registry import _name_candidates
 
 _TIKTOKEN = "TiktokenCounter"
 

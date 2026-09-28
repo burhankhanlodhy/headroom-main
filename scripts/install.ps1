@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
-$ImageDefault = 'ghcr.io/headroomlabs-ai/headroom:latest'
-$InstallImage = if ($env:HEADROOM_DOCKER_IMAGE) { $env:HEADROOM_DOCKER_IMAGE } else { $ImageDefault }
+$ImageDefault = 'ghcr.io/your-org/horizon:latest'
+$InstallImage = if ($env:HORIZON_DOCKER_IMAGE) { $env:HORIZON_DOCKER_IMAGE } else { $ImageDefault }
 $InstallDir = Join-Path $HOME '.local\bin'
 if (-not (Test-Path (Join-Path $HOME '.local'))) {
     $InstallDir = Join-Path $HOME 'bin'
@@ -26,7 +26,7 @@ function Ensure-PathEntry {
     # HKCU\Environment and is NOT redirected by a HOME/USERPROFILE override, so a
     # caller that must not mutate the real persistent PATH (the installer test
     # suite, which runs this against a throwaway fake home) sets
-    # HEADROOM_INSTALL_PATH_SCOPE=Process to keep the update ephemeral instead of
+    # HORIZON_INSTALL_PATH_SCOPE=Process to keep the update ephemeral instead of
     # leaking the temp shim dir into the developer's actual user PATH (#2970).
     #
     # Only those two persistence modes are supported. The value is handed to
@@ -36,12 +36,12 @@ function Ensure-PathEntry {
     # Normalize case-insensitively and allow-list 'User'/'Process', failing early
     # and clearly for 'Machine' or anything else.
     $scope = 'User'
-    if ($env:HEADROOM_INSTALL_PATH_SCOPE) {
-        switch ($env:HEADROOM_INSTALL_PATH_SCOPE.Trim().ToLowerInvariant()) {
+    if ($env:HORIZON_INSTALL_PATH_SCOPE) {
+        switch ($env:HORIZON_INSTALL_PATH_SCOPE.Trim().ToLowerInvariant()) {
             'user' { $scope = 'User' }
             'process' { $scope = 'Process' }
             default {
-                throw "HEADROOM_INSTALL_PATH_SCOPE must be 'User' or 'Process' (got '$($env:HEADROOM_INSTALL_PATH_SCOPE)'); 'Machine' and other targets are not supported."
+                throw "HORIZON_INSTALL_PATH_SCOPE must be 'User' or 'Process' (got '$($env:HORIZON_INSTALL_PATH_SCOPE)'); 'Machine' and other targets are not supported."
             }
         }
     }
@@ -73,8 +73,8 @@ function Ensure-ProfileBlock {
         return
     }
 
-    $markerStart = '# >>> headroom docker-native >>>'
-    $markerEnd = '# <<< headroom docker-native <<<'
+    $markerStart = '# >>> horizon docker-native >>>'
+    $markerEnd = '# <<< horizon docker-native <<<'
     $escapedPathEntry = $PathEntry.Replace("'", "''")
     $block = @"
 $markerStart
@@ -101,15 +101,15 @@ $markerEnd
 function Write-Wrapper {
     param([string]$TargetDir)
 
-    $wrapperPath = Join-Path $TargetDir 'headroom.ps1'
-    $cmdPath = Join-Path $TargetDir 'headroom.cmd'
+    $wrapperPath = Join-Path $TargetDir 'horizon.ps1'
+    $cmdPath = Join-Path $TargetDir 'horizon.cmd'
     $resolvedInstallImage = $InstallImage.Replace("'", "''")
 
     $wrapper = @'
 $ErrorActionPreference = 'Stop'
 
-$HeadroomImage = if ($env:HEADROOM_DOCKER_IMAGE) { $env:HEADROOM_DOCKER_IMAGE } else { '__HEADROOM_INSTALL_IMAGE__' }
-$ContainerHome = if ($env:HEADROOM_CONTAINER_HOME) { $env:HEADROOM_CONTAINER_HOME } else { '/tmp/headroom-home' }
+$HorizonImage = if ($env:HORIZON_DOCKER_IMAGE) { $env:HORIZON_DOCKER_IMAGE } else { '__HORIZON_INSTALL_IMAGE__' }
+$ContainerHome = if ($env:HORIZON_CONTAINER_HOME) { $env:HORIZON_CONTAINER_HOME } else { '/tmp/horizon-home' }
 $HostHome = $HOME
 
 function Fail {
@@ -126,7 +126,7 @@ function Require-Command {
 
 function Ensure-HostDirs {
     foreach ($dir in @(
-        (Join-Path $HostHome '.headroom'),
+        (Join-Path $HostHome '.horizon'),
         (Join-Path $HostHome '.claude'),
         (Join-Path $HostHome '.codex'),
         (Join-Path $HostHome '.gemini')
@@ -140,7 +140,7 @@ function Ensure-HostDirs {
 function Get-PassthroughEnvArgs {
     $args = New-Object System.Collections.Generic.List[string]
     $prefixes = @(
-        'HEADROOM_','ANTHROPIC_','OPENAI_','GEMINI_','AWS_','AZURE_','VERTEX_',
+        'HORIZON_','ANTHROPIC_','OPENAI_','GEMINI_','AWS_','AZURE_','VERTEX_',
         'GOOGLE_','GOOGLE_CLOUD_','MISTRAL_','GROQ_','OPENROUTER_','XAI_',
         'TOGETHER_','COHERE_','OLLAMA_','LITELLM_','OTEL_','SUPABASE_',
         'QDRANT_','NEO4J_','LANGSMITH_'
@@ -168,15 +168,15 @@ function Get-SharedDockerArgs {
     $args.Add("HOME=$ContainerHome")
     $args.Add('--env')
     $args.Add('PYTHONUNBUFFERED=1')
-    # Canonical Headroom filesystem contract (issue #175).
+    # Canonical Horizon filesystem contract (issue #175).
     $args.Add('--env')
-    $args.Add("HEADROOM_WORKSPACE_DIR=$ContainerHome/.headroom")
+    $args.Add("HORIZON_WORKSPACE_DIR=$ContainerHome/.horizon")
     $args.Add('--env')
-    $args.Add("HEADROOM_CONFIG_DIR=$ContainerHome/.headroom/config")
+    $args.Add("HORIZON_CONFIG_DIR=$ContainerHome/.horizon/config")
     $args.Add('--volume')
     $args.Add("${PWD}:/workspace")
     $args.Add('--volume')
-    $args.Add((Join-Path $HostHome '.headroom') + ":$ContainerHome/.headroom")
+    $args.Add((Join-Path $HostHome '.horizon') + ":$ContainerHome/.horizon")
     $args.Add('--volume')
     $args.Add((Join-Path $HostHome '.claude') + ":$ContainerHome/.claude")
     $args.Add('--volume')
@@ -202,7 +202,7 @@ function Add-TtyArgs {
     }
 }
 
-function Invoke-HeadroomDocker {
+function Invoke-HorizonDocker {
     param([string[]]$Arguments)
 
     $dockerArgs = New-Object System.Collections.Generic.List[string]
@@ -210,8 +210,8 @@ function Invoke-HeadroomDocker {
     Add-TtyArgs -ArgsList $dockerArgs
     $dockerArgs.AddRange((Get-SharedDockerArgs))
     $dockerArgs.Add('--entrypoint')
-    $dockerArgs.Add('headroom')
-    $dockerArgs.Add($HeadroomImage)
+    $dockerArgs.Add('horizon')
+    $dockerArgs.Add($HorizonImage)
     foreach ($arg in $Arguments) {
         $dockerArgs.Add($arg)
     }
@@ -242,7 +242,7 @@ function Wait-Proxy {
     }
 
     docker logs $ContainerName | Write-Error
-    throw "Headroom proxy failed to start on port $Port"
+    throw "Horizon proxy failed to start on port $Port"
 }
 
 function Start-ProxyContainer {
@@ -251,11 +251,11 @@ function Start-ProxyContainer {
         [string[]]$ProxyArgs
     )
 
-    $containerName = "headroom-proxy-$Port-$PID"
+    $containerName = "horizon-proxy-$Port-$PID"
     $dockerArgs = New-Object System.Collections.Generic.List[string]
     $dockerArgs.AddRange([string[]]@('run','-d','--rm','--name',$containerName,'-p',"127.0.0.1`:$Port`:$Port"))
     $dockerArgs.AddRange((Get-SharedDockerArgs))
-    $dockerArgs.Add($HeadroomImage)
+    $dockerArgs.Add($HorizonImage)
     $dockerArgs.Add('--host')
     $dockerArgs.Add('0.0.0.0')
     $dockerArgs.Add('--port')
@@ -266,7 +266,7 @@ function Start-ProxyContainer {
 
     & docker @dockerArgs | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        throw "Failed to start Headroom proxy container"
+        throw "Failed to start Horizon proxy container"
     }
 
     Wait-Proxy -ContainerName $containerName -Port $Port
@@ -283,7 +283,7 @@ function Stop-ProxyContainer {
 function Get-PersistentProfileRoot {
     param([string]$Profile)
     Assert-ValidProfileName -Profile $Profile
-    return Join-Path (Join-Path $HostHome '.headroom\deploy') $Profile
+    return Join-Path (Join-Path $HostHome '.horizon\deploy') $Profile
 }
 
 function Get-PersistentStatePath {
@@ -298,7 +298,7 @@ function Get-PersistentManifestPath {
 
 function Get-PersistentContainerName {
     param([string]$Profile)
-    return "headroom-$Profile"
+    return "horizon-$Profile"
 }
 
 function Assert-ValidProfileName {
@@ -358,13 +358,13 @@ function Get-PersistentDockerArgs {
     $args.Add("HOME=$ContainerHome")
     $args.Add('--env')
     $args.Add('PYTHONUNBUFFERED=1')
-    # Canonical Headroom filesystem contract (issue #175).
+    # Canonical Horizon filesystem contract (issue #175).
     $args.Add('--env')
-    $args.Add("HEADROOM_WORKSPACE_DIR=$ContainerHome/.headroom")
+    $args.Add("HORIZON_WORKSPACE_DIR=$ContainerHome/.horizon")
     $args.Add('--env')
-    $args.Add("HEADROOM_CONFIG_DIR=$ContainerHome/.headroom/config")
+    $args.Add("HORIZON_CONFIG_DIR=$ContainerHome/.horizon/config")
     $args.Add('--volume')
-    $args.Add((Join-Path $HostHome '.headroom') + ":$ContainerHome/.headroom")
+    $args.Add((Join-Path $HostHome '.horizon') + ":$ContainerHome/.horizon")
     $args.Add('--volume')
     $args.Add((Join-Path $HostHome '.claude') + ":$ContainerHome/.claude")
     $args.Add('--volume')
@@ -389,14 +389,14 @@ function Add-DashboardGatewayEnv {
     # 127.0.0.1. Trust only that exact gateway by default so the dashboard's
     # metadata gate works for the first-party persistent Docker preset while
     # preserving an explicitly configured allowlist.
-    if (Test-Path Env:HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS) {
+    if (Test-Path Env:HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS) {
         return
     }
 
     $gateway = (& docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}' 2>$null | Out-String).Trim()
     if ($LASTEXITCODE -eq 0 -and $gateway) {
         $ArgsList.Add('--env')
-        $ArgsList.Add("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS=$gateway/32")
+        $ArgsList.Add("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS=$gateway/32")
     } else {
         Write-Warning 'Could not determine Docker bridge gateway; dashboard metadata remains restricted'
     }
@@ -419,7 +419,7 @@ function Get-ManifestProxyArgs {
         $args.Add('--no-telemetry')
     }
     if ($Memory) {
-        $args.AddRange([string[]]@('--memory','--memory-db-path',"$ContainerHome/.headroom/memory.db"))
+        $args.AddRange([string[]]@('--memory','--memory-db-path',"$ContainerHome/.horizon/memory.db"))
     }
     if ($AnyllmProvider) {
         $args.AddRange([string[]]@('--anyllm-provider', $AnyllmProvider))
@@ -480,10 +480,10 @@ function Write-PersistentManifest {
     New-Item -ItemType Directory -Force -Path $root | Out-Null
 
     $baseEnv = [ordered]@{
-        HEADROOM_PORT = "$Port"
-        HEADROOM_HOST = '127.0.0.1'
-        HEADROOM_MODE = $Mode
-        HEADROOM_BACKEND = $Backend
+        HORIZON_PORT = "$Port"
+        HORIZON_HOST = '127.0.0.1'
+        HORIZON_MODE = $Mode
+        HORIZON_BACKEND = $Backend
     }
 
     $manifest = [ordered]@{
@@ -501,10 +501,10 @@ function Write-PersistentManifest {
         region = if ($Region) { $Region } else { $null }
         proxy_mode = $Mode
         memory_enabled = $Memory
-        memory_db_path = "$ContainerHome/.headroom/memory.db"
+        memory_db_path = "$ContainerHome/.horizon/memory.db"
         telemetry_enabled = $TelemetryEnabled
         image = $Image
-        service_name = "headroom-$Profile"
+        service_name = "horizon-$Profile"
         container_name = Get-PersistentContainerName -Profile $Profile
         health_url = "http://127.0.0.1:$Port/readyz"
         base_env = $baseEnv
@@ -552,11 +552,11 @@ function Start-PersistentDockerInstall {
     $dockerArgs.AddRange((Get-PersistentDockerArgs))
     Add-DashboardGatewayEnv -ArgsList $dockerArgs
     $dockerArgs.AddRange([string[]]@(
-        '--env',"HEADROOM_DEPLOYMENT_PROFILE=$Profile",
-        '--env','HEADROOM_DEPLOYMENT_PRESET=persistent-docker',
-        '--env','HEADROOM_DEPLOYMENT_RUNTIME=docker',
-        '--env','HEADROOM_DEPLOYMENT_SUPERVISOR=none',
-        '--env','HEADROOM_DEPLOYMENT_SCOPE=user'
+        '--env',"HORIZON_DEPLOYMENT_PROFILE=$Profile",
+        '--env','HORIZON_DEPLOYMENT_PRESET=persistent-docker',
+        '--env','HORIZON_DEPLOYMENT_RUNTIME=docker',
+        '--env','HORIZON_DEPLOYMENT_SUPERVISOR=none',
+        '--env','HORIZON_DEPLOYMENT_SCOPE=user'
     ))
     $dockerArgs.Add($Image)
     $dockerArgs.Add('--host')
@@ -629,12 +629,12 @@ function Show-PersistentDockerInstallStatus {
 
 function Show-InstallHelp {
     $lines = @(
-        'Usage: headroom install [OPTIONS] COMMAND [ARGS]...',
+        'Usage: horizon install [OPTIONS] COMMAND [ARGS]...',
         '',
-        '  Manage persistent Docker-native Headroom deployments.',
+        '  Manage persistent Docker-native Horizon deployments.',
         '',
         '  The Docker-native wrapper currently supports the persistent-docker preset only.',
-        '  Use the Python-native `headroom install` command for persistent-service and',
+        '  Use the Python-native `horizon install` command for persistent-service and',
         '  persistent-task installs, or when you need provider/user/system config mutation.',
         '',
         'Options:',
@@ -653,7 +653,7 @@ function Show-InstallHelp {
 
 function Show-InstallApplyHelp {
     $lines = @(
-        'Usage: headroom install apply [OPTIONS]',
+        'Usage: horizon install apply [OPTIONS]',
         '',
         '  Install a persistent Docker deployment.',
         '',
@@ -668,7 +668,7 @@ function Show-InstallApplyHelp {
         '  --mode TEXT                   Proxy optimization mode.  [default: token]',
         '  --memory                      Enable persistent memory in the runtime.',
         '  --no-telemetry                Disable anonymous telemetry in the runtime.',
-        '  --image TEXT                  Docker image to use.  [default: HEADROOM_DOCKER_IMAGE or ghcr.io/headroomlabs-ai/headroom:latest]',
+        '  --image TEXT                  Docker image to use.  [default: HORIZON_DOCKER_IMAGE or ghcr.io/your-org/horizon:latest]',
         '  -?, --help                    Show this message and exit.'
     )
     Write-Host ($lines -join [Environment]::NewLine)
@@ -676,9 +676,9 @@ function Show-InstallApplyHelp {
 
 function Show-WrapHelp {
     $lines = @(
-        'Usage: headroom wrap <COMMAND> [OPTIONS] [-- ARGS...]',
+        'Usage: horizon wrap <COMMAND> [OPTIONS] [-- ARGS...]',
         '',
-        '  Launch supported host tools through a Docker-native Headroom proxy.',
+        '  Launch supported host tools through a Docker-native Horizon proxy.',
         '',
         'Supported commands:',
         '  claude',
@@ -705,7 +705,7 @@ function Parse-InstallApplyArgs {
     $mode = 'token'
     $memory = $false
     $telemetryEnabled = $true
-    $image = $HeadroomImage
+    $image = $HorizonImage
 
     $i = 0
     while ($i -lt $Arguments.Count) {
@@ -827,7 +827,7 @@ function Parse-InstallApplyArgs {
                 exit 0
             }
             default {
-                Fail "Unsupported option for 'headroom install apply': $arg"
+                Fail "Unsupported option for 'horizon install apply': $arg"
             }
         }
     }
@@ -869,7 +869,7 @@ function Parse-InstallProfileArgs {
                 exit 0
             }
             default {
-                Fail "Unsupported option for 'headroom install': $arg"
+                Fail "Unsupported option for 'horizon install': $arg"
             }
         }
     }
@@ -920,7 +920,7 @@ function Parse-OpenClawWrapArgs {
 
     $gatewayProviderIds = New-Object System.Collections.Generic.List[string]
     $pluginPath = $null
-    $pluginSpec = 'headroom-ai/openclaw'
+    $pluginSpec = 'horizon-ai/openclaw'
     $skipBuild = $false
     $copy = $false
     $proxyPort = 8787
@@ -1026,7 +1026,7 @@ function Parse-OpenClawWrapArgs {
                 continue
             }
             default {
-                Fail "Unsupported option for 'headroom wrap openclaw': $arg"
+                Fail "Unsupported option for 'horizon wrap openclaw': $arg"
             }
         }
     }
@@ -1066,7 +1066,7 @@ function Parse-OpenClawUnwrapArgs {
                 continue
             }
             default {
-                Fail "Unsupported option for 'headroom unwrap openclaw': $arg"
+                Fail "Unsupported option for 'horizon unwrap openclaw': $arg"
             }
         }
     }
@@ -1111,7 +1111,7 @@ function Invoke-CapturedCommand {
 }
 
 function Get-OpenClawExistingEntryJson {
-    $output = (& openclaw config get plugins.entries.headroom 2>$null | Out-String).Trim()
+    $output = (& openclaw config get plugins.entries.horizon 2>$null | Out-String).Trim()
     if ($LASTEXITCODE -ne 0) {
         return $null
     }
@@ -1128,8 +1128,8 @@ function Invoke-OpenClawPrepareEntryJson {
     $dockerArgs.AddRange([string[]]@('run','--rm'))
     $dockerArgs.AddRange((Get-SharedDockerArgs))
     $dockerArgs.Add('--entrypoint')
-    $dockerArgs.Add('headroom')
-    $dockerArgs.Add($HeadroomImage)
+    $dockerArgs.Add('horizon')
+    $dockerArgs.Add($HorizonImage)
     $dockerArgs.AddRange([string[]]@('wrap','openclaw','--prepare-only','--proxy-port',"$($Parsed.ProxyPort)",'--startup-timeout-ms',"$($Parsed.StartupTimeoutMs)"))
     if ($ExistingEntryJson) {
         $dockerArgs.Add('--existing-entry-json')
@@ -1162,8 +1162,8 @@ function Invoke-OpenClawPrepareUnwrapEntryJson {
     $dockerArgs.AddRange([string[]]@('run','--rm'))
     $dockerArgs.AddRange((Get-SharedDockerArgs))
     $dockerArgs.Add('--entrypoint')
-    $dockerArgs.Add('headroom')
-    $dockerArgs.Add($HeadroomImage)
+    $dockerArgs.Add('horizon')
+    $dockerArgs.Add($HorizonImage)
     $dockerArgs.AddRange([string[]]@('unwrap','openclaw','--prepare-only'))
     if ($ExistingEntryJson) {
         $dockerArgs.Add('--existing-entry-json')
@@ -1200,7 +1200,7 @@ function Copy-OpenClawPluginIntoExtensions {
     }
 
     $extensionsDir = Resolve-OpenClawExtensionsDir
-    $targetDir = Join-Path $extensionsDir 'headroom'
+    $targetDir = Join-Path $extensionsDir 'horizon'
     $targetDist = Join-Path $targetDir 'dist'
     $targetHookShim = Join-Path $targetDir 'hook-shim'
     New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
@@ -1314,7 +1314,7 @@ function Invoke-OpenClawWrap {
 
     Write-Host ""
     Write-Host "  ╔═══════════════════════════════════════════════╗"
-    Write-Host "  ║           HEADROOM WRAP: OPENCLAW             ║"
+    Write-Host "  ║           HORIZON WRAP: OPENCLAW             ║"
     Write-Host "  ╚═══════════════════════════════════════════════╝"
     Write-Host ""
     if ($parsed.PluginPath) {
@@ -1324,10 +1324,10 @@ function Invoke-OpenClawWrap {
     }
 
     Write-Host '  Writing plugin configuration...'
-    [void](Invoke-CapturedCommand -Action 'openclaw config set plugins.entries.headroom' -Command 'openclaw' -Arguments @('config','set','plugins.entries.headroom',$entryJson,'--strict-json'))
+    [void](Invoke-CapturedCommand -Action 'openclaw config set plugins.entries.horizon' -Command 'openclaw' -Arguments @('config','set','plugins.entries.horizon',$entryJson,'--strict-json'))
     Write-Host '  Installing OpenClaw plugin with required unsafe-install flag...'
     Install-OpenClawPlugin -Parsed $parsed
-    [void](Invoke-CapturedCommand -Action 'openclaw config set plugins.slots.contextEngine' -Command 'openclaw' -Arguments @('config','set','plugins.slots.contextEngine','"headroom"','--strict-json'))
+    [void](Invoke-CapturedCommand -Action 'openclaw config set plugins.slots.contextEngine' -Command 'openclaw' -Arguments @('config','set','plugins.slots.contextEngine','"horizon"','--strict-json'))
     [void](Invoke-CapturedCommand -Action 'openclaw config validate' -Command 'openclaw' -Arguments @('config','validate'))
 
     if ($parsed.NoRestart) {
@@ -1342,15 +1342,15 @@ function Invoke-OpenClawWrap {
         }
     }
 
-    $inspectOutput = Invoke-CapturedCommand -Action 'openclaw plugins inspect headroom' -Command 'openclaw' -Arguments @('plugins','inspect','headroom')
+    $inspectOutput = Invoke-CapturedCommand -Action 'openclaw plugins inspect horizon' -Command 'openclaw' -Arguments @('plugins','inspect','horizon')
     if ($parsed.Verbose -and $inspectOutput) {
         Write-Host $inspectOutput
     }
 
     Write-Host ""
-    Write-Host "✓ OpenClaw is configured to use Headroom context compression."
-    Write-Host "  Plugin: headroom"
-    Write-Host "  Slot:   plugins.slots.contextEngine = headroom"
+    Write-Host "✓ OpenClaw is configured to use Horizon context compression."
+    Write-Host "  Plugin: horizon"
+    Write-Host "  Slot:   plugins.slots.contextEngine = horizon"
     Write-Host ""
 }
 
@@ -1364,12 +1364,12 @@ function Invoke-OpenClawUnwrap {
 
     Write-Host ""
     Write-Host "  ╔═══════════════════════════════════════════════╗"
-    Write-Host "  ║          HEADROOM UNWRAP: OPENCLAW            ║"
+    Write-Host "  ║          HORIZON UNWRAP: OPENCLAW            ║"
     Write-Host "  ╚═══════════════════════════════════════════════╝"
     Write-Host ""
-    Write-Host '  Disabling Headroom plugin and removing engine mapping...'
+    Write-Host '  Disabling Horizon plugin and removing engine mapping...'
 
-    [void](Invoke-CapturedCommand -Action 'openclaw config set plugins.entries.headroom' -Command 'openclaw' -Arguments @('config','set','plugins.entries.headroom',$entryJson,'--strict-json'))
+    [void](Invoke-CapturedCommand -Action 'openclaw config set plugins.entries.horizon' -Command 'openclaw' -Arguments @('config','set','plugins.entries.horizon',$entryJson,'--strict-json'))
     [void](Invoke-CapturedCommand -Action 'openclaw config set plugins.slots.contextEngine' -Command 'openclaw' -Arguments @('config','set','plugins.slots.contextEngine','"legacy"','--strict-json'))
     [void](Invoke-CapturedCommand -Action 'openclaw config validate' -Command 'openclaw' -Arguments @('config','validate'))
 
@@ -1386,15 +1386,15 @@ function Invoke-OpenClawUnwrap {
     }
 
     if ($parsed.Verbose) {
-        $inspectOutput = Invoke-CapturedCommand -Action 'openclaw plugins inspect headroom' -Command 'openclaw' -Arguments @('plugins','inspect','headroom')
+        $inspectOutput = Invoke-CapturedCommand -Action 'openclaw plugins inspect horizon' -Command 'openclaw' -Arguments @('plugins','inspect','horizon')
         if ($inspectOutput) {
             Write-Host $inspectOutput
         }
     }
 
     Write-Host ""
-    Write-Host "✓ OpenClaw Headroom wrap removed."
-    Write-Host "  Plugin: headroom (installed, disabled)"
+    Write-Host "✓ OpenClaw Horizon wrap removed."
+    Write-Host "  Plugin: horizon (installed, disabled)"
     Write-Host "  Slot:   plugins.slots.contextEngine = legacy"
     Write-Host ""
 }
@@ -1500,7 +1500,7 @@ function Parse-WrapArgs {
                 # default branch below forwards the first unknown flag AND everything
                 # after it to the wrapped tool, so a leftover --no-rtk in a script
                 # would silently swallow a following --port and be ignored downstream.
-                Fail "CLI context tools (rtk, lean-ctx) have been removed from Headroom. Drop $arg and unset HEADROOM_CONTEXT_TOOL; 'headroom wrap' uninstalls what they left behind on first run."
+                Fail "CLI context tools (rtk, lean-ctx) have been removed from Horizon. Drop $arg and unset HORIZON_CONTEXT_TOOL; 'horizon wrap' uninstalls what they left behind on first run."
             }
             default {
                 for ($j = $i; $j -lt $Arguments.Count; $j++) {
@@ -1534,8 +1534,8 @@ function Invoke-PrepareOnly {
     Add-TtyArgs -ArgsList $dockerArgs
     $dockerArgs.AddRange((Get-SharedDockerArgs))
     $dockerArgs.Add('--entrypoint')
-    $dockerArgs.Add('headroom')
-    $dockerArgs.Add($HeadroomImage)
+    $dockerArgs.Add('horizon')
+    $dockerArgs.Add($HorizonImage)
     $dockerArgs.AddRange([string[]]@('wrap',$Tool,'--prepare-only'))
     foreach ($arg in $KnownArgs) {
         $dockerArgs.Add($arg)
@@ -1550,7 +1550,7 @@ function Invoke-PrepareOnly {
 Require-Command docker
 
 if ($args.Count -eq 0) {
-    Invoke-HeadroomDocker -Arguments @('--help')
+    Invoke-HorizonDocker -Arguments @('--help')
     exit 0
 }
 
@@ -1614,7 +1614,7 @@ switch ($args[0]) {
         }
 
         if ($args.Count -lt 2) {
-            Fail 'Usage: headroom wrap <claude|codex|aider|cursor|openclaw|opencode> [...]'
+            Fail 'Usage: horizon wrap <claude|codex|aider|cursor|openclaw|opencode> [...]'
         }
 
         $tool = $args[1]
@@ -1635,7 +1635,7 @@ switch ($args[0]) {
         if ($tool -eq 'openclaw') {
             if (Test-HelpFlag -Arguments $wrapArgs) {
                 $helpArgs = @('wrap','openclaw') + $wrapArgs
-                Invoke-HeadroomDocker -Arguments $helpArgs
+                Invoke-HorizonDocker -Arguments $helpArgs
                 exit 0
             }
 
@@ -1645,7 +1645,7 @@ switch ($args[0]) {
 
         if (Test-HelpFlag -Arguments $wrapArgs) {
             $helpArgs = @('wrap', $tool) + $wrapArgs
-            Invoke-HeadroomDocker -Arguments $helpArgs
+            Invoke-HorizonDocker -Arguments $helpArgs
             exit 0
         }
 
@@ -1688,7 +1688,7 @@ switch ($args[0]) {
                     exit $exitCode
                 }
                 'cursor' {
-                    Write-Host "Headroom proxy is running for Cursor."
+                    Write-Host "Horizon proxy is running for Cursor."
                     Write-Host ""
                     Write-Host "OpenAI base URL:     http://127.0.0.1:$($parsed.Port)/v1"
                     Write-Host "Anthropic base URL:  http://127.0.0.1:$($parsed.Port)"
@@ -1703,7 +1703,7 @@ switch ($args[0]) {
     }
     'unwrap' {
         if ($args.Count -eq 1 -or $args[1] -eq '--help' -or $args[1] -eq '-?') {
-            Invoke-HeadroomDocker -Arguments @('unwrap','--help')
+            Invoke-HorizonDocker -Arguments @('unwrap','--help')
             exit 0
         }
 
@@ -1711,14 +1711,14 @@ switch ($args[0]) {
             $unwrapArgs = if ($args.Count -gt 2) { $args[2..($args.Count - 1)] } else { @() }
             if (Test-HelpFlag -Arguments $unwrapArgs) {
                 $helpArgs = @('unwrap','openclaw') + $unwrapArgs
-                Invoke-HeadroomDocker -Arguments $helpArgs
+                Invoke-HorizonDocker -Arguments $helpArgs
                 exit 0
             }
 
             Invoke-OpenClawUnwrap -Arguments $unwrapArgs
             exit 0
         }
-        Invoke-HeadroomDocker -Arguments $args
+        Invoke-HorizonDocker -Arguments $args
     }
     'proxy' {
         $port = 8787
@@ -1742,8 +1742,8 @@ switch ($args[0]) {
         $dockerArgs.AddRange([string[]]@('-p',"127.0.0.1`:$port`:$port"))
         $dockerArgs.AddRange((Get-SharedDockerArgs))
         $dockerArgs.Add('--entrypoint')
-        $dockerArgs.Add('headroom')
-        $dockerArgs.Add($HeadroomImage)
+        $dockerArgs.Add('horizon')
+        $dockerArgs.Add($HorizonImage)
         $dockerArgs.Add('proxy')
         $dockerArgs.Add('--host')
         $dockerArgs.Add('0.0.0.0')
@@ -1757,14 +1757,14 @@ switch ($args[0]) {
         exit $LASTEXITCODE
     }
     default {
-        Invoke-HeadroomDocker -Arguments $args
+        Invoke-HorizonDocker -Arguments $args
     }
 }
 '@
 
-    $wrapper = $wrapper.Replace('__HEADROOM_INSTALL_IMAGE__', $resolvedInstallImage)
+    $wrapper = $wrapper.Replace('__HORIZON_INSTALL_IMAGE__', $resolvedInstallImage)
 
-    $cmdWrapper = ([string][char]64) + "echo off`r`npowershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File ""%~dp0headroom.ps1"" %*`r`n"
+    $cmdWrapper = ([string][char]64) + "echo off`r`npowershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File ""%~dp0horizon.ps1"" %*`r`n"
 
     Set-Content -Path $wrapperPath -Value $wrapper -Encoding utf8
     Set-Content -Path $cmdPath -Value $cmdWrapper -Encoding ascii
@@ -1781,10 +1781,10 @@ Write-Wrapper -TargetDir $InstallDir
 Ensure-PathEntry -PathEntry $InstallDir
 Ensure-ProfileBlock -PathEntry $InstallDir
 
-if ($env:HEADROOM_DOCKER_IMAGE) {
+if ($env:HORIZON_DOCKER_IMAGE) {
     $null = docker image inspect $InstallImage 2>$null
     if ($LASTEXITCODE -eq 0) {
-        Write-Info "Using existing HEADROOM_DOCKER_IMAGE=$InstallImage"
+        Write-Info "Using existing HORIZON_DOCKER_IMAGE=$InstallImage"
     } else {
         Write-Info "Pulling $InstallImage"
         docker pull $InstallImage | Out-Null
@@ -1795,13 +1795,13 @@ if ($env:HEADROOM_DOCKER_IMAGE) {
 }
 
 Write-Host ""
-Write-Host "Headroom Docker-native install complete."
+Write-Host "Horizon Docker-native install complete."
 Write-Host ""
 Write-Host "Installed wrappers:"
-Write-Host "  $InstallDir\headroom.ps1"
-Write-Host "  $InstallDir\headroom.cmd"
+Write-Host "  $InstallDir\horizon.ps1"
+Write-Host "  $InstallDir\horizon.cmd"
 Write-Host ""
 Write-Host "Next steps:"
 Write-Host "  1. Restart PowerShell"
-Write-Host "  2. Try: headroom proxy"
-Write-Host "  3. Docs: https://docs.headroomlabs.ai/docs/docker-install"
+Write-Host "  2. Try: horizon proxy"
+Write-Host "  3. Docs: https://docs.horizon.invalid/docs/docker-install"

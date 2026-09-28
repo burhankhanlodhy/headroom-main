@@ -14,7 +14,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from headroom.cli import wrap as wrap_cli
+from horizon.cli import wrap as wrap_cli
 
 # ---------------------------------------------------------------------------
 # _inject_serena_instructions
@@ -26,9 +26,9 @@ def _opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
 
     Instruction injection rewrites the user's CLAUDE.md/AGENTS.md, so it is
     off by default. Tests that exercise the write path must opt in via
-    ``HEADROOM_SERENA_INSTRUCTIONS``.
+    ``HORIZON_SERENA_INSTRUCTIONS``.
     """
-    monkeypatch.setenv("HEADROOM_SERENA_INSTRUCTIONS", "1")
+    monkeypatch.setenv("HORIZON_SERENA_INSTRUCTIONS", "1")
 
 
 def test_inject_creates_file_and_mentions_tools(
@@ -71,7 +71,7 @@ def test_inject_off_by_default_writes_nothing(
 ) -> None:
     # Without opting in, injection is a no-op: returns False and never touches
     # the user's hint file (the default, so the two OpenCode AGENTS.md tests pass).
-    monkeypatch.delenv("HEADROOM_SERENA_INSTRUCTIONS", raising=False)
+    monkeypatch.delenv("HORIZON_SERENA_INSTRUCTIONS", raising=False)
 
     missing = tmp_path / "AGENTS.md"
     assert wrap_cli._inject_serena_instructions(missing) is False
@@ -361,7 +361,7 @@ def test_exit_hook_survives_an_unpollable_child(monkeypatch: pytest.MonkeyPatch)
 
 
 # ---------------------------------------------------------------------------
-# HEADROOM_SERENA_INDEX_TIMEOUT — opting back into a blocking pre-index (#3436)
+# HORIZON_SERENA_INDEX_TIMEOUT — opting back into a blocking pre-index (#3436)
 # ---------------------------------------------------------------------------
 
 
@@ -397,7 +397,7 @@ def test_index_wait_tolerates_surrounding_whitespace(
 def test_index_wait_treats_a_blank_value_as_unset(
     raw: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """``export HEADROOM_SERENA_INDEX_TIMEOUT=`` is not a misconfiguration."""
+    """``export HORIZON_SERENA_INDEX_TIMEOUT=`` is not a misconfiguration."""
     monkeypatch.setenv(wrap_cli._SERENA_INDEX_TIMEOUT_ENV, raw)
 
     assert wrap_cli._resolve_serena_index_wait_seconds() == 0
@@ -640,14 +640,14 @@ class _FakeRegistrar:
         return None
 
     def register_server(self, spec: object, *, force: bool = False) -> object:
-        from headroom.mcp_registry.base import RegisterResult, RegisterStatus
+        from horizon.mcp_registry.base import RegisterResult, RegisterStatus
 
         return RegisterResult(RegisterStatus.REGISTERED, "registered")
 
 
 def _drive_setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """Run ``_setup_serena_mcp`` in *tmp_path*, returning pre-index call markers."""
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path / ".headroom"))
+    monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path / ".horizon"))
     monkeypatch.chdir(tmp_path)
     _stub_uvx(monkeypatch)
     monkeypatch.setattr(wrap_cli, "_inject_serena_instructions", lambda *a, **k: True)

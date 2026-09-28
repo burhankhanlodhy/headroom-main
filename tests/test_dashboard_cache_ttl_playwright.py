@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 import pytest
 
-from headroom.dashboard import STATIC_DIR, get_dashboard_html
+from horizon.dashboard import STATIC_DIR, get_dashboard_html
 
 playwright = pytest.importorskip("playwright.sync_api")
 Page = playwright.Page
@@ -229,11 +229,11 @@ def test_dashboard_per_project_setup_url_uses_current_origin() -> None:
             )
         ).to_have_count(0)
 
-        page.goto("http://headroom.local:9393/dashboard", wait_until="load")
+        page.goto("http://horizon.local:9393/dashboard", wait_until="load")
         page.get_by_role("button", name="Lifetime", exact=True).click()
         expect(
             page.get_by_text(
-                "ANTHROPIC_BASE_URL: http://headroom.local:9393/p/<project-name>", exact=True
+                "ANTHROPIC_BASE_URL: http://horizon.local:9393/p/<project-name>", exact=True
             )
         ).to_be_visible()
         expect(
@@ -246,13 +246,13 @@ def test_dashboard_per_project_setup_url_uses_current_origin() -> None:
 
 
 def test_dashboard_renders_observed_ttl_metrics_and_can_capture_screenshot() -> None:
-    artifact_dir = os.environ.get("HEADROOM_PLAYWRIGHT_ARTIFACT_DIR")
+    artifact_dir = os.environ.get("HORIZON_PLAYWRIGHT_ARTIFACT_DIR")
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         page = browser.new_page(viewport={"width": 1720, "height": 1400}, color_scheme="dark")
         _install_dashboard_routes(page)
-        page.goto("http://headroom.local/dashboard", wait_until="load")
+        page.goto("http://horizon.local/dashboard", wait_until="load")
 
         expect(page.get_by_text("Observed TTL Buckets")).to_be_visible()
         expect(page.get_by_text("Provider-reported cache write mix")).to_be_visible()

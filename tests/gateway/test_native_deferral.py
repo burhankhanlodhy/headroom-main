@@ -10,7 +10,7 @@ promises to such a hook:
                compacted, ``headers`` is ``{}`` and no deferral is named.
 * I-CARRY    - a hook's deferral reaches ``body.tools``; the hook's
                ``provider_headers`` become the response's ``headers`` with the
-               client's ``anthropic-beta`` tokens first and Headroom's
+               client's ``anthropic-beta`` tokens first and Horizon's
                appended; the ``tool_search_deferred_*`` tags name the
                ``tool_search:native_deferral:<n>tools:<n>tok`` transform and
                reach the outcome, the ledger and ``metrics.record_request``.
@@ -19,7 +19,7 @@ promises to such a hook:
                run by ``priority`` so a router that changes the model runs
                before the deferral gate.
 * I-GATES    - the OSS gate helpers the hook applies: fewer than 12 tools, a
-               client already searching, ``HEADROOM_TOOL_SEARCH=0``,
+               client already searching, ``HORIZON_TOOL_SEARCH=0``,
                Bedrock/Vertex ids, OpenAI models, OpenAI-shaped tools.
 * I-STABLE   - identical bytes and header across three session turns.
 * I-LEGACY / I-FAILOPEN - no ``gateway`` block -> no ``headers`` key; fail-open
@@ -35,7 +35,7 @@ from typing import Any
 
 import pytest
 
-from headroom.proxy.savings_attribution import from_tags
+from horizon.proxy.savings_attribution import from_tags
 from tests.gateway.conftest import compress
 from tests.gateway.deferral_hook import (
     BETA_TOKEN,
@@ -175,13 +175,13 @@ def _assert_deferred(data: dict[str, Any], sent_tools: list[dict[str, Any]]) -> 
 # --------------------------------------------------------------------------- #
 
 
-def test_no_hook_leaves_tools_untouched_and_headers_empty(headroom_client, outcome_spy) -> None:
-    outcomes = outcome_spy(headroom_client)
+def test_no_hook_leaves_tools_untouched_and_headers_empty(horizon_client, outcome_spy) -> None:
+    outcomes = outcome_spy(horizon_client)
     sent = _body(
         tools=_many_anthropic_tools(),
         gateway={"request_headers": {"anthropic-beta": CLIENT_BETA}},
     )
-    resp = compress(headroom_client, sent)
+    resp = compress(horizon_client, sent)
     assert resp.status_code == 200, resp.text
     data = resp.json()
     _assert_untouched(data, sent["tools"])
@@ -190,11 +190,11 @@ def test_no_hook_leaves_tools_untouched_and_headers_empty(headroom_client, outco
     assert "tool_search_deferred_tokens" not in outcomes[0].tags
 
 
-def test_no_hook_with_client_already_searching_is_passed_through(headroom_client) -> None:
+def test_no_hook_with_client_already_searching_is_passed_through(horizon_client) -> None:
     tools = [{"type": "tool_search_tool_regex_20251119", "name": "tool_search_tool_regex"}]
     tools += _many_anthropic_tools()
     sent = _body(tools=tools, gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assert canonical(data["body"]["tools"]) == canonical(sent["tools"])
     assert data["headers"] == {}
 
@@ -205,14 +205,14 @@ def test_no_hook_with_client_already_searching_is_passed_through(headroom_client
 
 
 def test_hook_deferral_reaches_body_headers_and_outcome(
-    headroom_client, outcome_spy, deferral_hook
+    horizon_client, outcome_spy, deferral_hook
 ) -> None:
-    outcomes = outcome_spy(headroom_client)
+    outcomes = outcome_spy(horizon_client)
     sent = _body(
         tools=_many_anthropic_tools(),
         gateway={"request_headers": {"anthropic-beta": CLIENT_BETA}},
     )
-    resp = compress(headroom_client, sent)
+    resp = compress(horizon_client, sent)
     assert resp.status_code == 200, resp.text
     data = resp.json()
     n_tok = _assert_deferred(data, sent["tools"])
@@ -233,34 +233,34 @@ def test_hook_deferral_reaches_body_headers_and_outcome(
     assert "turn_hook_tools_saved_tokens" not in tags
 
 
-def test_hook_header_without_client_value_is_just_the_hooks(headroom_client, deferral_hook) -> None:
-    data = compress(headroom_client, _body(tools=_many_anthropic_tools(), gateway={})).json()
+def test_hook_header_without_client_value_is_just_the_hooks(horizon_client, deferral_hook) -> None:
+    data = compress(horizon_client, _body(tools=_many_anthropic_tools(), gateway={})).json()
     assert data["headers"] == {"anthropic-beta": BETA_TOKEN}
 
 
 def test_client_beta_already_carrying_token_is_not_duplicated(
-    headroom_client, deferral_hook
+    horizon_client, deferral_hook
 ) -> None:
     sent = _body(
         tools=_many_anthropic_tools(),
         gateway={"request_headers": {"Anthropic-Beta": f"{BETA_TOKEN},{CLIENT_BETA}"}},
     )
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assert data["headers"] == {"anthropic-beta": f"{BETA_TOKEN},{CLIENT_BETA}"}
 
 
-def test_deferral_composes_with_compaction_and_ccr_tool(headroom_client, deferral_hook) -> None:
+def test_deferral_composes_with_compaction_and_ccr_tool(horizon_client, deferral_hook) -> None:
     """The hook runs after compaction and before CCR tool injection
-    (``headroom_retrieve`` stays resident so the model can call it)."""
+    (``horizon_retrieve`` stays resident so the model can call it)."""
     sent = _body(
         tools=_many_anthropic_tools(),
         config={"mode": "ccr"},
         gateway={"can_redrive": True, "session_affinity": True},
     )
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     tools = data["body"]["tools"]
     assert _search_tools(tools)
-    retrieve = [t for t in tools if t.get("name") == "headroom_retrieve"]
+    retrieve = [t for t in tools if t.get("name") == "horizon_retrieve"]
     if retrieve:  # only injected when markers were inserted
         assert not retrieve[0].get("defer_loading")
         assert "ccr_tool_injected" in data["transforms_applied"]
@@ -272,21 +272,21 @@ def test_deferral_composes_with_compaction_and_ccr_tool(headroom_client, deferra
 # --------------------------------------------------------------------------- #
 
 
-def test_hook_requesting_disallowed_headers_gets_only_the_allowlisted_one(headroom_client) -> None:
+def test_hook_requesting_disallowed_headers_gets_only_the_allowlisted_one(horizon_client) -> None:
     register(extra_headers={"Authorization": "Bearer hook-secret", "x-api-key": "sk-hook", "": "x"})
     sent = _body(tools=_many_anthropic_tools(), gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assert data["headers"] == {"anthropic-beta": BETA_TOKEN}
     assert "hook-secret" not in canonical(data)
 
 
-def test_buffered_hook_is_skipped_when_the_gateway_cannot_redrive(headroom_client) -> None:
+def test_buffered_hook_is_skipped_when_the_gateway_cannot_redrive(horizon_client) -> None:
     """A hook that is not stream-safe never runs on a turn the gateway cannot
     re-drive — which is every streamed Claude Code turn. The native tier must
     therefore be stream-safe; this pins the rule that makes that necessary."""
     hook = register(BufferedDeferralHook())
     sent = _body(tools=_many_anthropic_tools(), gateway={"can_redrive": False})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     _assert_untouched(data, sent["tools"])
     assert hook.request_calls == 0
 
@@ -295,26 +295,26 @@ def test_buffered_hook_is_skipped_when_the_gateway_cannot_redrive(headroom_clien
         config={"session_id": "buffered-ok"},
         gateway={"can_redrive": True, "session_affinity": True},
     )
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     _assert_deferred(data, sent["tools"])
     assert hook.request_calls == 1
 
 
-def test_router_with_lower_priority_runs_before_the_deferral_gate(headroom_client) -> None:
+def test_router_with_lower_priority_runs_before_the_deferral_gate(horizon_client) -> None:
     """Registered AFTER the deferral hook, a priority-10 router still runs
     first, so the first-party gate sees the routed Bedrock id and declines."""
     register()
     register(ModelRouterHook("anthropic.claude-sonnet-4-5-v1:0", priority=10))
     sent = _body(tools=_many_anthropic_tools(), gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     _assert_untouched(data, sent["tools"])
 
 
-def test_router_with_higher_priority_runs_after_and_the_deferral_stands(headroom_client) -> None:
+def test_router_with_higher_priority_runs_after_and_the_deferral_stands(horizon_client) -> None:
     register()
     register(ModelRouterHook("anthropic.claude-sonnet-4-5-v1:0", priority=300))
     sent = _body(tools=_many_anthropic_tools(), gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     _assert_deferred(data, sent["tools"])
 
 
@@ -323,32 +323,32 @@ def test_router_with_higher_priority_runs_after_and_the_deferral_stands(headroom
 # --------------------------------------------------------------------------- #
 
 
-def test_fewer_than_twelve_tools_untouched(headroom_client, deferral_hook) -> None:
+def test_fewer_than_twelve_tools_untouched(horizon_client, deferral_hook) -> None:
     sent = _body(tools=_many_anthropic_tools(9), gateway={})  # 11 in total
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     _assert_untouched(data, sent["tools"])
 
 
-def test_three_sample_tools_untouched(headroom_client, deferral_hook) -> None:
+def test_three_sample_tools_untouched(horizon_client, deferral_hook) -> None:
     sent = _body(tools=anthropic_tools(), gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     _assert_untouched(data, sent["tools"])
 
 
-def test_client_already_using_tool_search_untouched(headroom_client, deferral_hook) -> None:
+def test_client_already_using_tool_search_untouched(horizon_client, deferral_hook) -> None:
     tools = [{"type": "tool_search_tool_regex_20251119", "name": "tool_search_tool_regex"}]
     tools += _many_anthropic_tools()
     sent = _body(tools=tools, gateway={"request_headers": {"anthropic-beta": CLIENT_BETA}})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assert canonical(data["body"]["tools"]) == canonical(sent["tools"])
     assert data["headers"] == {}
     assert _deferral_labels(data) == []
 
 
-def test_env_flag_off_untouched(headroom_client, deferral_hook, monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_TOOL_SEARCH", "0")
+def test_env_flag_off_untouched(horizon_client, deferral_hook, monkeypatch) -> None:
+    monkeypatch.setenv("HORIZON_TOOL_SEARCH", "0")
     sent = _body(tools=_many_anthropic_tools(), gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     _assert_untouched(data, sent["tools"])
 
 
@@ -362,42 +362,42 @@ def test_env_flag_off_untouched(headroom_client, deferral_hook, monkeypatch) -> 
         "claude-sonnet-4@20250514",
     ],
 )
-def test_bedrock_and_vertex_model_ids_untouched(headroom_client, deferral_hook, model: str) -> None:
+def test_bedrock_and_vertex_model_ids_untouched(horizon_client, deferral_hook, model: str) -> None:
     sent = _body(model=model, tools=_many_anthropic_tools(), gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assert data["route"]["provider"] == "anthropic"
     _assert_untouched(data, sent["tools"])
 
 
-def test_litellm_anthropic_prefix_is_first_party(headroom_client, deferral_hook) -> None:
+def test_litellm_anthropic_prefix_is_first_party(horizon_client, deferral_hook) -> None:
     sent = _body(model="anthropic/claude-sonnet-4-5", tools=_many_anthropic_tools(), gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assert _search_tools(data["body"]["tools"])
     assert data["headers"]["anthropic-beta"] == BETA_TOKEN
 
 
-def test_openai_model_untouched(headroom_client, deferral_hook) -> None:
+def test_openai_model_untouched(horizon_client, deferral_hook) -> None:
     sent = {
         "model": "gpt-4o",
         "messages": big_tool_history(),
         "tools": _many_openai_tools(),
         "gateway": {"request_headers": {"anthropic-beta": CLIENT_BETA}},
     }
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     _assert_untouched(data, sent["tools"])
 
 
-def test_openai_shaped_tools_on_claude_model_untouched(headroom_client, deferral_hook) -> None:
+def test_openai_shaped_tools_on_claude_model_untouched(horizon_client, deferral_hook) -> None:
     sent = _body(tools=_many_openai_tools(), messages=big_tool_history(), gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assert data["route"]["provider"] == "anthropic"
     _assert_untouched(data, sent["tools"])
 
 
-def test_mixed_shape_tools_untouched(headroom_client, deferral_hook) -> None:
+def test_mixed_shape_tools_untouched(horizon_client, deferral_hook) -> None:
     tools = _many_anthropic_tools() + openai_tools()[:1]
     sent = _body(tools=tools, gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assert not _search_tools(data["body"]["tools"])
     assert data["headers"] == {}
 
@@ -412,14 +412,14 @@ def test_mixed_shape_tools_untouched(headroom_client, deferral_hook) -> None:
     [[], "anthropic-beta: x", 1, {"anthropic-beta": 1}, {"anthropic-beta": ["a"]}],
     ids=["list", "string", "int", "int-value", "list-value"],
 )
-def test_invalid_request_headers_is_400(headroom_client, request_headers: Any) -> None:
+def test_invalid_request_headers_is_400(horizon_client, request_headers: Any) -> None:
     sent = _body(tools=_many_anthropic_tools(), gateway={"request_headers": request_headers})
-    resp = compress(headroom_client, sent)
+    resp = compress(horizon_client, sent)
     assert resp.status_code == 400, resp.text
     assert resp.json()["error"]["type"] == "invalid_request"
 
 
-def test_other_request_headers_are_ignored(headroom_client, deferral_hook) -> None:
+def test_other_request_headers_are_ignored(horizon_client, deferral_hook) -> None:
     sent = _body(
         tools=_many_anthropic_tools(),
         gateway={
@@ -430,7 +430,7 @@ def test_other_request_headers_are_ignored(headroom_client, deferral_hook) -> No
             }
         },
     )
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assert data["headers"] == {"anthropic-beta": BETA_TOKEN}
     assert "authorization" not in canonical(data["headers"])
     assert "secret" not in canonical(data)
@@ -441,7 +441,7 @@ def test_other_request_headers_are_ignored(headroom_client, deferral_hook) -> No
 # --------------------------------------------------------------------------- #
 
 
-def test_byte_stable_over_three_session_turns(headroom_client, deferral_hook) -> None:
+def test_byte_stable_over_three_session_turns(horizon_client, deferral_hook) -> None:
     history = anthropic_tool_history()
     tools = _many_anthropic_tools()
     seen_tools: list[str] = []
@@ -465,7 +465,7 @@ def test_byte_stable_over_three_session_turns(headroom_client, deferral_hook) ->
                 "request_headers": {"anthropic-beta": CLIENT_BETA},
             },
         )
-        resp = compress(headroom_client, sent)
+        resp = compress(horizon_client, sent)
         assert resp.status_code == 200, resp.text
         data = resp.json()
         seen_tools.append(canonical(data["body"]["tools"]))
@@ -476,18 +476,18 @@ def test_byte_stable_over_three_session_turns(headroom_client, deferral_hook) ->
     assert seen_labels[0] and seen_labels.count(seen_labels[0]) == 3
 
 
-def test_stateless_calls_are_byte_stable(headroom_client, deferral_hook) -> None:
+def test_stateless_calls_are_byte_stable(horizon_client, deferral_hook) -> None:
     sent = _body(tools=_many_anthropic_tools(), gateway={})
-    first = compress(headroom_client, sent).json()
-    second = compress(headroom_client, sent).json()
+    first = compress(horizon_client, sent).json()
+    second = compress(horizon_client, sent).json()
     assert canonical(first["body"]["tools"]) == canonical(second["body"]["tools"])
     assert first["headers"] == second["headers"]
 
 
-def test_legacy_mode_untouched(headroom_client, outcome_spy, deferral_hook) -> None:
-    outcomes = outcome_spy(headroom_client)
+def test_legacy_mode_untouched(horizon_client, outcome_spy, deferral_hook) -> None:
+    outcomes = outcome_spy(horizon_client)
     sent = _body(tools=_many_anthropic_tools())
-    resp = compress(headroom_client, sent)
+    resp = compress(horizon_client, sent)
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert "headers" not in data and "body" not in data
@@ -495,28 +495,28 @@ def test_legacy_mode_untouched(headroom_client, outcome_spy, deferral_hook) -> N
     assert "tool_search_deferred_tokens" not in outcomes[0].tags
 
 
-def test_bypass_header_fails_open_with_empty_headers(headroom_client, deferral_hook) -> None:
+def test_bypass_header_fails_open_with_empty_headers(horizon_client, deferral_hook) -> None:
     sent = _body(tools=_many_anthropic_tools(), gateway={})
-    data = compress(headroom_client, sent, headers={"x-headroom-bypass": "true"}).json()
+    data = compress(horizon_client, sent, headers={"x-horizon-bypass": "true"}).json()
     assert data["headers"] == {}
     assert canonical(data["body"]["tools"]) == canonical(sent["tools"])
 
 
-def test_timeout_fails_open_with_empty_headers(headroom_client, deferral_hook, monkeypatch) -> None:
+def test_timeout_fails_open_with_empty_headers(horizon_client, deferral_hook, monkeypatch) -> None:
     from unittest.mock import AsyncMock
 
-    proxy = headroom_client.app.state.proxy
+    proxy = horizon_client.app.state.proxy
     monkeypatch.setattr(proxy, "_run_compression_in_executor", AsyncMock(side_effect=TimeoutError))
     sent = _body(tools=_many_anthropic_tools(), gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assert data["compression_skipped"] is True
     assert data["headers"] == {}
     assert canonical(data["body"]["tools"]) == canonical(sent["tools"])
 
 
-def test_empty_messages_fails_open_with_empty_headers(headroom_client, deferral_hook) -> None:
+def test_empty_messages_fails_open_with_empty_headers(horizon_client, deferral_hook) -> None:
     sent = _body(tools=_many_anthropic_tools(), messages=[], gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assert data["headers"] == {}
 
 
@@ -550,7 +550,7 @@ def _history_with_search_blocks(referenced: str) -> list[dict[str, Any]]:
     ]
 
 
-def test_history_repair_neutralises_unsupportable_search_blocks_in_place(headroom_client) -> None:
+def test_history_repair_neutralises_unsupportable_search_blocks_in_place(horizon_client) -> None:
     """No hook, three tools, a transcript with last turn's tool-search blocks:
     core repairs them exactly as the chat path does (#3457): each unsupported
     ``server_tool_use`` / ``tool_search_tool_result`` block is replaced IN
@@ -559,11 +559,11 @@ def test_history_repair_neutralises_unsupportable_search_blocks_in_place(headroo
     No search block reaches the provider, the client's own text is untouched,
     and the repair is named. A client that defers on its own gets this without
     any extension."""
-    from headroom.proxy.helpers import strip_unsupported_tool_search_blocks
+    from horizon.proxy.helpers import strip_unsupported_tool_search_blocks
 
     history = _history_with_search_blocks("mcp__srv__tool_03")
     sent = _body(tools=anthropic_tools(), messages=history, gateway={})
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assistant = data["body"]["messages"][-2]
 
     # Chat-path parity: the gateway path emits the helper's own output.
@@ -589,14 +589,14 @@ def test_history_repair_neutralises_unsupportable_search_blocks_in_place(headroo
 
 
 def test_history_repair_keeps_blocks_the_deferred_tools_support(
-    headroom_client, deferral_hook
+    horizon_client, deferral_hook
 ) -> None:
     sent = _body(
         tools=_many_anthropic_tools(),
         messages=_history_with_search_blocks("mcp__srv__tool_03"),
         gateway={},
     )
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assistant = data["body"]["messages"][-2]
     assert [b["type"] for b in assistant["content"]] == [
         "server_tool_use",
@@ -606,14 +606,14 @@ def test_history_repair_keeps_blocks_the_deferred_tools_support(
     assert not any(t.startswith("router:tool_search_repair") for t in data["transforms_applied"])
 
 
-def test_history_repair_is_anthropic_only(headroom_client) -> None:
+def test_history_repair_is_anthropic_only(horizon_client) -> None:
     sent = {
         "model": "gpt-4o",
         "messages": _history_with_search_blocks("mcp__srv__tool_03"),
         "tools": openai_tools(),
         "gateway": {},
     }
-    data = compress(headroom_client, sent).json()
+    data = compress(horizon_client, sent).json()
     assert [b["type"] for b in data["body"]["messages"][-2]["content"]] == [
         "server_tool_use",
         "tool_search_tool_result",
@@ -627,13 +627,13 @@ def test_history_repair_is_anthropic_only(headroom_client) -> None:
 
 
 def test_kong_shaped_turn_credits_hook_deferral_through_the_response_half(
-    headroom_client, deferral_hook, monkeypatch
+    horizon_client, deferral_hook, monkeypatch
 ) -> None:
     """Request half (session + relay owed) -> response half with Anthropic
     usage -> the deferred outcome reaches ``metrics.record_request`` with the
     hook's deferred schema tokens on ``tool_search_saved`` (what ``/stats``
     reports as ``tool_schema_tokens_saved``)."""
-    proxy = headroom_client.app.state.proxy
+    proxy = horizon_client.app.state.proxy
     recorded: list[dict[str, Any]] = []
     original = proxy.metrics.record_request
 
@@ -650,11 +650,11 @@ def test_kong_shaped_turn_credits_hook_deferral_through_the_response_half(
             "can_redrive": False,
             "can_relay_response": True,
             "session_affinity": True,
-            "plugin_version": "kong-headroom/0.1.0",
+            "plugin_version": "kong-horizon/0.1.0",
             "request_headers": {"anthropic-beta": CLIENT_BETA},
         },
     )
-    half1 = headroom_client.post("/v1/compress", json=sent)
+    half1 = horizon_client.post("/v1/compress", json=sent)
     assert half1.status_code == 200, half1.text
     data = half1.json()
     assert data["obligations"] == ["relay_usage"]
@@ -662,7 +662,7 @@ def test_kong_shaped_turn_credits_hook_deferral_through_the_response_half(
     n_tok = _assert_deferred(data, sent["tools"])
     assert recorded == []  # outcome deferred until the response half
 
-    half2 = headroom_client.post(
+    half2 = horizon_client.post(
         "/v1/compress/response",
         json={
             "turn_id": data["turn_id"],
@@ -684,11 +684,11 @@ def test_kong_shaped_turn_credits_hook_deferral_through_the_response_half(
 # --------------------------------------------------------------------------- #
 
 
-def test_extension_native_tier_matches_the_reference_hook(headroom_client) -> None:
-    """With headroom-tool-search installed, its native tier must produce the
+def test_extension_native_tier_matches_the_reference_hook(horizon_client) -> None:
+    """With horizon-tool-search installed, its native tier must produce the
     same tools bytes and header as the reference hook on Claude Code's tool
     list. Skipped where the extension is not importable."""
-    native = pytest.importorskip("headroom_tool_search.native")
+    native = pytest.importorskip("horizon_tool_search.native")
     try:
         hook = native.NativeDeferralHook(None)
     except Exception as exc:  # pragma: no cover - extension-side construction
@@ -707,18 +707,18 @@ def test_extension_native_tier_matches_the_reference_hook(headroom_client) -> No
     )
 
     register()
-    reference = compress(headroom_client, sent).json()
-    from headroom.proxy.turn_hooks import clear_turn_hooks
+    reference = compress(horizon_client, sent).json()
+    from horizon.proxy.turn_hooks import clear_turn_hooks
 
     clear_turn_hooks()
     register(hook)
-    extension = compress(headroom_client, sent).json()
+    extension = compress(horizon_client, sent).json()
 
     assert canonical(extension["body"]["tools"]) == canonical(reference["body"]["tools"])
     assert extension["headers"] == reference["headers"]
     assert _deferral_labels(extension) == _deferral_labels(reference)
     # Chat-path parity: the same tools bytes core's own deferral would send.
-    from headroom.proxy.helpers import inject_tool_search_deferral
+    from horizon.proxy.helpers import inject_tool_search_deferral
 
     expected = inject_tool_search_deferral(claude_code_tools)
     assert _deferred(extension["body"]["tools"]) == _deferred(expected)

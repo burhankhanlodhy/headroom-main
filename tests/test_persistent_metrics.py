@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from headroom.proxy.persistent_metrics import PersistentMetricsState
+from horizon.proxy.persistent_metrics import PersistentMetricsState
 
 FIXED_NOW = datetime(2026, 7, 14, 8, 30, tzinfo=timezone.utc)
 
@@ -52,7 +52,7 @@ def test_snapshot_accumulates_request_token_cache_cost_and_waste_metrics() -> No
         "rate_limited": 1,
         # Lifetime carries the same splits the Prometheus labels do.
         "failed_by_provider": {"anthropic": 1},
-        "rate_limited_by_source": {"headroom": 1},
+        "rate_limited_by_source": {"horizon": 1},
         "by_provider": {"anthropic": 1},
         "by_stack": {"codex": 1},
     }
@@ -211,7 +211,7 @@ def test_miss_reasons_still_fall_back_to_unknown_on_reload() -> None:
 
 
 def test_rate_limited_is_split_by_source_and_failures_by_provider() -> None:
-    """Headroom's own limiter and an upstream 429 must stay distinguishable.
+    """Horizon's own limiter and an upstream 429 must stay distinguishable.
 
     Both land in the same ``rate_limited`` total (unchanged), but an operator
     acts on them differently: ours firing means raise the cap, the provider's
@@ -219,7 +219,7 @@ def test_rate_limited_is_split_by_source_and_failures_by_provider() -> None:
     """
     state = _new_state()
 
-    state.record_rate_limited(provider="anthropic", source="headroom")
+    state.record_rate_limited(provider="anthropic", source="horizon")
     state.record_rate_limited(provider="anthropic", source="upstream")
     state.record_rate_limited(provider="openai", source="upstream")
     state.record_failed(provider="anthropic")
@@ -229,19 +229,19 @@ def test_rate_limited_is_split_by_source_and_failures_by_provider() -> None:
     requests = state.snapshot(persistence={"enabled": True, "healthy": True})["requests"]
 
     assert requests["rate_limited"] == 3
-    assert requests["rate_limited_by_source"] == {"headroom": 1, "upstream": 2}
+    assert requests["rate_limited_by_source"] == {"horizon": 1, "upstream": 2}
     assert requests["failed"] == 3
     assert requests["failed_by_provider"] == {"anthropic": 1, "openai": 2}
 
 
-def test_rate_limit_source_defaults_to_headroom_and_clamps_unknown_values() -> None:
+def test_rate_limit_source_defaults_to_horizon_and_clamps_unknown_values() -> None:
     state = _new_state()
 
     state.record_rate_limited(provider="anthropic")
     state.record_rate_limited(provider="anthropic", source="bogus")
 
     requests = state.snapshot(persistence={"enabled": True, "healthy": True})["requests"]
-    assert requests["rate_limited_by_source"] == {"headroom": 2}
+    assert requests["rate_limited_by_source"] == {"horizon": 2}
 
 
 def test_pre_3696_state_loads_without_backfilling_invented_history() -> None:

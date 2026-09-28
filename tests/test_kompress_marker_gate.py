@@ -18,8 +18,8 @@ import hashlib
 
 import pytest
 
-from headroom.transforms import kompress_compressor as kc
-from headroom.transforms.kompress_compressor import (
+from horizon.transforms import kompress_compressor as kc
+from horizon.transforms.kompress_compressor import (
     KompressCompressor,
     KompressConfig,
     ccr_retrieval_marker,

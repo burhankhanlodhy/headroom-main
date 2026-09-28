@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from headroom.pricing.litellm_model_resolution import (
+from horizon.pricing.litellm_model_resolution import (
     MODEL_ALIASES,
     LiteLLMModelPrefixRule,
     _strip_vertex_version_suffix,

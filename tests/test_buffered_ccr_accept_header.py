@@ -25,13 +25,13 @@ httpx = pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.cache.backends import InMemoryBackend  # noqa: E402
-from headroom.cache.compression_store import (  # noqa: E402
+from horizon.cache.backends import InMemoryBackend  # noqa: E402
+from horizon.cache.compression_store import (  # noqa: E402
     get_compression_store,
     reset_compression_store,
 )
-from headroom.ccr.tool_injection import create_ccr_tool_definition  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.ccr.tool_injection import create_ccr_tool_definition  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -171,7 +171,7 @@ def test_a_streaming_turn_keeps_its_sse_accept() -> None:
 # --------------------------------------------------------------------------- #
 def _drive_responses(*, accept: str) -> dict[str, object]:
     """Run one streaming /v1/responses turn and report what went upstream."""
-    from headroom.ccr import CCR_TOOL_NAME
+    from horizon.ccr import CCR_TOOL_NAME
 
     config = ProxyConfig(
         optimize=False,

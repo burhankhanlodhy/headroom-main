@@ -17,8 +17,8 @@ from typing import Any
 
 import pytest
 
-from headroom import savings_ledger
-from headroom.proxy import prometheus_metrics
+from horizon import savings_ledger
+from horizon.proxy import prometheus_metrics
 
 # Long enough to dwarf scheduler noise, short enough to keep the suite quick.
 _WRITE_SECONDS = 0.5
@@ -106,7 +106,7 @@ async def test_event_is_on_disk_once_record_request_returns(
 ) -> None:
     """Offloading must stay awaited: callers still see a durable write on return."""
 
-    monkeypatch.setenv("HEADROOM_SAVINGS_EVENTS_PATH", str(tmp_path / "savings_events.jsonl"))
+    monkeypatch.setenv("HORIZON_SAVINGS_EVENTS_PATH", str(tmp_path / "savings_events.jsonl"))
 
     await _record(_metrics())
 
@@ -149,7 +149,7 @@ async def test_concurrent_requests_all_land_their_events(
     ``flock`` plus its past-1 MB full-file rewrite are what has to hold the line.
     """
 
-    monkeypatch.setenv("HEADROOM_SAVINGS_EVENTS_PATH", str(tmp_path / "savings_events.jsonl"))
+    monkeypatch.setenv("HORIZON_SAVINGS_EVENTS_PATH", str(tmp_path / "savings_events.jsonl"))
     metrics = _metrics()
 
     await asyncio.gather(*(_record(metrics) for _ in range(24)))

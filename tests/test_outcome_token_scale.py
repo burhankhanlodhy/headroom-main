@@ -18,7 +18,7 @@ arrived. The same mismatch also produces a phantom ``tok_inflated``.
 
 from __future__ import annotations
 
-from headroom.proxy.outcome import RequestOutcome
+from horizon.proxy.outcome import RequestOutcome
 
 # The exact numbers from the reported beacon entry.
 _LOCAL_ORIGINAL = 10

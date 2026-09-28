@@ -1,4 +1,4 @@
-"""Tests for loop detection and loop-weighting in Headroom Learn.
+"""Tests for loop detection and loop-weighting in Horizon Learn.
 
 Covers the gap these changes close: re-fetch loops (repeated, successful
 but insufficient calls) were invisible to failure-only analysis and, even when
@@ -18,13 +18,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from headroom.learn.analyzer import SessionAnalyzer, _build_digest
-from headroom.learn.fixtures import (
+from horizon.learn.analyzer import SessionAnalyzer, _build_digest
+from horizon.learn.fixtures import (
     error_loop_session,
     one_off_error_session,
     refetch_loop_session,
 )
-from headroom.learn.loops import (
+from horizon.learn.loops import (
     _IDENTITY_FIELDS,
     _canonical_signature,
     _identity_input,
@@ -32,7 +32,7 @@ from headroom.learn.loops import (
     apply_loop_weighting,
     detect_loops,
 )
-from headroom.learn.models import (
+from horizon.learn.models import (
     ProjectInfo,
     Recommendation,
     RecommendationTarget,
@@ -207,7 +207,7 @@ class TestApplyLoopWeighting:
 
 
 class TestAnalyzeEndToEnd:
-    @patch("headroom.learn.analyzer._call_llm")
+    @patch("horizon.learn.analyzer._call_llm")
     def test_refetch_loop_with_no_failures_is_still_analyzed(self, mock_call_llm: MagicMock):
         # Pure re-fetch loop: zero errors, no events. Must NOT early-return.
         mock_call_llm.return_value = {"context_file_rules": [], "memory_file_rules": []}
@@ -215,7 +215,7 @@ class TestAnalyzeEndToEnd:
         analyzer.analyze(_project(), [refetch_loop_session()])
         mock_call_llm.assert_called_once()  # the guard let it through
 
-    @patch("headroom.learn.analyzer._call_llm")
+    @patch("horizon.learn.analyzer._call_llm")
     def test_loop_guardrail_outranks_one_off_in_result(self, mock_call_llm: MagicMock):
         # LLM returns both rules, rating the one-off higher than the loop.
         mock_call_llm.return_value = {
@@ -464,7 +464,7 @@ class TestIdentityFallsBackWhenTheSchemaIsUnknown:
     @pytest.mark.parametrize("payload", [None, [], "raw string", {1: "a", "b": 2}])
     def test_an_unexpected_input_shape_does_not_raise(self, payload):
         # Identity is derived during a scan of files the user did not write;
-        # a malformed input must not take down `headroom learn`.
+        # a malformed input must not take down `horizon learn`.
         call = _call("Bash", "call_0", payload, msg_index=0)
 
         assert _canonical_signature(call).startswith("bash::")

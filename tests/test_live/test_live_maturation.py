@@ -23,8 +23,8 @@ import os
 import httpx
 import pytest
 
-from headroom.config import ReadMaturationConfig
-from headroom.transforms.read_maturation import (
+from horizon.config import ReadMaturationConfig
+from horizon.transforms.read_maturation import (
     ReadMaturationManager,
     relocate_cache_breakpoint,
 )

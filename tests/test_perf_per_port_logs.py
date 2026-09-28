@@ -14,16 +14,16 @@ from pathlib import Path
 
 import pytest
 
-from headroom import paths as _paths
-from headroom.cli import wrap as wrap_cli
-from headroom.perf import analyzer
-from headroom.proxy import server
-from headroom.proxy.helpers import _setup_file_logging
+from horizon import paths as _paths
+from horizon.cli import wrap as wrap_cli
+from horizon.perf import analyzer
+from horizon.proxy import server
+from horizon.proxy.helpers import _setup_file_logging
 
 
 def _perf_line(ts: str, rid: str, model: str) -> str:
     return (
-        f"{ts} - headroom.proxy - INFO - [{rid}] PERF "
+        f"{ts} - horizon.proxy - INFO - [{rid}] PERF "
         f"model={model} msgs=3 tok_before=1000 tok_after=400 "
         f"tok_saved=600 cache_read=0 cache_write=0 cache_hit_pct=0 "
         f"opt_ms=1 transforms=agent90_smoke client=test"
@@ -32,7 +32,7 @@ def _perf_line(ts: str, rid: str, model: str) -> str:
 
 @pytest.fixture
 def workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path))
+    monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path))
     (tmp_path / "logs").mkdir(parents=True, exist_ok=True)
     return tmp_path
 
@@ -62,7 +62,7 @@ def test_stdio_log_path_is_per_port() -> None:
 
 
 def test_setup_file_logging_targets_per_port_file(workspace: Path) -> None:
-    logger = logging.getLogger("headroom")
+    logger = logging.getLogger("horizon")
     original = list(logger.handlers)
     for h in original:
         if isinstance(h, RotatingFileHandler):
@@ -82,7 +82,7 @@ def test_setup_file_logging_targets_per_port_file(workspace: Path) -> None:
 
 
 def test_setup_file_logging_targets_worker_file(workspace: Path) -> None:
-    logger = logging.getLogger("headroom")
+    logger = logging.getLogger("horizon")
     original = list(logger.handlers)
     for handler in original:
         if isinstance(handler, RotatingFileHandler):
@@ -111,7 +111,7 @@ def test_setup_file_logging_reconfigures_for_sequential_port_change(
     records into the first port's file.
     """
     log_dir = workspace / "logs"
-    logger = logging.getLogger("headroom")
+    logger = logging.getLogger("horizon")
     original = list(logger.handlers)
     for h in original:
         if isinstance(h, RotatingFileHandler):
@@ -143,7 +143,7 @@ def test_setup_file_logging_reconfigures_for_sequential_port_change(
 
 
 def test_setup_file_logging_preserves_external_rotating_handler(workspace: Path) -> None:
-    logger = logging.getLogger("headroom")
+    logger = logging.getLogger("horizon")
     original = list(logger.handlers)
     for handler in original:
         logger.removeHandler(handler)

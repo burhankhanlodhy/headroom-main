@@ -14,11 +14,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from headroom.cache.backends import InMemoryBackend
-from headroom.cache.compression_feedback import CompressionHints
-from headroom.cache.compression_store import get_compression_store, reset_compression_store
-from headroom.proxy.loopback_guard import is_ip_literal_host_header
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.cache.backends import InMemoryBackend
+from horizon.cache.compression_feedback import CompressionHints
+from horizon.cache.compression_store import get_compression_store, reset_compression_store
+from horizon.proxy.loopback_guard import is_ip_literal_host_header
+from horizon.proxy.server import ProxyConfig, create_app
 
 GATED = [
     ("get", "/transformations/feed"),
@@ -111,7 +111,7 @@ def test_toin_pattern_detail_whitelists_learned_payload(monkeypatch: pytest.Monk
                 }
             }
 
-    monkeypatch.setattr("headroom.proxy.server.get_toin", lambda: FakeTOIN())
+    monkeypatch.setattr("horizon.proxy.server.get_toin", lambda: FakeTOIN())
     response = _loopback_client().get("/v1/toin/pattern/unknown")
 
     assert response.status_code == 200
@@ -224,7 +224,7 @@ def _feedback_with_query_text():
 
 def test_feedback_stats_exclude_agent_query_text(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "headroom.proxy.server.get_compression_feedback",
+        "horizon.proxy.server.get_compression_feedback",
         _feedback_with_query_text,
     )
     response = _loopback_client().get("/v1/feedback")
@@ -240,7 +240,7 @@ def test_feedback_stats_exclude_agent_query_text(monkeypatch: pytest.MonkeyPatch
 
 def test_feedback_tool_detail_excludes_agent_query_text(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "headroom.proxy.server.get_compression_feedback",
+        "horizon.proxy.server.get_compression_feedback",
         _feedback_with_query_text,
     )
     response = _loopback_client().get("/v1/feedback/Grep")
@@ -259,13 +259,13 @@ def test_stats_lifetime_route_uses_dashboard_metadata_access_policy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv(
-        "HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS",
+        "HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS",
         "100.90.0.5/32",
     )
     app = _make_app()
     expected = {
         "requests": {"total": 7},
-        "projects": {"headroom": {"requests": 3}},
+        "projects": {"horizon": {"requests": 3}},
         "persistence": {
             "enabled": True,
             "healthy": False,
@@ -360,7 +360,7 @@ def test_settings_trusted_gateway_dashboard_client_allowed(
 ) -> None:
     """Settings routes must follow the same trust chain as /stats so the
     dashboard works behind a reverse-proxy/gateway (#2466)."""
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
     client = TestClient(
         _make_app(),
         base_url="http://100.82.0.2:8787",
@@ -373,7 +373,7 @@ def test_settings_trusted_gateway_dashboard_client_allowed(
 def test_settings_trusted_gateway_cidr_mismatch_still_404s(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
     client = TestClient(
         _make_app(),
         base_url="http://100.82.0.2:8787",
@@ -392,7 +392,7 @@ def test_settings_post_trusted_gateway_client_same_origin_allowed(
     """Regression for #2491 review: a trusted-gateway dashboard client's real
     same-origin browser POST (Origin matching this Host) must not be rejected
     by the loopback-only same-origin guard."""
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
     client = TestClient(
         _make_app(),
         base_url="http://100.82.0.2:8787",
@@ -414,7 +414,7 @@ def test_settings_post_trusted_gateway_client_mismatched_origin_rejected(
     The mismatched Origin also fails the first (loopback-or-trusted-client)
     gate's own same-origin check, so this surfaces as 404, not 403 -- either
     way the write must not go through."""
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
     client = TestClient(
         _make_app(),
         base_url="http://100.82.0.2:8787",
@@ -468,7 +468,7 @@ def _client(*, loopback: bool) -> TestClient:
 def test_health_config_block_is_loopback_only(monkeypatch: pytest.MonkeyPatch) -> None:
     """/health stays reachable for monitors but hides the `config` block (which
     echoes upstream API URLs + backend settings) from non-loopback callers."""
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
 
     network = _client(loopback=False).get("/health")
     assert network.status_code == 200
@@ -503,7 +503,7 @@ def test_stats_metadata_served_to_trusted_gateway_peer(
     """Containerized dashboards: a browser on the host reaches a bridge-network
     container via the gateway IP, so the peer isn't 127.0.0.1 and per-request
     metadata gets stripped. When the operator allow-lists the gateway CIDR via
-    HEADROOM_PROXY_TRUSTED_GATEWAY_CIDRS, the peer is treated as
+    HORIZON_PROXY_TRUSTED_GATEWAY_CIDRS, the peer is treated as
     loopback-equivalent and the metadata is served again."""
     gateway_ip = "172.18.0.1"  # typical docker/mocker bridge gateway
     app = _make_app()
@@ -514,13 +514,13 @@ def test_stats_metadata_served_to_trusted_gateway_peer(
         return TestClient(app, base_url="http://127.0.0.1", client=(gateway_ip, 54321))
 
     # Without the allow-list, the gateway peer is untrusted → metadata stripped.
-    monkeypatch.delenv("HEADROOM_PROXY_TRUSTED_GATEWAY_CIDRS", raising=False)
+    monkeypatch.delenv("HORIZON_PROXY_TRUSTED_GATEWAY_CIDRS", raising=False)
     stripped = _gateway_client().get("/stats").json()
     assert "recent_requests" not in stripped
     assert "config" not in stripped
 
     # Allow-list the gateway CIDR → peer trusted → metadata served.
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_GATEWAY_CIDRS", "172.18.0.0/16")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_GATEWAY_CIDRS", "172.18.0.0/16")
     served = _gateway_client().get("/stats").json()
     assert "recent_requests" in served
     assert "config" in served
@@ -537,7 +537,7 @@ def test_dashboard_client_cidr_grants_stats_metadata_for_ip_literal_host(
     monkeypatch: pytest.MonkeyPatch,
     cached: bool,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
     app = _make_app()
     client = TestClient(
         app,
@@ -563,7 +563,7 @@ def test_dashboard_client_cidr_grants_stats_metadata_for_ip_literal_host(
 def test_dashboard_client_cidr_grants_stats_metadata_to_same_origin_browser(
     monkeypatch: pytest.MonkeyPatch, headers: dict[str, str], cached: bool
 ) -> None:
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
     client = TestClient(
         _make_app(),
         base_url="http://100.82.0.2:8787",
@@ -588,7 +588,7 @@ def test_dashboard_client_cidr_grants_stats_metadata_to_same_origin_browser(
 def test_dashboard_client_cidr_hides_stats_metadata_from_cross_origin_browser(
     monkeypatch: pytest.MonkeyPatch, headers: dict[str, str], cached: bool
 ) -> None:
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
     client = TestClient(
         _make_app(),
         base_url="http://100.82.0.2:8787",
@@ -608,8 +608,8 @@ def test_dashboard_client_cidr_hides_stats_metadata_from_cross_origin_browser(
 def test_dashboard_client_cidr_only_uses_forwarded_proto_from_trusted_gateway(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_GATEWAY_CIDRS", "172.18.0.0/16")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_GATEWAY_CIDRS", "172.18.0.0/16")
     client = TestClient(
         _make_app(),
         base_url="http://100.82.0.2:8787",
@@ -653,7 +653,7 @@ def test_dashboard_client_cidr_only_uses_forwarded_proto_from_trusted_gateway(
 def test_dashboard_client_cidr_rejects_unlisted_clients_and_hostname_hosts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
     app = _make_app()
 
     unlisted = (
@@ -684,8 +684,8 @@ def test_dashboard_client_cidr_rejects_unlisted_clients_and_hostname_hosts(
 def test_dashboard_client_cidr_only_accepts_forwarded_client_from_trusted_gateway(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_GATEWAY_CIDRS", "172.18.0.0/16")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_GATEWAY_CIDRS", "172.18.0.0/16")
     app = _make_app()
 
     trusted = (
@@ -714,7 +714,7 @@ def test_dashboard_client_cidr_only_accepts_forwarded_client_from_trusted_gatewa
 def test_dashboard_client_cidr_normalizes_ipv4_mapped_ipv6(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.0/24")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.0/24")
     app = _make_app()
     payload = (
         TestClient(
@@ -732,7 +732,7 @@ def test_dashboard_client_cidr_normalizes_ipv4_mapped_ipv6(
 def test_dashboard_client_cidr_does_not_expand_other_management_endpoints(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
+    monkeypatch.setenv("HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS", "100.90.0.5/32")
     client = TestClient(
         _make_app(),
         base_url="http://100.82.0.2:8787",

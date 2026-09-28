@@ -5,8 +5,8 @@ from dataclasses import replace as _dc_replace
 
 import pytest
 
-from headroom.compress import CompressConfig, CompressResult, compress
-from headroom.hooks import CompressionHooks
+from horizon.compress import CompressConfig, CompressResult, compress
+from horizon.hooks import CompressionHooks
 
 try:
     from starlette.applications import Starlette
@@ -15,7 +15,7 @@ try:
     from starlette.routing import Route
     from starlette.testclient import TestClient
 
-    from headroom.integrations.asgi import CompressionMiddleware
+    from horizon.integrations.asgi import CompressionMiddleware
 
     HAS_STARLETTE = True
 except ImportError:
@@ -270,18 +270,18 @@ class TestASGIMiddleware:
 class TestLiteLLMCallback:
     def test_callback_imports(self):
         """Verify the callback can be imported."""
-        from headroom.integrations.litellm_callback import HeadroomCallback
+        from horizon.integrations.litellm_callback import HorizonCallback
 
-        callback = HeadroomCallback()
+        callback = HorizonCallback()
         assert callback.total_tokens_saved == 0
 
     def test_callback_compresses_messages(self):
         """Callback compresses messages in pre_call_hook."""
         import asyncio
 
-        from headroom.integrations.litellm_callback import HeadroomCallback
+        from horizon.integrations.litellm_callback import HorizonCallback
 
-        callback = HeadroomCallback()
+        callback = HorizonCallback()
 
         big_data = json.dumps([{"id": i, "status": "active"} for i in range(200)])
         data = {
@@ -299,9 +299,9 @@ class TestLiteLLMCallback:
         """Non-completion calls are passed through."""
         import asyncio
 
-        from headroom.integrations.litellm_callback import HeadroomCallback
+        from horizon.integrations.litellm_callback import HorizonCallback
 
-        callback = HeadroomCallback()
+        callback = HorizonCallback()
         data = {"messages": [{"role": "user", "content": "hi"}]}
 
         result = asyncio.run(callback.async_pre_call_hook("key", data, "embedding"))

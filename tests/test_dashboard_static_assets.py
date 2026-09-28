@@ -17,19 +17,19 @@ pytest.importorskip("fastapi")
 from fastapi.responses import Response  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.dashboard import (  # noqa: E402
+from horizon.dashboard import (  # noqa: E402
     STATIC_DIR,
     get_dashboard_html,
     get_settings_html,
 )
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 ASSETS = ["tailwind.min.js", "alpine.min.js"]
 
 
 @pytest.fixture
 def client(monkeypatch):
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
     app = create_app(
         ProxyConfig(
             optimize=False,

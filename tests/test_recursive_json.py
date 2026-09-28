@@ -1,4 +1,4 @@
-"""Unit tests for headroom.transforms.recursive_json — the structural (embedded)
+"""Unit tests for horizon.transforms.recursive_json — the structural (embedded)
 JSON routing step. Uses a fake dispatch so the mechanism is tested in isolation
 from the real compressors."""
 
@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 
-from headroom.transforms.recursive_json import route_embedded_json
+from horizon.transforms.recursive_json import route_embedded_json
 
 
 def _upper_dispatch(span: str) -> str | None:

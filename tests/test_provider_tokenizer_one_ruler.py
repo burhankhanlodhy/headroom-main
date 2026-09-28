@@ -2,7 +2,7 @@
 
 Two code paths resolve a tokenizer for the same request:
 
-* handlers call ``headroom.tokenizers.get_tokenizer(model)`` (the per-model
+* handlers call ``horizon.tokenizers.get_tokenizer(model)`` (the per-model
   registry), via ``count_tokens_offloaded``;
 * ``TransformPipeline`` calls ``provider.get_token_counter(model)``, because the
   proxy builds its pipelines with ``provider=self.openai_provider``.
@@ -21,8 +21,8 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.providers.openai import OpenAIProvider, OpenAITokenCounter
-from headroom.tokenizers import get_tokenizer
+from horizon.providers.openai import OpenAIProvider, OpenAITokenCounter
+from horizon.tokenizers import get_tokenizer
 
 # Long enough that a wrong tokenizer shows up as a real gap, not rounding.
 MESSAGES = [
@@ -56,7 +56,7 @@ def test_kimi_is_not_counted_with_an_openai_encoding() -> None:
     """Regression: the specific 19%-off case that motivated this.
 
     Pinned as a distinct test because Kimi through Fireworks is a documented
-    Headroom configuration, and ``o200k_base`` silently under-counts it.
+    Horizon configuration, and ``o200k_base`` silently under-counts it.
     """
     counter = OpenAIProvider().get_token_counter("moonshotai/kimi-k2")
     assert not isinstance(counter, OpenAITokenCounter)

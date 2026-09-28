@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from headroom.pricing import litellm_pricing
-from headroom.pricing.litellm_model_resolution import MODEL_ALIASES
+from horizon.pricing import litellm_pricing
+from horizon.pricing.litellm_model_resolution import MODEL_ALIASES
 
 
 def test_litellm_helpers_when_dependency_is_unavailable(monkeypatch) -> None:

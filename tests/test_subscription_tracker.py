@@ -9,16 +9,16 @@ from types import SimpleNamespace
 
 import pytest
 
-import headroom.subscription.tracker as tracker_module
-from headroom.subscription.models import (
-    HeadroomContribution,
+import horizon.subscription.tracker as tracker_module
+from horizon.subscription.models import (
+    HorizonContribution,
     RateLimitWindow,
     SubscriptionSnapshot,
     WindowDiscrepancy,
     WindowTokens,
     _utc_now,
 )
-from headroom.subscription.tracker import SubscriptionTracker
+from horizon.subscription.tracker import SubscriptionTracker
 
 
 def _make_snapshot(
@@ -106,7 +106,7 @@ async def test_tracker_start_stop_and_rollover_reset(
         _make_snapshot(reset_offset_hours=5),
         _make_snapshot(reset_offset_hours=6),
     ]
-    tracker._state.contribution = HeadroomContribution(tokens_submitted=99)
+    tracker._state.contribution = HorizonContribution(tokens_submitted=99)
     tracker._maybe_reset_contribution(tracker._state.history[-1])
     assert tracker._state.contribution.tokens_submitted == 0
 
@@ -128,7 +128,7 @@ def test_second_level_reset_jitter_does_not_reset_contribution(
         _make_snapshot(resets_at=base),
         _make_snapshot(resets_at=base + timedelta(seconds=1)),
     ]
-    tracker._state.contribution = HeadroomContribution(tokens_submitted=99)
+    tracker._state.contribution = HorizonContribution(tokens_submitted=99)
     tracker._maybe_reset_contribution(tracker._state.history[-1])
     assert tracker._state.contribution.tokens_submitted == 99
 
@@ -145,7 +145,7 @@ def test_genuine_five_hour_rollover_resets_contribution(
         _make_snapshot(resets_at=base),
         _make_snapshot(resets_at=base + timedelta(hours=5)),
     ]
-    tracker._state.contribution = HeadroomContribution(tokens_submitted=99)
+    tracker._state.contribution = HorizonContribution(tokens_submitted=99)
     tracker._maybe_reset_contribution(tracker._state.history[-1])
     assert tracker._state.contribution.tokens_submitted == 0
 
@@ -157,12 +157,12 @@ async def test_maybe_poll_handles_inactive_and_none_snapshot(
     monkeypatch.setattr(SubscriptionTracker, "_load_persisted_state", lambda self: None)
     tracker = SubscriptionTracker()
 
-    monkeypatch.setattr("headroom.subscription.client.read_cached_oauth_token", lambda: None)
+    monkeypatch.setattr("horizon.subscription.client.read_cached_oauth_token", lambda: None)
     await tracker._maybe_poll()
     assert tracker._state.poll_count == 0
 
     monkeypatch.setattr(
-        "headroom.subscription.client.read_cached_oauth_token", lambda: "cached-token"
+        "horizon.subscription.client.read_cached_oauth_token", lambda: "cached-token"
     )
 
     async def fetch_none(token: str | None):
@@ -200,7 +200,7 @@ async def test_maybe_poll_success_updates_state_and_metrics(
     )
     monkeypatch.setitem(
         sys.modules,
-        "headroom.observability.metrics",
+        "horizon.observability.metrics",
         SimpleNamespace(
             get_otel_metrics=lambda: SimpleNamespace(
                 record_subscription_window=lambda state: metrics_calls.append(state)
@@ -247,7 +247,7 @@ async def test_maybe_poll_runs_transcript_scan_off_event_loop(
     monkeypatch.setattr(tracker, "_persist_state", lambda: None)
     monkeypatch.setitem(
         sys.modules,
-        "headroom.observability.metrics",
+        "horizon.observability.metrics",
         SimpleNamespace(
             get_otel_metrics=lambda: SimpleNamespace(record_subscription_window=lambda state: None)
         ),

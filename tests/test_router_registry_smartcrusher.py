@@ -41,7 +41,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from headroom.transforms.content_router import (
+from horizon.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,

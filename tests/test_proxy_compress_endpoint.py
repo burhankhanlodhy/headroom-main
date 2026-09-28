@@ -15,7 +15,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.proxy.server import ProxyConfig, create_app
 
 
 @pytest.fixture
@@ -136,7 +136,7 @@ class TestCompressEndpointBasic:
 
     def test_response_ccr_hashes_extracts_only_retrievable_hashes(self):
         """Embedded CCR markers are reported without unrelated transform metadata."""
-        from headroom.proxy.handlers.openai import _response_ccr_hashes
+        from horizon.proxy.handlers.openai import _response_ccr_hashes
 
         messages = [
             {
@@ -162,7 +162,7 @@ class TestCompressEndpointBasic:
             messages,
             [
                 "deadbeef0000000000000000",
-                "<headroom:tool_digest sha256=1234567890abcdef>",
+                "<horizon:tool_digest sha256=1234567890abcdef>",
                 "stable_prefix_hash:feedface00112233",
             ],
         )
@@ -174,7 +174,7 @@ class TestCompressEndpointBasic:
         ]
 
     def test_bypass_header_returns_uncompressed(self, client):
-        """X-Headroom-Bypass header should skip compression."""
+        """X-Horizon-Bypass header should skip compression."""
         messages = [
             {"role": "user", "content": "Hello"},
             {"role": "assistant", "content": "Hi there!"},
@@ -183,7 +183,7 @@ class TestCompressEndpointBasic:
         response = client.post(
             "/v1/compress",
             json={"messages": messages, "model": "gpt-4"},
-            headers={"x-headroom-bypass": "true"},
+            headers={"x-horizon-bypass": "true"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -201,7 +201,7 @@ class TestCompressEndpointBasic:
         response = client.post(
             "/v1/compress",
             json={"messages": messages, "model": "gpt-4"},
-            headers={"x-headroom-bypass": "TRUE"},
+            headers={"x-horizon-bypass": "TRUE"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -349,7 +349,7 @@ class TestCompressEndpointCompression:
             tokens_after=7,
             transforms_applied=["test_transform"],
             transforms_summary={"test_transform": 1},
-            markers_inserted=["<headroom:tool_digest sha256=1234567890abcdef>"],
+            markers_inserted=["<horizon:tool_digest sha256=1234567890abcdef>"],
         )
         monkeypatch.setattr(
             proxy,

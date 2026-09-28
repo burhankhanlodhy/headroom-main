@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import pytest
 
-from headroom import onnx_runtime
-from headroom.transforms import kompress_compressor as kc
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
-from headroom.transforms.kompress_compressor import KompressModelNotCached
+from horizon import onnx_runtime
+from horizon.transforms import kompress_compressor as kc
+from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
+from horizon.transforms.kompress_compressor import KompressModelNotCached
 
 
 def test_local_first_no_network_when_disallowed(monkeypatch):
@@ -168,8 +168,8 @@ def test_non_kompress_warmups_continue_when_kompress_is_deferred(monkeypatch):
     stub = _StubCompressor(cached=True)
     monkeypatch.setattr(router, "_get_kompress", lambda: stub)
     monkeypatch.setattr(router, "_prefetch_kompress_artifacts_async", lambda _cfg: False)
-    monkeypatch.setattr("headroom.compression.detector._magika_available", lambda: True)
-    monkeypatch.setattr("headroom.compression.detector._get_magika", lambda: object())
+    monkeypatch.setattr("horizon.compression.detector._magika_available", lambda: True)
+    monkeypatch.setattr("horizon.compression.detector._get_magika", lambda: object())
 
     status = router.eager_load_compressors()
 
@@ -249,9 +249,9 @@ def test_background_prefetch_is_noop_when_model_already_cached(monkeypatch):
 @pytest.mark.asyncio
 async def test_proxy_startup_does_not_enter_cached_kompress_native_loader(monkeypatch):
     pytest.importorskip("httpx")
-    from headroom.proxy.server import HeadroomProxy, ProxyConfig
+    from horizon.proxy.server import HorizonProxy, ProxyConfig
 
-    proxy = HeadroomProxy(
+    proxy = HorizonProxy(
         ProxyConfig(
             optimize=True,
             cache_enabled=False,

@@ -10,8 +10,8 @@ gates the claim on the shaper being active; the ledger itself is untouched.
 
 from __future__ import annotations
 
-from headroom.proxy.output_savings import SavingsEstimate, SavingsLedger, SavingsRecorder
-from headroom.proxy.server import _output_reduction_payload
+from horizon.proxy.output_savings import SavingsEstimate, SavingsLedger, SavingsRecorder
+from horizon.proxy.server import _output_reduction_payload
 
 
 def _poisoned_measured() -> SavingsEstimate:
@@ -158,12 +158,12 @@ def _stats_output_reduction(tmp_path, monkeypatch, *, mode: str = "token"):
     """Hit the real /stats route with a ledger that already holds an estimate."""
     from fastapi.testclient import TestClient
 
-    import headroom.proxy.output_savings as output_savings
-    from headroom.proxy.server import ProxyConfig, create_app
+    import horizon.proxy.output_savings as output_savings
+    from horizon.proxy.server import ProxyConfig, create_app
 
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path))
-    monkeypatch.setenv("HEADROOM_SAVINGS_PATH", str(tmp_path / "proxy_savings.json"))
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
+    monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path))
+    monkeypatch.setenv("HORIZON_SAVINGS_PATH", str(tmp_path / "proxy_savings.json"))
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
 
     class _Recorder:
         def estimate(self, level=None):
@@ -184,7 +184,7 @@ def _stats_output_reduction(tmp_path, monkeypatch, *, mode: str = "token"):
 
 
 def test_stats_publishes_the_estimate_while_steering_is_live(tmp_path, monkeypatch):
-    monkeypatch.setenv("HEADROOM_VERBOSITY_LEVEL", "3")
+    monkeypatch.setenv("HORIZON_VERBOSITY_LEVEL", "3")
     payload = _stats_output_reduction(tmp_path, monkeypatch)
     assert payload["active"] is True
     assert payload["method"] == "measured"
@@ -193,7 +193,7 @@ def test_stats_publishes_the_estimate_while_steering_is_live(tmp_path, monkeypat
 
 
 def test_stats_gates_an_explicit_verbosity_zero(tmp_path, monkeypatch):
-    monkeypatch.setenv("HEADROOM_VERBOSITY_LEVEL", "0")
+    monkeypatch.setenv("HORIZON_VERBOSITY_LEVEL", "0")
     payload = _stats_output_reduction(tmp_path, monkeypatch)
     assert payload["active"] is False
     assert payload["method"] == "inactive"
@@ -202,7 +202,7 @@ def test_stats_gates_an_explicit_verbosity_zero(tmp_path, monkeypatch):
 
 
 def test_stats_gates_a_learned_verbosity_zero(tmp_path, monkeypatch):
-    monkeypatch.delenv("HEADROOM_VERBOSITY_LEVEL", raising=False)
+    monkeypatch.delenv("HORIZON_VERBOSITY_LEVEL", raising=False)
     (tmp_path / "verbosity.json").write_text('{"verbosity_level": 0}')
     payload = _stats_output_reduction(tmp_path, monkeypatch)
     assert payload["active"] is False
@@ -210,8 +210,8 @@ def test_stats_gates_a_learned_verbosity_zero(tmp_path, monkeypatch):
 
 
 def test_stats_gates_a_controller_verbosity_zero(tmp_path, monkeypatch):
-    monkeypatch.delenv("HEADROOM_VERBOSITY_LEVEL", raising=False)
-    monkeypatch.setenv("HEADROOM_VERBOSITY_AUTOTUNE", "1")
+    monkeypatch.delenv("HORIZON_VERBOSITY_LEVEL", raising=False)
+    monkeypatch.setenv("HORIZON_VERBOSITY_AUTOTUNE", "1")
     (tmp_path / "verbosity_controller.json").write_text('{"level": 0}')
     payload = _stats_output_reduction(tmp_path, monkeypatch)
     assert payload["active"] is False
@@ -224,7 +224,7 @@ def test_stats_publishes_in_cache_mode_when_the_level_is_pinned(tmp_path, monkey
     /stats builds the SAME settings the handlers do; when they steer, it
     publishes. The inverse -- publishing a ledger no live steering produced --
     is what the sibling tests below guard."""
-    monkeypatch.setenv("HEADROOM_VERBOSITY_LEVEL", "3")
+    monkeypatch.setenv("HORIZON_VERBOSITY_LEVEL", "3")
     payload = _stats_output_reduction(tmp_path, monkeypatch, mode="cache")
     assert payload["active"] is True
     assert payload["method"] == "measured"
@@ -232,8 +232,8 @@ def test_stats_publishes_in_cache_mode_when_the_level_is_pinned(tmp_path, monkey
 
 def test_stats_publishes_in_cache_mode_with_the_shaper_alone(tmp_path, monkeypatch):
     """An enabled shaper steers at the default level in cache mode, so /stats
-    must report it live -- with no HEADROOM_VERBOSITY_LEVEL set at all."""
-    monkeypatch.delenv("HEADROOM_VERBOSITY_LEVEL", raising=False)
+    must report it live -- with no HORIZON_VERBOSITY_LEVEL set at all."""
+    monkeypatch.delenv("HORIZON_VERBOSITY_LEVEL", raising=False)
     payload = _stats_output_reduction(tmp_path, monkeypatch, mode="cache")
     assert payload["active"] is True
     assert payload["method"] == "measured"

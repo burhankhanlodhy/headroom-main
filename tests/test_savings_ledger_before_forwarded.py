@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from headroom.proxy import prometheus_metrics
+from horizon.proxy import prometheus_metrics
 
 
 class _FakeSavingsTracker:
@@ -75,7 +75,7 @@ async def test_record_savings_event_uses_original_input_as_before(
 
     # With a provider cache breakdown the ledger also gets the /stats
     # new-input denominator (uncached + cache write) and the deferral share of
-    # the saving, so `headroom savings` can pair compression-only with new input.
+    # the saving, so `horizon savings` can pair compression-only with new input.
     calls.clear()
     await metrics.record_request(
         provider="anthropic",
@@ -133,7 +133,7 @@ async def test_record_savings_event_includes_tool_search_deferral(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """tool_search_deferral savings must ride into the ledger delta so
-    `headroom savings` does not undercount tool-search sessions ~7-10x (#2795)."""
+    `horizon savings` does not undercount tool-search sessions ~7-10x (#2795)."""
     calls = _capture_ledger(monkeypatch)
     metrics = prometheus_metrics.PrometheusMetrics(
         savings_tracker=_FakeSavingsTracker(),

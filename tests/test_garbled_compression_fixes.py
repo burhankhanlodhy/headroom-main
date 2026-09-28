@@ -26,8 +26,8 @@ import json
 
 import pytest
 
-from headroom.transforms.content_detector import ContentType
-from headroom.transforms.mixed_content import split_into_sections
+from horizon.transforms.content_detector import ContentType
+from horizon.transforms.mixed_content import split_into_sections
 
 HARNESS_BANNER = (
     "[harness: subagent output matched instruction-shaped pattern(s): "
@@ -99,7 +99,7 @@ def test_prose_around_unbalanced_candidate_coalesces() -> None:
 
 
 def test_kompress_floor_default() -> None:
-    from headroom.transforms.kompress_compressor import KompressConfig
+    from horizon.transforms.kompress_compressor import KompressConfig
 
     assert KompressConfig().min_input_words == 64
 
@@ -110,7 +110,7 @@ def test_kompress_passes_through_below_floor() -> None:
     The floor check precedes model load, so this holds (and runs) with no
     Kompress model available.
     """
-    from headroom.transforms.kompress_compressor import KompressCompressor
+    from horizon.transforms.kompress_compressor import KompressCompressor
 
     compressor = KompressCompressor()
     assert len(HARNESS_BANNER.split()) == 33  # the screenshot's "33 items"
@@ -122,7 +122,7 @@ def test_kompress_passes_through_below_floor() -> None:
 
 def test_kompress_floor_clamps_to_historical_minimum() -> None:
     """min_input_words below the historical 10-word floor clamps up to it."""
-    from headroom.transforms.kompress_compressor import KompressCompressor, KompressConfig
+    from horizon.transforms.kompress_compressor import KompressCompressor, KompressConfig
 
     compressor = KompressCompressor(KompressConfig(min_input_words=0))
     tiny = "only five words right here"
@@ -137,7 +137,7 @@ def test_kompress_floor_clamps_to_historical_minimum() -> None:
 
 
 def test_ccr_retrieval_marker_says_words_not_items() -> None:
-    from headroom.transforms.kompress_compressor import ccr_retrieval_marker
+    from horizon.transforms.kompress_compressor import ccr_retrieval_marker
 
     marker = ccr_retrieval_marker(33, 25, "line one\nline two", "abc123def456abc123def456")
     assert "33 words compressed to 25" in marker
@@ -147,8 +147,8 @@ def test_ccr_retrieval_marker_says_words_not_items() -> None:
 
 
 def test_store_kompress_does_not_report_word_counts_as_item_counts() -> None:
-    from headroom.cache.compression_store import get_compression_store
-    from headroom.transforms.kompress_compressor import store_kompress_in_ccr
+    from horizon.cache.compression_store import get_compression_store
+    from horizon.transforms.kompress_compressor import store_kompress_in_ccr
 
     original = "unique kompress store fixture → " + "word " * 40
     cache_key = store_kompress_in_ccr(original, "unique compressed → fixture", 44)
@@ -176,7 +176,7 @@ def _tabular_mixed_content(rows: int = 60) -> str:
 
 
 def test_mixed_table_render_is_not_a_quoted_json_string_blob() -> None:
-    from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+    from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
 
     router = ContentRouter(ContentRouterConfig())
     result = router.compress(_tabular_mixed_content(), context="review")
@@ -199,7 +199,7 @@ def test_harness_banner_survives_router_compression_byte_intact() -> None:
     The banner must come out byte-identical — never lossy-compressed,
     never offloaded behind a retrieval hash.
     """
-    from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+    from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
 
     neutralized_body = (
         "Design review from Codex.\n\n"
@@ -228,9 +228,9 @@ def test_banner_survives_with_live_kompress_model(monkeypatch) -> None:
     """
     import re
 
-    import headroom.transforms.kompress_compressor as kc
-    from headroom.cache.compression_store import get_compression_store
-    from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+    import horizon.transforms.kompress_compressor as kc
+    from horizon.cache.compression_store import get_compression_store
+    from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
 
     class FakeEncoding:
         def __init__(self, rows):
@@ -289,7 +289,7 @@ def test_banner_survives_with_live_kompress_model(monkeypatch) -> None:
 
 
 def test_audit_safe_splice_keeps_unicode_readable() -> None:
-    from headroom.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
+    from horizon.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
 
     crusher = SmartCrusher(SmartCrusherConfig(audit_safe=True, protected_patterns=["KEEP-ME"]))
     original_rows = [
@@ -315,8 +315,8 @@ def test_mcp_retrieve_keeps_unicode_readable() -> None:
     pytest.importorskip("mcp")
     import asyncio
 
-    from headroom.cache.compression_store import get_compression_store
-    from headroom.ccr.mcp_server import HeadroomMCPServer
+    from horizon.cache.compression_store import get_compression_store
+    from horizon.ccr.mcp_server import HorizonMCPServer
 
     store = get_compression_store()
     hash_key = store.store(
@@ -325,7 +325,7 @@ def test_mcp_retrieve_keeps_unicode_readable() -> None:
         compression_strategy="test",
     )
 
-    server = HeadroomMCPServer(check_proxy=False)
+    server = HorizonMCPServer(check_proxy=False)
     (item,) = asyncio.run(server._handle_retrieve({"hash": hash_key}))
     assert "→" in item.text
     assert "\\u2192" not in item.text

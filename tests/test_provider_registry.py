@@ -4,7 +4,7 @@ import logging
 
 import pytest
 
-from headroom.providers.registry import (
+from horizon.providers.registry import (
     ProviderApiOverrides,
     build_proxy_provider_runtime,
     create_proxy_backend,
@@ -13,7 +13,7 @@ from headroom.providers.registry import (
     resolve_api_targets,
     resolve_extra_headers,
 )
-from headroom.proxy.models import ProxyConfig
+from horizon.proxy.models import ProxyConfig
 
 
 def test_resolve_api_overrides_prefers_explicit_values_over_environment(monkeypatch) -> None:
@@ -157,7 +157,7 @@ def test_proxy_provider_runtime_routes_model_metadata_and_passthrough() -> None:
         runtime.select_passthrough_base_url({"x-goog-api-key": "test"})
         == runtime.api_targets.gemini
     )
-    assert runtime.select_passthrough_base_url({"api-key": "azure", "x-headroom-base-url": ""}) == (
+    assert runtime.select_passthrough_base_url({"api-key": "azure", "x-horizon-base-url": ""}) == (
         runtime.api_targets.openai
     )
 
@@ -201,7 +201,7 @@ def test_create_proxy_backend_logs_structured_failure_details(caplog) -> None:
 
 
 def test_proxy_provider_runtime_loaders_cache_backend_types(monkeypatch) -> None:
-    import headroom.providers.registry as registry
+    import horizon.providers.registry as registry
 
     anyllm_loads = 0
     litellm_loads = 0
@@ -214,10 +214,10 @@ def test_proxy_provider_runtime_loaders_cache_backend_types(monkeypatch) -> None
 
     def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
         nonlocal anyllm_loads, litellm_loads
-        if name == "headroom.backends.anyllm":
+        if name == "horizon.backends.anyllm":
             anyllm_loads += 1
             return type("Module", (), {"AnyLLMBackend": FakeAnyLLMBackend})()
-        if name == "headroom.backends.litellm":
+        if name == "horizon.backends.litellm":
             litellm_loads += 1
             return type("Module", (), {"LiteLLMBackend": FakeLiteLLMBackend})()
         raise AssertionError(name)
@@ -235,7 +235,7 @@ def test_proxy_provider_runtime_loaders_cache_backend_types(monkeypatch) -> None
 
 
 def test_proxy_provider_runtime_transport_helpers_handle_missing_usage() -> None:
-    import headroom.providers.registry as registry
+    import horizon.providers.registry as registry
 
     class Storage:
         def __init__(self) -> None:
@@ -309,7 +309,7 @@ def test_proxy_provider_runtime_transport_helpers_handle_missing_usage() -> None
 def test_proxy_provider_runtime_transport_helpers_handle_usage_without_optional_cache_fields() -> (
     None
 ):
-    import headroom.providers.registry as registry
+    import horizon.providers.registry as registry
 
     class Storage:
         def __init__(self) -> None:
@@ -403,7 +403,7 @@ def test_proxy_provider_runtime_transport_helpers_handle_usage_without_optional_
 def test_proxy_provider_runtime_openai_transport_handles_prompt_details_without_cached_tokens() -> (
     None
 ):
-    import headroom.providers.registry as registry
+    import horizon.providers.registry as registry
 
     class Storage:
         def __init__(self) -> None:

@@ -13,10 +13,10 @@ import json
 
 import pytest
 
-from headroom import compress
-from headroom.hooks import CompressionHooks
-from headroom.tokenizers import get_tokenizer
-from headroom.transforms.content_router import ContentRouter
+from horizon import compress
+from horizon.hooks import CompressionHooks
+from horizon.tokenizers import get_tokenizer
+from horizon.transforms.content_router import ContentRouter
 
 MODEL = "gpt-4o"
 LOG = "\n".join(
@@ -170,7 +170,7 @@ def test_a_hooks_object_that_is_not_a_subclass_still_compresses() -> None:
 
 
 def test_collect_protected_reports_a_missing_method_as_no_vetoes() -> None:
-    from headroom.hooks import CompressContext, collect_protected
+    from horizon.hooks import CompressContext, collect_protected
 
     class Without:
         pass

@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
-from headroom.transforms.dense_line_elider import elide_dense_lines
+from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
+from horizon.transforms.dense_line_elider import elide_dense_lines
 
 
 @pytest.fixture
 def tokenizer():
-    from headroom.providers import OpenAIProvider
-    from headroom.tokenizer import Tokenizer
+    from horizon.providers import OpenAIProvider
+    from horizon.tokenizer import Tokenizer
 
     return Tokenizer(OpenAIProvider().get_token_counter("gpt-4o"), "gpt-4o")
 
@@ -81,7 +81,7 @@ def test_router_applies_elision_when_no_compressor_wins():
 # elision, which is why only the prose cases fail. Tracked separately; pinning
 # the strategy here keeps that bug from hiding inside an elider test.
 def test_elided_block_carries_a_retrievable_marker():
-    from headroom.cache.compression_store import get_compression_store
+    from horizon.cache.compression_store import get_compression_store
 
     html = "<html><head><script>" + MINIFIED_JS + "</script></head><body>hi there</body></html>"
     router = ContentRouter(

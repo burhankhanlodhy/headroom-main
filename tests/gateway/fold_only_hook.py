@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from headroom.proxy.turn_hooks import register_turn_hook
+from horizon.proxy.turn_hooks import register_turn_hook
 
 FOLD_MARKER = " ...[folded by test_fold_only]"
 
@@ -106,5 +106,5 @@ def register(**kwargs: Any) -> FoldOnlyHook:
 
 
 def install(app: Any, config: Any) -> None:
-    """``headroom.proxy_extension`` entry-point shape."""
+    """``horizon.proxy_extension`` entry-point shape."""
     register()

@@ -11,7 +11,7 @@ import os
 
 import pytest
 
-from headroom.transforms.lossless_compaction import compact_lossless
+from horizon.transforms.lossless_compaction import compact_lossless
 
 
 def _multi_hour_log() -> str:
@@ -62,21 +62,21 @@ def test_env_kill_switch_disables_all_folds(monkeypatch: pytest.MonkeyPatch) -> 
     grep = "\n".join(
         f"src/lumina_tray/panel.py:{i}:    def handler_{i}(self): pass" for i in range(40)
     )
-    monkeypatch.setenv("HEADROOM_LOSSLESS_COMPACTION", "0")
+    monkeypatch.setenv("HORIZON_LOSSLESS_COMPACTION", "0")
     assert compact_lossless(grep, "search") == grep
-    monkeypatch.setenv("HEADROOM_LOSSLESS_COMPACTION", "1")
+    monkeypatch.setenv("HORIZON_LOSSLESS_COMPACTION", "1")
     assert compact_lossless(grep, "search") != grep
 
 
 def test_kill_switch_is_read_live_not_cached_at_import() -> None:
     """The proxy hot-syncs runtime env; a cached flag would ignore it."""
     grep = "\n".join(f"src/a.py:{i}:    x = {i}" for i in range(40))
-    prior = os.environ.pop("HEADROOM_LOSSLESS_COMPACTION", None)
+    prior = os.environ.pop("HORIZON_LOSSLESS_COMPACTION", None)
     try:
         assert compact_lossless(grep, "search") != grep
-        os.environ["HEADROOM_LOSSLESS_COMPACTION"] = "off"
+        os.environ["HORIZON_LOSSLESS_COMPACTION"] = "off"
         assert compact_lossless(grep, "search") == grep
     finally:
-        os.environ.pop("HEADROOM_LOSSLESS_COMPACTION", None)
+        os.environ.pop("HORIZON_LOSSLESS_COMPACTION", None)
         if prior is not None:
-            os.environ["HEADROOM_LOSSLESS_COMPACTION"] = prior
+            os.environ["HORIZON_LOSSLESS_COMPACTION"] = prior

@@ -3,8 +3,8 @@
 The pure-module tests in ``test_ccr_marker_resolution.py`` prove the
 substitution logic. These tests prove the thing that actually broke: the
 resolve call has to run on the response path *when the model never emitted a
-``headroom_retrieve`` tool call at all*. That is the whole #2509 shape —
-Headroom behind a LiteLLM guardrail hop with no tool-call turn — so any wiring
+``horizon_retrieve`` tool call at all*. That is the whole #2509 shape —
+Horizon behind a LiteLLM guardrail hop with no tool-call turn — so any wiring
 that sits behind a ``has_ccr_tool_calls`` gate is a no-op for its own use case.
 
 Every response fixture below therefore has zero tool calls.
@@ -19,11 +19,11 @@ httpx = pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.cache.compression_store import (  # noqa: E402
+from horizon.cache.compression_store import (  # noqa: E402
     get_compression_store,
     reset_compression_store,
 )
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 ORIGINAL = "the original uncompressed content"
 

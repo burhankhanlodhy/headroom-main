@@ -11,18 +11,18 @@ import httpx
 import pytest
 from fastapi.responses import StreamingResponse
 
-from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin, _is_googleapis_endpoint
-from headroom.proxy.handlers.openai import (
+from horizon.proxy.handlers.anthropic import AnthropicHandlerMixin, _is_googleapis_endpoint
+from horizon.proxy.handlers.openai import (
     OpenAIHandlerMixin,
     _decode_openai_bearer_payload,
     _passthrough_usage_from_json,
     _prefers_http1_passthrough,
 )
-from headroom.proxy.helpers import (
-    _headroom_bypass_enabled,
+from horizon.proxy.helpers import (
+    _horizon_bypass_enabled,
     relocate_system_messages_to_top_level,
 )
-from headroom.proxy.server import HeadroomProxy
+from horizon.proxy.server import HorizonProxy
 
 
 def _jwt(payload: object) -> str:
@@ -492,15 +492,15 @@ def test_relocate_system_messages_image_only_sections_pass_through_unchanged() -
     assert new_system == system
 
 
-def test_headroom_bypass_helper_is_transport_neutral() -> None:
-    assert _headroom_bypass_enabled({"x-headroom-bypass": "true"}) is True
-    assert _headroom_bypass_enabled({"x-headroom-bypass": " TRUE "}) is True
-    assert _headroom_bypass_enabled({"x-headroom-mode": "passthrough"}) is True
-    assert _headroom_bypass_enabled({"x-headroom-mode": " PASSTHROUGH "}) is True
-    assert _headroom_bypass_enabled({"x-headroom-bypass": "false"}) is False
-    assert _headroom_bypass_enabled({}) is False
-    assert _headroom_bypass_enabled(None) is False
-    assert OpenAIHandlerMixin._headroom_bypass_enabled({"x-headroom-bypass": "true"}) is True
+def test_horizon_bypass_helper_is_transport_neutral() -> None:
+    assert _horizon_bypass_enabled({"x-horizon-bypass": "true"}) is True
+    assert _horizon_bypass_enabled({"x-horizon-bypass": " TRUE "}) is True
+    assert _horizon_bypass_enabled({"x-horizon-mode": "passthrough"}) is True
+    assert _horizon_bypass_enabled({"x-horizon-mode": " PASSTHROUGH "}) is True
+    assert _horizon_bypass_enabled({"x-horizon-bypass": "false"}) is False
+    assert _horizon_bypass_enabled({}) is False
+    assert _horizon_bypass_enabled(None) is False
+    assert OpenAIHandlerMixin._horizon_bypass_enabled({"x-horizon-bypass": "true"}) is True
 
 
 def test_openai_passthrough_without_config_preserves_generic_request() -> None:
@@ -608,7 +608,7 @@ def test_passthrough_usage_normalizes_vertex_usage_metadata() -> None:
 def test_gemini_output_tokens_includes_thinking_when_exclusive() -> None:
     """Gemini 2.5 thinking: when prompt + candidates != total, thoughtsTokenCount
     is a separate output bucket and must be added, or output cost undercounts."""
-    from headroom.proxy.token_counting import gemini_output_tokens
+    from horizon.proxy.token_counting import gemini_output_tokens
 
     exclusive = {
         "promptTokenCount": 1000,
@@ -651,7 +651,7 @@ def test_passthrough_usage_counts_gemini_thinking_tokens() -> None:
 
 
 def test_vertex_passthrough_records_usage_metadata_for_dashboard() -> None:
-    handler = object.__new__(HeadroomProxy)
+    handler = object.__new__(HorizonProxy)
     handler.http_client = _VertexUsageClient()
     outcomes = []
 
@@ -684,7 +684,7 @@ def test_vertex_passthrough_records_usage_metadata_for_dashboard() -> None:
 
 
 def test_vertex_stream_passthrough_preserves_chunks_and_records_usage() -> None:
-    handler = object.__new__(HeadroomProxy)
+    handler = object.__new__(HorizonProxy)
     handler.http_client = _VertexStreamClient()
     outcomes = []
 
@@ -726,7 +726,7 @@ def test_vertex_stream_passthrough_preserves_chunks_and_records_usage() -> None:
 
 
 def test_stream_finalizer_records_vertex_provider_for_dashboard() -> None:
-    handler = object.__new__(HeadroomProxy)
+    handler = object.__new__(HorizonProxy)
     handler.config = SimpleNamespace(log_full_messages=False)
     outcomes = []
 
@@ -774,7 +774,7 @@ def test_stream_finalizer_records_vertex_provider_for_dashboard() -> None:
 
 
 def test_vertex_gemini_non_text_generate_records_dashboard_outcome() -> None:
-    handler = object.__new__(HeadroomProxy)
+    handler = object.__new__(HorizonProxy)
     handler.memory_handler = None
     handler.rate_limiter = None
     outcomes = []
@@ -819,9 +819,9 @@ def test_vertex_gemini_non_text_generate_records_dashboard_outcome() -> None:
     assert upstream_urls == [
         "https://vertex.test/v1/projects/p/locations/us-central1/publishers/google/models/gemini-2.0-flash:generateContent"
     ]
-    assert response.headers["x-headroom-tokens-before"] == "31"
-    assert response.headers["x-headroom-tokens-after"] == "31"
-    assert response.headers["x-headroom-tokens-saved"] == "0"
+    assert response.headers["x-horizon-tokens-before"] == "31"
+    assert response.headers["x-horizon-tokens-after"] == "31"
+    assert response.headers["x-horizon-tokens-saved"] == "0"
     assert len(outcomes) == 1
     outcome = outcomes[0]
     assert outcome.provider == "vertex:google"
@@ -834,7 +834,7 @@ def test_vertex_gemini_non_text_generate_records_dashboard_outcome() -> None:
 
 
 def test_retry_request_retries_connect_timeout() -> None:
-    proxy = object.__new__(HeadroomProxy)
+    proxy = object.__new__(HorizonProxy)
     proxy.http_client = _RetryThenSuccessClient()
     proxy.config = SimpleNamespace(
         retry_enabled=True,
@@ -870,7 +870,7 @@ def test_retry_request_returns_503_when_shutdown_interrupts_retry_sleep() -> Non
                 headers={"retry-after": "30"},
             )
 
-    proxy = object.__new__(HeadroomProxy)
+    proxy = object.__new__(HorizonProxy)
     proxy.http_client = _Always429Client()
     proxy.config = SimpleNamespace(
         retry_enabled=True,
@@ -993,13 +993,13 @@ def test_anthropic_image_compression_helper_only_rewrites_latest_eligible_turn()
 def test_proxy_helper_reuses_a_singleton_image_compressor(monkeypatch) -> None:
     # #2513: the compressor caches heavyweight models, so it must be a
     # process-wide singleton rather than a fresh instance per request.
-    from headroom.proxy import helpers
+    from horizon.proxy import helpers
 
     monkeypatch.setattr(helpers, "_image_compressor_available", None)
     monkeypatch.setattr(helpers, "_image_compressor_instance", None)
     _FreshCompressor.instances = 0
 
-    with patch("headroom.image.ImageCompressor", _FreshCompressor):
+    with patch("horizon.image.ImageCompressor", _FreshCompressor):
         first = helpers._get_image_compressor()
         second = helpers._get_image_compressor()
 
@@ -1010,14 +1010,14 @@ def test_proxy_helper_reuses_a_singleton_image_compressor(monkeypatch) -> None:
 
 
 def test_proxy_helper_caches_image_stack_import_failure(monkeypatch) -> None:
-    from headroom.proxy import helpers
+    from horizon.proxy import helpers
 
     real_import = builtins.__import__
     calls = 0
 
     def fake_import(name, *args, **kwargs):  # noqa: ANN001, ANN202
         nonlocal calls
-        if name == "headroom.image":
+        if name == "horizon.image":
             calls += 1
             raise ImportError("image extras unavailable")
         return real_import(name, *args, **kwargs)
@@ -1104,7 +1104,7 @@ def test_anthropic_assistant_message_helper_requires_assistant_role() -> None:
 # These tests pin the `_resolve_ccr_workspace` static helper that the
 # anthropic handler uses to scope the proactive-expansion cache by
 # project identity. The resolver shares its tier order with the memory
-# subsystem's ProjectResolver: x-headroom-project-id → x-headroom-cwd →
+# subsystem's ProjectResolver: x-horizon-project-id → x-horizon-cwd →
 # system-prompt `cwd:` line. Returns `("", None)` on no signal — the
 # fail-closed signal that callers gate on.
 # ============================================================================
@@ -1116,8 +1116,8 @@ def _fake_request(headers: dict[str, str]) -> SimpleNamespace:
 
 
 def test_resolve_ccr_workspace_explicit_project_id_wins() -> None:
-    """x-headroom-project-id is the highest-priority signal."""
-    request = _fake_request({"x-headroom-project-id": "my-cool-project"})
+    """x-horizon-project-id is the highest-priority signal."""
+    request = _fake_request({"x-horizon-project-id": "my-cool-project"})
     body = {}
     key, label = AnthropicHandlerMixin()._resolve_ccr_workspace(request, body)
     assert key.startswith("my-cool-project-")
@@ -1126,8 +1126,8 @@ def test_resolve_ccr_workspace_explicit_project_id_wins() -> None:
 
 
 def test_resolve_ccr_workspace_cwd_header() -> None:
-    """x-headroom-cwd produces a stable per-cwd key + basename label."""
-    request = _fake_request({"x-headroom-cwd": "/home/user/code/daphni-rails"})
+    """x-horizon-cwd produces a stable per-cwd key + basename label."""
+    request = _fake_request({"x-horizon-cwd": "/home/user/code/daphni-rails"})
     body = {}
     key, label = AnthropicHandlerMixin()._resolve_ccr_workspace(request, body)
     # Key format: "{basename}-{sha256[:16]}" — stable per absolute cwd.
@@ -1151,10 +1151,10 @@ def test_resolve_ccr_workspace_two_cwds_get_distinct_keys() -> None:
     """Two different cwds produce different workspace keys (cross-leak prevention)."""
     handler = AnthropicHandlerMixin()
     key_a, _ = handler._resolve_ccr_workspace(
-        _fake_request({"x-headroom-cwd": "/home/user/code/daphni-rails"}), {}
+        _fake_request({"x-horizon-cwd": "/home/user/code/daphni-rails"}), {}
     )
     key_b, _ = handler._resolve_ccr_workspace(
-        _fake_request({"x-headroom-cwd": "/home/user/code/tamag0"}), {}
+        _fake_request({"x-horizon-cwd": "/home/user/code/tamag0"}), {}
     )
     assert key_a != key_b, "different cwds must yield different workspace keys"
 
@@ -1209,7 +1209,7 @@ class TestHasNewCcrMarkers:
 
     @staticmethod
     def _hashes(*contents: str) -> list[str]:
-        from headroom.ccr.tool_injection import CCRToolInjector
+        from horizon.ccr.tool_injection import CCRToolInjector
 
         inj = CCRToolInjector(
             provider="anthropic", inject_tool=False, inject_system_instructions=False
@@ -1218,7 +1218,7 @@ class TestHasNewCcrMarkers:
         return inj.detected_hashes
 
     def test_replayed_markers_are_not_new(self):
-        from headroom.proxy.helpers import has_new_ccr_markers
+        from horizon.proxy.helpers import has_new_ccr_markers
 
         marker = "[100 items compressed to 10. Retrieve more: hash=abc123def456abc123def456]"
         current = self._hashes(marker)
@@ -1234,7 +1234,7 @@ class TestHasNewCcrMarkers:
         )
 
     def test_genuinely_new_marker_is_detected(self):
-        from headroom.proxy.helpers import has_new_ccr_markers
+        from horizon.proxy.helpers import has_new_ccr_markers
 
         old = "[100 items compressed to 10. Retrieve more: hash=abc123def456abc123def456]"
         new = "[50 items compressed to 5. Retrieve more: hash=deadbeefdeadbeefdeadbeef]"
@@ -1250,7 +1250,7 @@ class TestHasNewCcrMarkers:
         )
 
     def test_no_previous_forward_means_all_new(self):
-        from headroom.proxy.helpers import has_new_ccr_markers
+        from horizon.proxy.helpers import has_new_ccr_markers
 
         marker = "[100 items compressed to 10. Retrieve more: hash=abc123def456abc123def456]"
         assert (
@@ -1263,7 +1263,7 @@ class TestHasNewCcrMarkers:
         )
 
     def test_no_markers_means_nothing_new(self):
-        from headroom.proxy.helpers import has_new_ccr_markers
+        from horizon.proxy.helpers import has_new_ccr_markers
 
         assert (
             has_new_ccr_markers(
@@ -1281,7 +1281,7 @@ def test_strict_frozen_count_tool_and_function_tail_are_mutable():
     # Gating the mutable tail on role=="user" froze the whole conversation on
     # every such turn => zero compression. Tool/function observations must be
     # treated as the mutable delta (freeze all-but-last), like a user obs.
-    from headroom.proxy.handlers.openai import OpenAIHandlerMixin as M
+    from horizon.proxy.handlers.openai import OpenAIHandlerMixin as M
 
     # role:tool tail -> only the last message is mutable (frozen = final_idx)
     assert (

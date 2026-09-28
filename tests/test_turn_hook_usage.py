@@ -23,8 +23,8 @@ import httpx
 import pytest
 import respx
 
-from headroom.proxy.handlers.anthropic import _AnthropicTurnHookUsage
-from headroom.proxy.handlers.openai import (
+from horizon.proxy.handlers.anthropic import _AnthropicTurnHookUsage
+from horizon.proxy.handlers.openai import (
     CHAT_USAGE_KEYS,
     RESPONSES_USAGE_KEYS,
     TurnHookUsage,
@@ -34,9 +34,9 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.loopback_guard import require_loopback  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
-from headroom.proxy.turn_hooks import clear_turn_hooks, register_turn_hook  # noqa: E402
+from horizon.proxy.loopback_guard import require_loopback  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.turn_hooks import clear_turn_hooks, register_turn_hook  # noqa: E402
 
 # --- unit: the accumulator -----------------------------------------------
 

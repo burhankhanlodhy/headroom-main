@@ -1,4 +1,4 @@
-"""Who defers tool schemas, and what Headroom must do about it.
+"""Who defers tool schemas, and what Horizon must do about it.
 
 Two mechanisms exist at two layers:
 
@@ -21,7 +21,7 @@ The distinction is load-bearing in both directions:
 
 * Deferring on top of a client that is already deferring suppresses the
   client's mechanism and inlines the catalog we were trying to keep out.
-* Standing down on the mere NAME ``ToolSearch`` would disable Headroom exactly
+* Standing down on the mere NAME ``ToolSearch`` would disable Horizon exactly
   when the client is sending everything eagerly — which through Kong, Bedrock
   or any custom base URL is the normal case, because Claude Code disables its
   own tool search when ``ANTHROPIC_BASE_URL`` is non-first-party.
@@ -36,7 +36,7 @@ from typing import Any
 
 import pytest
 
-from headroom.proxy.helpers import (
+from horizon.proxy.helpers import (
     _TOOL_SEARCH_MIN_TOOLS,
     claude_code_tool_search_inactive,
     inject_tool_search_deferral,
@@ -132,7 +132,7 @@ def test_not_a_deferral_signal(tools: Any) -> None:
 # found their own tool search in Codex, GitHub Copilot CLI, VS Code Copilot,
 # Kiro and Codebuff, each with a different wire spelling. Matching only
 # Anthropic's versioned ``tool_search_tool_*`` prefix stood down for none of
-# them, so Headroom deferred on top of a client that was already deferring --
+# them, so Horizon deferred on top of a client that was already deferring --
 # which suppresses the client's mechanism and inlines the very catalog we were
 # keeping out.
 # ---------------------------------------------------------------------------
@@ -238,7 +238,7 @@ def test_extra_names_can_be_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     tools = [{"name": "MyHarnessSearch"}, *_mcp(3)]
     assert request_already_defers_tools(tools) is False
 
-    monkeypatch.setenv("HEADROOM_CLIENT_TOOL_SEARCH_NAMES", "myharnesssearch")
+    monkeypatch.setenv("HORIZON_CLIENT_TOOL_SEARCH_NAMES", "myharnesssearch")
     assert request_already_defers_tools(tools) is True
 
 
@@ -296,7 +296,7 @@ def test_core_tools_are_never_deferred() -> None:
 
 def test_resident_set_is_overridable(monkeypatch: pytest.MonkeyPatch) -> None:
     """So deferring built-ins can be measured instead of guessed."""
-    monkeypatch.setenv("HEADROOM_TOOL_SEARCH_CORE_TOOLS", "bash,read")
+    monkeypatch.setenv("HORIZON_TOOL_SEARCH_CORE_TOOLS", "bash,read")
 
     assert resolved_core_tools() == frozenset({"bash", "read", "toolsearch"})
 
@@ -513,7 +513,7 @@ def test_openai_override_can_drop_terminal(monkeypatch: pytest.MonkeyPatch) -> N
     the same variable differently, and an operator asking to defer a tool was
     silently refused.
     """
-    monkeypatch.setenv("HEADROOM_TOOL_SEARCH_CORE_TOOLS", "bash,read")
+    monkeypatch.setenv("HORIZON_TOOL_SEARCH_CORE_TOOLS", "bash,read")
     tools = [_fn("terminal"), _fn("bash"), _fn("grep"), *[_fn(f"slack_{i}") for i in range(14)]]
 
     by_name = {
@@ -546,7 +546,7 @@ def test_hint_rearms_after_the_interval(monkeypatch: pytest.MonkeyPatch) -> None
     Firing once and never again means a proxy up for weeks says it at startup
     and is silent through everything after.
     """
-    from headroom.proxy import helpers as H
+    from horizon.proxy import helpers as H
 
     H.reset_tool_search_hint_state()
     try:
@@ -571,27 +571,27 @@ def test_hint_rearms_after_the_interval(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_legacy_env_var_is_honoured(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The plugin shipped HEADROOM_TOOL_SEARCH_CORE for the same idea.
+    """The plugin shipped HORIZON_TOOL_SEARCH_CORE for the same idea.
 
     Two variables for one knob means an operator sets the one they know and the
     other path silently keeps its own list, so the two providers disagree about
     which tools are visible. Either spelling now works everywhere.
     """
-    monkeypatch.setenv("HEADROOM_TOOL_SEARCH_CORE", "bash,read")
+    monkeypatch.setenv("HORIZON_TOOL_SEARCH_CORE", "bash,read")
 
     assert resolved_core_tools() == frozenset({"bash", "read", "toolsearch"})
 
 
 def test_canonical_env_var_wins_over_legacy(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HEADROOM_TOOL_SEARCH_CORE", "bash,read")
-    monkeypatch.setenv("HEADROOM_TOOL_SEARCH_CORE_TOOLS", "grep")
+    monkeypatch.setenv("HORIZON_TOOL_SEARCH_CORE", "bash,read")
+    monkeypatch.setenv("HORIZON_TOOL_SEARCH_CORE_TOOLS", "grep")
 
     assert resolved_core_tools() == frozenset({"grep", "toolsearch"})
 
 
 def test_neither_set_keeps_the_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("HEADROOM_TOOL_SEARCH_CORE", raising=False)
-    monkeypatch.delenv("HEADROOM_TOOL_SEARCH_CORE_TOOLS", raising=False)
+    monkeypatch.delenv("HORIZON_TOOL_SEARCH_CORE", raising=False)
+    monkeypatch.delenv("HORIZON_TOOL_SEARCH_CORE_TOOLS", raising=False)
 
     assert "bash" in resolved_core_tools()
     assert "read" in resolved_core_tools()
@@ -599,7 +599,7 @@ def test_neither_set_keeps_the_default(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_empty_override_defers_everything_non_typed(monkeypatch: pytest.MonkeyPatch) -> None:
     """An explicit empty set is a real instruction, not an unset variable."""
-    monkeypatch.setenv("HEADROOM_TOOL_SEARCH_CORE_TOOLS", "")
+    monkeypatch.setenv("HORIZON_TOOL_SEARCH_CORE_TOOLS", "")
 
     assert resolved_core_tools() == frozenset({"toolsearch"})
 
@@ -611,7 +611,7 @@ def test_the_override_tolerates_spaces_after_commas(monkeypatch: pytest.MonkeyPa
     so ``"bash, read, terminal"`` resolved to ``{" read", " terminal", "bash"}``
     and deferred exactly the two tools the operator asked to keep resident.
     """
-    monkeypatch.setenv("HEADROOM_TOOL_SEARCH_CORE_TOOLS", "bash, read , terminal")
+    monkeypatch.setenv("HORIZON_TOOL_SEARCH_CORE_TOOLS", "bash, read , terminal")
 
     assert resolved_core_tools() == frozenset({"bash", "read", "terminal", "toolsearch"})
 
@@ -625,7 +625,7 @@ def test_an_override_cannot_defer_the_clients_search_tool(
     else can. An override names which ORDINARY tools stay inline, so honouring
     one that omits this would orphan a whole category rather than defer it.
     """
-    monkeypatch.setenv("HEADROOM_TOOL_SEARCH_CORE_TOOLS", "Bash,Read")
+    monkeypatch.setenv("HORIZON_TOOL_SEARCH_CORE_TOOLS", "Bash,Read")
     tools = [CLAUDE_CODE_TOOL_SEARCH, {"name": "Bash", "input_schema": {}}, *_mcp(14)]
 
     by_name = {t.get("name"): t for t in inject_tool_search_deferral(tools) if isinstance(t, dict)}
@@ -643,7 +643,7 @@ def test_the_scan_gate_closes_even_when_the_hint_does_not_fire(
     after the fix, so every later request paid the full O(tools) scan for the
     life of the process -- worst on the large tool surfaces this targets.
     """
-    from headroom.proxy import helpers as H
+    from horizon.proxy import helpers as H
 
     H.reset_tool_search_hint_state()
     try:
@@ -670,7 +670,7 @@ def test_deferred_tools_with_no_search_tool_warn(caplog: pytest.LogCaptureFixtur
     reset_deferred_orphan_warn_state()
     tools = [{"name": "mcp__github__list_issues", "defer_loading": True}, *_mcp(3)]
 
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         assert request_already_defers_tools(tools) is True
 
     lines = [
@@ -678,7 +678,7 @@ def test_deferred_tools_with_no_search_tool_warn(caplog: pytest.LogCaptureFixtur
     ]
     assert len(lines) == 1
     assert "mcp__github__list_issues" in lines[0]
-    assert "HEADROOM_CLIENT_TOOL_SEARCH_NAMES" in lines[0]
+    assert "HORIZON_CLIENT_TOOL_SEARCH_NAMES" in lines[0]
 
 
 def test_a_recognized_search_tool_is_not_an_orphan(caplog: pytest.LogCaptureFixture) -> None:
@@ -686,7 +686,7 @@ def test_a_recognized_search_tool_is_not_an_orphan(caplog: pytest.LogCaptureFixt
     reset_deferred_orphan_warn_state()
     tools = [ANTHROPIC_SEARCH_REGEX, {"name": "mcp__github__x", "defer_loading": True}]
 
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         assert request_already_defers_tools(tools) is True
 
     assert [r for r in caplog.records if "tool_search_deferred_orphan" in r.getMessage()] == []
@@ -697,7 +697,7 @@ def test_the_orphan_warning_is_throttled(caplog: pytest.LogCaptureFixture) -> No
     reset_deferred_orphan_warn_state()
     tools = [{"name": "x", "defer_loading": True}]
 
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         for _ in range(50):
             request_already_defers_tools(tools)
 

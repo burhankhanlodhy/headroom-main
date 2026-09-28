@@ -18,7 +18,7 @@ import json
 import httpx
 import pytest
 
-from headroom.proxy.nonstream_sse_policy import (
+from horizon.proxy.nonstream_sse_policy import (
     is_event_stream,
     media_type,
     should_recover_sse_reply,
@@ -148,7 +148,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 def _make_proxy_client() -> TestClient:

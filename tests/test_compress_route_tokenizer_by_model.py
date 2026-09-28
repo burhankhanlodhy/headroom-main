@@ -22,7 +22,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.proxy.server import ProxyConfig, create_app
 
 # Big enough that any real tokenizer must report hundreds of tokens, and
 # compressible so the router actually folds it (repeated grep-shaped lines).

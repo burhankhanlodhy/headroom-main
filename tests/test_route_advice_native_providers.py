@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from headroom.proxy.route_advice import BackendResolver, RouteAdvice
+from horizon.proxy.route_advice import BackendResolver, RouteAdvice
 
 
 class _Sentinel:
@@ -20,7 +20,7 @@ class _Sentinel:
 
 
 def _request(model: str, provider: str):
-    state = SimpleNamespace(headroom_route=RouteAdvice(model=model, provider=provider))
+    state = SimpleNamespace(horizon_route=RouteAdvice(model=model, provider=provider))
     return SimpleNamespace(state=state)
 
 

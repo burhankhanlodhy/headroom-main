@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import headroom.relevance as relevance_mod
-from headroom.relevance import (
+import horizon.relevance as relevance_mod
+from horizon.relevance import (
     BM25Scorer,
     EmbeddingScorer,
     HybridScorer,
@@ -15,7 +15,7 @@ from headroom.relevance import (
     embedding,
     hybrid,
 )
-from headroom.relevance.base import RelevanceScore, RelevanceScorer, default_batch_score
+from horizon.relevance.base import RelevanceScore, RelevanceScorer, default_batch_score
 
 
 @dataclass

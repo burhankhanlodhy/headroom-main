@@ -2,7 +2,7 @@
 
 Covers the three pieces added for the uncached-tail investigation:
 - ``count_cache_breakpoints`` / ``log_cache_breakpoints`` (proxy helpers)
-- the ``HEADROOM_LOG_PAYLOAD_PREVIEW`` kill switch (compression store)
+- the ``HORIZON_LOG_PAYLOAD_PREVIEW`` kill switch (compression store)
 - the injection guard that keeps proactive expansion out of breakpointed blocks
 """
 
@@ -16,11 +16,11 @@ from pathlib import Path
 
 import pytest
 
-from headroom import fileperms
-from headroom import paths as _paths
-from headroom.cache.compression_store import _payload_for_retrieval_log
-from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
-from headroom.proxy.helpers import (
+from horizon import fileperms
+from horizon import paths as _paths
+from horizon.cache.compression_store import _payload_for_retrieval_log
+from horizon.proxy.handlers.anthropic import AnthropicHandlerMixin
+from horizon.proxy.helpers import (
     _OwnerOnlyRotatingFileHandler,
     count_cache_breakpoints,
     log_cache_breakpoints,
@@ -109,7 +109,7 @@ def test_log_cache_breakpoints_warns_on_dropped_marker(caplog) -> None:
         "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "compressed"}],
     }
     outbound = count_cache_breakpoints(system, stripped, tools)
-    with caplog.at_level(logging.INFO, logger="headroom.proxy"):
+    with caplog.at_level(logging.INFO, logger="horizon.proxy"):
         log_cache_breakpoints(request_id="r1", inbound=inbound, outbound=outbound)
     [record] = caplog.records
     assert record.levelno == logging.WARNING
@@ -120,7 +120,7 @@ def test_log_cache_breakpoints_warns_on_dropped_marker(caplog) -> None:
 def test_log_cache_breakpoints_info_when_preserved(caplog) -> None:
     system, messages, tools = _claude_code_style_request()
     stats = count_cache_breakpoints(system, messages, tools)
-    with caplog.at_level(logging.INFO, logger="headroom.proxy"):
+    with caplog.at_level(logging.INFO, logger="horizon.proxy"):
         log_cache_breakpoints(request_id="r1", inbound=stats, outbound=stats)
     [record] = caplog.records
     assert record.levelno == logging.INFO
@@ -128,7 +128,7 @@ def test_log_cache_breakpoints_info_when_preserved(caplog) -> None:
 
 
 def test_payload_preview_disabled_omits_content(monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_LOG_PAYLOAD_PREVIEW", "0")
+    monkeypatch.setenv("HORIZON_LOG_PAYLOAD_PREVIEW", "0")
     payload = "secret file contents: api_key=sk-abcdefghijklmnop"
     event = _payload_for_retrieval_log(payload)
     assert event["payload_preview"] == ""
@@ -139,7 +139,7 @@ def test_payload_preview_disabled_omits_content(monkeypatch) -> None:
 
 def test_payload_preview_disabled_by_default(monkeypatch) -> None:
     """Unset means off: the log gets byte counts, never the content."""
-    monkeypatch.delenv("HEADROOM_LOG_PAYLOAD_PREVIEW", raising=False)
+    monkeypatch.delenv("HORIZON_LOG_PAYLOAD_PREVIEW", raising=False)
     event = _payload_for_retrieval_log("hello world")
     assert event["payload_preview"] == ""
     assert event["payload_preview_chars"] == 0
@@ -148,14 +148,14 @@ def test_payload_preview_disabled_by_default(monkeypatch) -> None:
 
 @pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes", "on"])
 def test_payload_preview_opt_in_values(monkeypatch, value: str) -> None:
-    monkeypatch.setenv("HEADROOM_LOG_PAYLOAD_PREVIEW", value)
+    monkeypatch.setenv("HORIZON_LOG_PAYLOAD_PREVIEW", value)
     assert _payload_for_retrieval_log("hello world")["payload_preview"] == "hello world"
 
 
 @pytest.mark.parametrize("value", ["", "0", "off", "no", "maybe", "  "])
 def test_payload_preview_stays_off_for_anything_else(monkeypatch, value: str) -> None:
     """Only an explicit opt-in turns previews on — a typo must not."""
-    monkeypatch.setenv("HEADROOM_LOG_PAYLOAD_PREVIEW", value)
+    monkeypatch.setenv("HORIZON_LOG_PAYLOAD_PREVIEW", value)
     assert _payload_for_retrieval_log("hello world")["payload_preview"] == ""
 
 
@@ -218,38 +218,38 @@ def test_count_cache_breakpoints_tolerates_malformed_shapes() -> None:
 @contextmanager
 def _proxy_log(tmp_path, monkeypatch, port: int):
     """Point the workspace at *tmp_path*, install the real proxy log handler."""
-    from headroom.proxy.helpers import _PROXY_LOG_HANDLER_NAME, _setup_file_logging
+    from horizon.proxy.helpers import _PROXY_LOG_HANDLER_NAME, _setup_file_logging
 
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path))
-    headroom_logger = logging.getLogger("headroom")
-    before = list(headroom_logger.handlers)
-    propagate = headroom_logger.propagate
+    monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path))
+    horizon_logger = logging.getLogger("horizon")
+    before = list(horizon_logger.handlers)
+    propagate = horizon_logger.propagate
     try:
         _setup_file_logging(port)
-        [handler] = [h for h in headroom_logger.handlers if h.name == _PROXY_LOG_HANDLER_NAME]
+        [handler] = [h for h in horizon_logger.handlers if h.name == _PROXY_LOG_HANDLER_NAME]
         yield Path(handler.baseFilename)
     finally:
-        for handler in list(headroom_logger.handlers):
+        for handler in list(horizon_logger.handlers):
             if handler not in before:
-                headroom_logger.removeHandler(handler)
+                horizon_logger.removeHandler(handler)
                 handler.close()
-        headroom_logger.propagate = propagate
+        horizon_logger.propagate = propagate
 
 
 def test_runtime_log_holds_no_payload_text_at_default_settings(tmp_path, monkeypatch) -> None:
     """A retrieval on default settings leaves byte counts in the log, not content."""
-    from headroom.cache.compression_store import CompressionStore
+    from horizon.cache.compression_store import CompressionStore
 
-    monkeypatch.delenv("HEADROOM_LOG_PAYLOAD_PREVIEW", raising=False)
+    monkeypatch.delenv("HORIZON_LOG_PAYLOAD_PREVIEW", raising=False)
     secret = "BEGIN-CUSTOMER-DATA ssn=123-45-6789 def sekrit(): pass END-CUSTOMER-DATA"
 
     with _proxy_log(tmp_path, monkeypatch, 18801) as log_path:
         store = CompressionStore(enable_feedback=False)
         assert store.retrieve(store.store(original=secret, compressed="[compressed]")) is not None
-        logging.getLogger("headroom").handlers[-1].flush()
+        logging.getLogger("horizon").handlers[-1].flush()
         text = log_path.read_text(encoding="utf-8")
 
-    assert "event=headroom_retrieve" in text, "the retrieval was not logged at all"
+    assert "event=horizon_retrieve" in text, "the retrieval was not logged at all"
     assert secret not in text
     assert "123-45-6789" not in text
     assert f'"payload_chars":{len(secret)}' in text
@@ -293,7 +293,7 @@ def test_runtime_log_is_owner_only_with_previews_off(
     too, each behind its own switch. Hardening only when previews are on left
     every other combination creating a sensitive log at the umask.
     """
-    monkeypatch.delenv("HEADROOM_LOG_PAYLOAD_PREVIEW", raising=False)
+    monkeypatch.delenv("HORIZON_LOG_PAYLOAD_PREVIEW", raising=False)
     with _proxy_log(tmp_path, monkeypatch, 18804) as log_path:
         assert log_path.exists()
         assert stat.S_IMODE(log_path.stat().st_mode) == 0o600
@@ -302,7 +302,7 @@ def test_runtime_log_is_owner_only_with_previews_off(
 @_posix_only
 def test_runtime_log_is_owner_only_when_preview_enabled(tmp_path, monkeypatch) -> None:
     """Opting in to previews hardens the log the previews land in."""
-    monkeypatch.setenv("HEADROOM_LOG_PAYLOAD_PREVIEW", "1")
+    monkeypatch.setenv("HORIZON_LOG_PAYLOAD_PREVIEW", "1")
     with _proxy_log(tmp_path, monkeypatch, 18802) as log_path:
         assert log_path.exists()
         assert stat.S_IMODE(log_path.stat().st_mode) == 0o600
@@ -313,8 +313,8 @@ def test_runtime_log_hardening_survives_a_pre_existing_world_readable_log(
     tmp_path, monkeypatch, predictable_umask
 ) -> None:
     """O_CREAT's mode does not apply to an existing file; the fchmod must."""
-    monkeypatch.delenv("HEADROOM_LOG_PAYLOAD_PREVIEW", raising=False)
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path))
+    monkeypatch.delenv("HORIZON_LOG_PAYLOAD_PREVIEW", raising=False)
+    monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path))
     stale = _paths.proxy_log_path(18803)
     stale.parent.mkdir(parents=True, exist_ok=True)
     stale.write_text("from an older, unhardened run\n", encoding="utf-8")
@@ -335,15 +335,15 @@ def test_rotated_backups_are_owner_only(tmp_path, monkeypatch, predictable_umask
     reachable in a test), not a hand-built one, so the handler *selection* is
     part of what is asserted.
     """
-    monkeypatch.delenv("HEADROOM_LOG_PAYLOAD_PREVIEW", raising=False)
+    monkeypatch.delenv("HORIZON_LOG_PAYLOAD_PREVIEW", raising=False)
     with _proxy_log(tmp_path, monkeypatch, 18805) as log_path:
         handler = next(
-            h for h in logging.getLogger("headroom").handlers if h.name == "headroom.proxy.file"
+            h for h in logging.getLogger("horizon").handlers if h.name == "horizon.proxy.file"
         )
         handler.maxBytes = 256
         for i in range(60):
             handler.emit(
-                logging.LogRecord("headroom", logging.INFO, __file__, i, "x" * 64, None, None)
+                logging.LogRecord("horizon", logging.INFO, __file__, i, "x" * 64, None, None)
             )
         handler.flush()
         backups = sorted(log_path.parent.glob(f"{log_path.name}.*"))
@@ -376,9 +376,9 @@ def test_pre_existing_backups_are_tightened_when_the_handler_opens(
 )
 def test_runtime_log_refuses_a_symlinked_path(tmp_path, monkeypatch) -> None:
     """A planted symlink must not redirect the log — or the mode we set on it."""
-    from headroom.proxy.helpers import _PROXY_LOG_HANDLER_NAME, _setup_file_logging
+    from horizon.proxy.helpers import _PROXY_LOG_HANDLER_NAME, _setup_file_logging
 
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path))
+    monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path))
     log_path = _paths.proxy_log_path(18807)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     elsewhere = tmp_path / "attacker-readable.log"
@@ -386,17 +386,17 @@ def test_runtime_log_refuses_a_symlinked_path(tmp_path, monkeypatch) -> None:
     elsewhere.chmod(0o666)
     log_path.symlink_to(elsewhere)
 
-    headroom_logger = logging.getLogger("headroom")
-    before = list(headroom_logger.handlers)
+    horizon_logger = logging.getLogger("horizon")
+    before = list(horizon_logger.handlers)
     try:
         _setup_file_logging(18807)
-        attached = [h for h in headroom_logger.handlers if h.name == _PROXY_LOG_HANDLER_NAME]
+        attached = [h for h in horizon_logger.handlers if h.name == _PROXY_LOG_HANDLER_NAME]
         assert not attached, "logging was wired up through the symlink"
-        logging.getLogger("headroom").info("a record that must not be written")
+        logging.getLogger("horizon").info("a record that must not be written")
     finally:
-        for handler in list(headroom_logger.handlers):
+        for handler in list(horizon_logger.handlers):
             if handler not in before:
-                headroom_logger.removeHandler(handler)
+                horizon_logger.removeHandler(handler)
                 handler.close()
 
     assert elsewhere.read_text(encoding="utf-8") == ""
@@ -421,8 +421,8 @@ def test_open_owner_only_fails_closed_on_a_symlink(tmp_path) -> None:
 @_posix_only
 def test_jsonl_request_log_is_owner_only(tmp_path, predictable_umask) -> None:
     """``--log-file`` with ``--log-messages`` writes whole bodies to this file."""
-    from headroom.proxy.models import RequestLog
-    from headroom.proxy.request_logger import RequestLogger
+    from horizon.proxy.models import RequestLog
+    from horizon.proxy.request_logger import RequestLogger
 
     log_file = tmp_path / "requests.jsonl"
     entry = RequestLog(
@@ -457,7 +457,7 @@ def test_owner_only_support_matches_what_the_platform_can_enforce() -> None:
     POSIX mode bits decide read access; on Windows an NTFS ACL does, and
     ``os.chmod`` there only flips the read-only attribute — a
     ``chmod(0o600)`` succeeds while ``stat.S_IMODE`` still reports ``0666``.
-    Python ships no ACL API, so Headroom reports that it cannot make the
+    Python ships no ACL API, so Horizon reports that it cannot make the
     promise instead of making it and not keeping it.
     """
     assert fileperms.OWNER_ONLY_SUPPORTED is (os.name == "posix")
@@ -487,26 +487,26 @@ def test_unsupported_platform_says_so_rather_than_silently_not_protecting(
     A control that quietly does nothing on a supported platform is the thing
     to avoid, so the operator is told once per process.
     """
-    from headroom.proxy import helpers as _helpers
+    from horizon.proxy import helpers as _helpers
 
     monkeypatch.setattr(fileperms, "OWNER_ONLY_SUPPORTED", False)
     monkeypatch.setattr(_helpers, "_owner_only_warning_emitted", False)
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path))
+    monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path))
 
     records: list[logging.LogRecord] = []
     sink = logging.Handler()
     sink.emit = records.append  # type: ignore[method-assign]
     emitter = logging.getLogger(_helpers.logger.name)
     emitter.addHandler(sink)
-    headroom_logger = logging.getLogger("headroom")
-    before = list(headroom_logger.handlers)
+    horizon_logger = logging.getLogger("horizon")
+    before = list(horizon_logger.handlers)
     try:
         _helpers._setup_file_logging(18809)
     finally:
         emitter.removeHandler(sink)
-        for handler in list(headroom_logger.handlers):
+        for handler in list(horizon_logger.handlers):
             if handler not in before:
-                headroom_logger.removeHandler(handler)
+                horizon_logger.removeHandler(handler)
                 handler.close()
 
     warnings = [r for r in records if r.levelno == logging.WARNING]

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.providers.openai import (
+from horizon.providers.openai import (
     OpenAIProvider,
     _get_encoding_name_for_model,
 )

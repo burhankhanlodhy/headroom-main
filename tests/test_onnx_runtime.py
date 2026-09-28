@@ -1,7 +1,7 @@
 import os
 import sys
 
-from headroom.onnx_runtime import (
+from horizon.onnx_runtime import (
     ONNX_ALLOW_SPINNING_ENV,
     ONNX_CPU_ARENA_ENV,
     cpu_arena_enabled,
@@ -193,7 +193,7 @@ def test_hf_entry_known_absent_true_when_404_was_cached(tmp_path, monkeypatch):
 
     _write_fake_hf_cache(str(tmp_path), "acme/widget", "main", no_exist_files=["merged.pt"])
     monkeypatch.setattr(constants, "HF_HUB_CACHE", str(tmp_path))
-    monkeypatch.delenv("HEADROOM_HF_PIN", raising=False)
+    monkeypatch.delenv("HORIZON_HF_PIN", raising=False)
 
     assert hf_entry_known_absent("acme/widget", "merged.pt") is True
 
@@ -203,7 +203,7 @@ def test_hf_entry_known_absent_false_when_never_checked(tmp_path, monkeypatch):
 
     _write_fake_hf_cache(str(tmp_path), "acme/widget", "main", no_exist_files=[])
     monkeypatch.setattr(constants, "HF_HUB_CACHE", str(tmp_path))
-    monkeypatch.delenv("HEADROOM_HF_PIN", raising=False)
+    monkeypatch.delenv("HORIZON_HF_PIN", raising=False)
 
     assert hf_entry_known_absent("acme/widget", "merged.pt") is False
 
@@ -212,6 +212,6 @@ def test_hf_entry_known_absent_false_when_repo_not_cached_at_all(tmp_path, monke
     from huggingface_hub import constants
 
     monkeypatch.setattr(constants, "HF_HUB_CACHE", str(tmp_path))
-    monkeypatch.delenv("HEADROOM_HF_PIN", raising=False)
+    monkeypatch.delenv("HORIZON_HF_PIN", raising=False)
 
     assert hf_entry_known_absent("nobody/nothing", "merged.pt") is False

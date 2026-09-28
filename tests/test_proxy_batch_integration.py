@@ -25,7 +25,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 # =============================================================================
 # Fixtures
@@ -201,22 +201,22 @@ class TestOpenAIBatchCreate:
             batch_id = batch_data["id"]
 
             # Verify compression stats in response headers
-            if "x-headroom-tokens-saved" in response.headers:
-                tokens_saved = int(response.headers["x-headroom-tokens-saved"])
+            if "x-horizon-tokens-saved" in response.headers:
+                tokens_saved = int(response.headers["x-horizon-tokens-saved"])
                 assert tokens_saved >= 0
 
-            if "x-headroom-savings-percent" in response.headers:
-                savings_percent = float(response.headers["x-headroom-savings-percent"])
+            if "x-horizon-savings-percent" in response.headers:
+                savings_percent = float(response.headers["x-horizon-savings-percent"])
                 assert 0 <= savings_percent <= 100
 
             # Verify compression metadata was added
             metadata = batch_data.get("metadata", {})
-            if metadata.get("headroom_compressed") == "true":
+            if metadata.get("horizon_compressed") == "true":
                 # Compression was applied
-                assert "headroom_tokens_saved" in metadata
-                assert "headroom_original_tokens" in metadata
-                assert "headroom_compressed_tokens" in metadata
-                tokens_saved = int(metadata["headroom_tokens_saved"])
+                assert "horizon_tokens_saved" in metadata
+                assert "horizon_original_tokens" in metadata
+                assert "horizon_compressed_tokens" in metadata
+                tokens_saved = int(metadata["horizon_tokens_saved"])
                 assert tokens_saved >= 0
 
             # Step 4: Cancel the batch to avoid costs
@@ -526,10 +526,10 @@ class TestBatchErrorHandling:
 @pytest.fixture
 def copilot_anthropic_batch_client():
     """Create a client whose resolved Anthropic target is public Copilot."""
-    from headroom.proxy.server import HeadroomProxy
+    from horizon.proxy.server import HorizonProxy
 
-    original_anthropic_api_url = HeadroomProxy.ANTHROPIC_API_URL
-    original_openai_api_url = HeadroomProxy.OPENAI_API_URL
+    original_anthropic_api_url = HorizonProxy.ANTHROPIC_API_URL
+    original_openai_api_url = HorizonProxy.OPENAI_API_URL
     config = ProxyConfig(
         optimize=True,
         cache_enabled=False,
@@ -554,8 +554,8 @@ def copilot_anthropic_batch_client():
         try:
             yield client, proxy.http_client
         finally:
-            HeadroomProxy.ANTHROPIC_API_URL = original_anthropic_api_url
-            HeadroomProxy.OPENAI_API_URL = original_openai_api_url
+            HorizonProxy.ANTHROPIC_API_URL = original_anthropic_api_url
+            HorizonProxy.OPENAI_API_URL = original_openai_api_url
 
 
 @pytest.mark.parametrize(
@@ -621,10 +621,10 @@ def test_copilot_anthropic_batch_rejection_precedes_body_parsing(copilot_anthrop
 
 def test_explicit_non_copilot_anthropic_target_forwards():
     """An explicit Anthropic target remains outside the Copilot guard."""
-    from headroom.proxy.server import HeadroomProxy
+    from horizon.proxy.server import HorizonProxy
 
-    original_anthropic_api_url = HeadroomProxy.ANTHROPIC_API_URL
-    original_openai_api_url = HeadroomProxy.OPENAI_API_URL
+    original_anthropic_api_url = HorizonProxy.ANTHROPIC_API_URL
+    original_openai_api_url = HorizonProxy.OPENAI_API_URL
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,
@@ -643,8 +643,8 @@ def test_explicit_non_copilot_anthropic_target_forwards():
 
             response = client.get("/v1/messages/batches")
     finally:
-        HeadroomProxy.ANTHROPIC_API_URL = original_anthropic_api_url
-        HeadroomProxy.OPENAI_API_URL = original_openai_api_url
+        HorizonProxy.ANTHROPIC_API_URL = original_anthropic_api_url
+        HorizonProxy.OPENAI_API_URL = original_openai_api_url
 
     assert response.status_code == 200
     http_client.request.assert_called_once()

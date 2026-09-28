@@ -1,8 +1,8 @@
 """Output shaping (verbosity steering) on the gateway contract (request-only).
 
 Mirrors the chat handlers: gated by the ``proxy_output_shaper`` rollout
-(``HEADROOM_OUTPUT_SHAPER``), ``steering_allowed_for`` (off in
-``mode="cache"``), the conversation-stable ``HEADROOM_OUTPUT_HOLDOUT`` arm and
+(``HORIZON_OUTPUT_SHAPER``), ``steering_allowed_for`` (off in
+``mode="cache"``), the conversation-stable ``HORIZON_OUTPUT_HOLDOUT`` arm and
 ``resolve_verbosity_level``. Invariants protected here:
 
 * I-SHAPE    - enabled -> the steering block is appended to the Anthropic
@@ -27,9 +27,9 @@ from typing import Any
 
 import pytest
 
-from headroom.proxy.output_savings import SavingsRecorder
-from headroom.proxy.output_savings_policy import parse_stratum_label
-from headroom.proxy.output_verbosity_policy import STEERING_SENTINEL
+from horizon.proxy.output_savings import SavingsRecorder
+from horizon.proxy.output_savings_policy import parse_stratum_label
+from horizon.proxy.output_verbosity_policy import STEERING_SENTINEL
 from tests.gateway.conftest import compress
 from tests.gateway.fake_provider import anthropic_usage, openai_usage
 from tests.gateway.samples import (
@@ -94,13 +94,13 @@ def _openai_system_messages(body: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def shaped_client(make_headroom_client, monkeypatch):
+def shaped_client(make_horizon_client, monkeypatch):
     """A proxy built with the shaper enabled (the rollout snapshot is taken at
     config creation, so the env must be set BEFORE the app exists)."""
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
-    monkeypatch.delenv("HEADROOM_OUTPUT_HOLDOUT", raising=False)
-    monkeypatch.delenv("HEADROOM_VERBOSITY_LEVEL", raising=False)
-    return make_headroom_client()
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
+    monkeypatch.delenv("HORIZON_OUTPUT_HOLDOUT", raising=False)
+    monkeypatch.delenv("HORIZON_VERBOSITY_LEVEL", raising=False)
+    return make_horizon_client()
 
 
 # --------------------------------------------------------------------------- #
@@ -189,9 +189,9 @@ def test_shaped_system_does_not_leak_into_session_snapshot(shaped_client) -> Non
 # --------------------------------------------------------------------------- #
 
 
-def test_disabled_by_default_leaves_body_untouched(headroom_client) -> None:
+def test_disabled_by_default_leaves_body_untouched(horizon_client) -> None:
     for sent in (_anthropic_body(gateway={}), _openai_body(gateway={})):
-        data = compress(headroom_client, sent).json()
+        data = compress(horizon_client, sent).json()
         assert _shaper_labels(data) == []
         body = data["body"]
         if "system" in sent:
@@ -201,25 +201,25 @@ def test_disabled_by_default_leaves_body_untouched(headroom_client) -> None:
         assert STEERING_SENTINEL not in canonical(body)
 
 
-def test_env_off_wins(make_headroom_client, monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "0")
-    client = make_headroom_client()
+def test_env_off_wins(make_horizon_client, monkeypatch) -> None:
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "0")
+    client = make_horizon_client()
     data = compress(client, _anthropic_body(gateway={})).json()
     assert _shaper_labels(data) == []
     assert data["body"]["system"] == SYSTEM_PROMPT
 
 
-def test_cache_mode_steers_at_the_default_level(make_headroom_client, monkeypatch) -> None:
-    """``HEADROOM_OUTPUT_SHAPER=1`` alone must steer, in the default mode.
+def test_cache_mode_steers_at_the_default_level(make_horizon_client, monkeypatch) -> None:
+    """``HORIZON_OUTPUT_SHAPER=1`` alone must steer, in the default mode.
 
     Cache mode used to resolve the level to 0 here, so the label rode the
     outcome while the body went out untouched -- the feature did nothing for
     the mode almost every deployment runs. A level fixed at startup cannot
     move mid-conversation, so it cannot bust the prefix cache, so it steers.
     """
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
-    monkeypatch.delenv("HEADROOM_VERBOSITY_LEVEL", raising=False)
-    client = make_headroom_client(mode="cache")
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
+    monkeypatch.delenv("HORIZON_VERBOSITY_LEVEL", raising=False)
+    client = make_horizon_client(mode="cache")
     for sent in (_anthropic_body(gateway={}), _openai_body(gateway={})):
         data = compress(client, sent).json()
         assert _stratum_label(data).startswith(STRATUM_PREFIX)
@@ -227,10 +227,10 @@ def test_cache_mode_steers_at_the_default_level(make_headroom_client, monkeypatc
         assert STEERING_SENTINEL in canonical(data["body"])
 
 
-def test_control_arm_labels_but_never_steers(make_headroom_client, monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
-    monkeypatch.setenv("HEADROOM_OUTPUT_HOLDOUT", "1")
-    client = make_headroom_client()
+def test_control_arm_labels_but_never_steers(make_horizon_client, monkeypatch) -> None:
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
+    monkeypatch.setenv("HORIZON_OUTPUT_HOLDOUT", "1")
+    client = make_horizon_client()
     data = compress(client, _anthropic_body(gateway={})).json()
     label = _stratum_label(data)
     assert label.startswith(CONTROL_PREFIX)
@@ -342,14 +342,14 @@ def test_label_rides_the_deferred_outcome_and_yields_output_savings(
     monkeypatch.setattr(proxy, "_record_request_outcome", _outcome_spy)
 
     recorder = SavingsRecorder(tmp_path / "output_savings.json", flush_every=10_000)
-    monkeypatch.setattr("headroom.proxy.output_savings._RECORDER", recorder)
+    monkeypatch.setattr("horizon.proxy.output_savings._RECORDER", recorder)
 
     sent = (
         _anthropic_body(config={"session_id": "kong-shape-a"})
         if provider == "anthropic"
         else _openai_body(config={"session_id": "kong-shape-o"})
     )
-    sent["gateway"] = {"can_relay_response": True, "plugin_version": "kong-headroom/0.1.0"}
+    sent["gateway"] = {"can_relay_response": True, "plugin_version": "kong-horizon/0.1.0"}
     half1 = shaped_client.post("/v1/compress", json=sent)
     assert half1.status_code == 200, half1.text
     data = half1.json()

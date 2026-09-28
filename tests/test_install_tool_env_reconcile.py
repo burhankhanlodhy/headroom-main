@@ -1,6 +1,6 @@
 """A deployment must pick up managed env vars added after it was installed.
 
-``tool_envs`` is computed once, by ``build_manifest`` during ``headroom
+``tool_envs`` is computed once, by ``build_manifest`` during ``horizon
 install``, and stored on disk. Every lifecycle command after that re-applies the
 STORED map, so anything added to a provider's install env later never reaches an
 existing deployment -- not on ``start``, not on ``restart``, not on an upgrade.
@@ -14,9 +14,9 @@ without the mitigation -- the expensive half of the change, indefinitely.
 
 from __future__ import annotations
 
-from headroom.cli.install import _reconcile_tool_envs, pending_tool_envs
-from headroom.install.models import DeploymentManifest
-from headroom.providers.claude import TOOL_SEARCH_DEFAULT, TOOL_SEARCH_ENV
+from horizon.cli.install import _reconcile_tool_envs, pending_tool_envs
+from horizon.install.models import DeploymentManifest
+from horizon.providers.claude import TOOL_SEARCH_DEFAULT, TOOL_SEARCH_ENV
 
 CLAUDE = "claude"
 

@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
-from headroom.install.models import DeploymentManifest
-from headroom.providers.codex.install import (
+from horizon.install.models import DeploymentManifest
+from horizon.providers.codex.install import (
     _codex_login_status,
     apply_provider_scope,
     build_provider_section,
@@ -41,9 +41,9 @@ def _login_status(
 def test_keyring_chatgpt_auth_emits_provider_flag(monkeypatch, tmp_path: Path) -> None:
     config = tmp_path / "config.toml"
     config.write_text('cli_auth_credentials_store = "keyring"\n', encoding="utf-8")
-    monkeypatch.setattr("headroom.providers.codex.install.codex_config_path", lambda: config)
+    monkeypatch.setattr("horizon.providers.codex.install.codex_config_path", lambda: config)
     monkeypatch.setattr(
-        "headroom.providers.codex.install.run",
+        "horizon.providers.codex.install.run",
         lambda *args, **kwargs: _login_status(stderr="Logged in using ChatGPT\n"),
     )
 
@@ -55,9 +55,9 @@ def test_keyring_chatgpt_auth_emits_provider_flag(monkeypatch, tmp_path: Path) -
 def test_keyring_non_chatgpt_auth_keeps_provider_flag_off(monkeypatch, tmp_path: Path) -> None:
     config = tmp_path / "config.toml"
     config.write_text('cli_auth_credentials_store = "keyring"\n', encoding="utf-8")
-    monkeypatch.setattr("headroom.providers.codex.install.codex_config_path", lambda: config)
+    monkeypatch.setattr("horizon.providers.codex.install.codex_config_path", lambda: config)
     monkeypatch.setattr(
-        "headroom.providers.codex.install.run",
+        "horizon.providers.codex.install.run",
         lambda *args, **kwargs: _login_status(stderr="Logged in using API key\n"),
     )
 
@@ -70,7 +70,7 @@ def test_auto_store_chatgpt_auth_is_detected(monkeypatch, tmp_path: Path) -> Non
     auth = tmp_path / "auth.json"
     (tmp_path / "config.toml").write_text('cli_auth_credentials_store = "auto"\n', encoding="utf-8")
     monkeypatch.setattr(
-        "headroom.providers.codex.install.run",
+        "horizon.providers.codex.install.run",
         lambda *args, **kwargs: _login_status(stderr="Logged in using ChatGPT\n"),
     )
 
@@ -96,7 +96,7 @@ def test_missing_or_failed_login_status_fails_closed(monkeypatch, tmp_path: Path
         'cli_auth_credentials_store = "keyring"\n', encoding="utf-8"
     )
     monkeypatch.setattr(
-        "headroom.providers.codex.install.run",
+        "horizon.providers.codex.install.run",
         lambda *args, **kwargs: (_ for _ in ()).throw(OSError()),
     )
     assert codex_uses_chatgpt_auth(tmp_path / "auth.json") is False
@@ -109,7 +109,7 @@ def test_login_status_probe_uses_codex_contract(monkeypatch, tmp_path: Path) -> 
         calls.append((command, kwargs))
         return _login_status(stderr="Logged in using ChatGPT\n")
 
-    monkeypatch.setattr("headroom.providers.codex.install.run", probe)
+    monkeypatch.setattr("horizon.providers.codex.install.run", probe)
 
     assert _codex_login_status(tmp_path) is True
     assert calls[0][0] == ["codex", "login", "status"]
@@ -120,7 +120,7 @@ def test_login_status_probe_uses_codex_contract(monkeypatch, tmp_path: Path) -> 
 
 def test_login_status_probe_accepts_stdout_or_stderr(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
-        "headroom.providers.codex.install.run",
+        "horizon.providers.codex.install.run",
         lambda *args, **kwargs: _login_status(stdout="Logged in using ChatGPT\n"),
     )
 
@@ -129,5 +129,5 @@ def test_login_status_probe_accepts_stdout_or_stderr(monkeypatch, tmp_path: Path
 
 def test_provider_section_still_emits_flag_when_requested() -> None:
     assert "requires_openai_auth = true" in build_provider_section(
-        port=8787, name="Headroom", requires_openai_auth=True
+        port=8787, name="Horizon", requires_openai_auth=True
     )

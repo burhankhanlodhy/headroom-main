@@ -1,6 +1,6 @@
 """Streaming chat CCR injection must not advertise an unredeemable tool."""
 
-from headroom.proxy.handlers.openai import _should_inject_openai_chat_ccr_tool
+from horizon.proxy.handlers.openai import _should_inject_openai_chat_ccr_tool
 
 
 def test_streaming_chat_does_not_inject_ccr_tool() -> None:

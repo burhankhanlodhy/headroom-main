@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from headroom.proxy.handlers.gemini import GeminiHandlerMixin
+from horizon.proxy.handlers.gemini import GeminiHandlerMixin
 
 
 class _FakeRequest:
@@ -59,9 +59,9 @@ class _Handler(GeminiHandlerMixin):
         self.outcomes.append(outcome)
 
     async def _count_tokens_offloaded(self, model, messages):  # noqa: ANN001, ANN201
-        # Test stub for HeadroomProxy._count_tokens_offloaded: resolve the
+        # Test stub for HorizonProxy._count_tokens_offloaded: resolve the
         # tokenizer and count inline (the real method offloads to the executor).
-        from headroom.tokenizers import get_tokenizer
+        from horizon.tokenizers import get_tokenizer
 
         tokenizer = get_tokenizer(model)
         return tokenizer, tokenizer.count_messages(messages)
@@ -78,8 +78,8 @@ async def test_generate_content_forwards_non_json_upstream_status(
         def count_messages(self, messages):  # noqa: ANN001, ANN201
             return 7
 
-    monkeypatch.setattr("headroom.proxy.helpers._read_request_json", payload)
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda model: _Tokenizer())
+    monkeypatch.setattr("horizon.proxy.helpers._read_request_json", payload)
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda model: _Tokenizer())
 
     handler = _Handler()
     response = await handler.handle_gemini_generate_content(_FakeRequest(), "gemini-pro")
@@ -87,7 +87,7 @@ async def test_generate_content_forwards_non_json_upstream_status(
     assert response.status_code == 503
     assert response.body == _NonJsonResponse.content
     assert response.headers["content-type"] == "text/html"
-    assert response.headers["x-headroom-tokens-before"] == "7"
-    assert response.headers["x-headroom-tokens-after"] == "7"
+    assert response.headers["x-horizon-tokens-before"] == "7"
+    assert response.headers["x-horizon-tokens-after"] == "7"
     assert handler.metrics.failed == []
     assert handler.outcomes[0].status_code == 503

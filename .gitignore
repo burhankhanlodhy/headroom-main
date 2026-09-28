@@ -211,10 +211,10 @@ examples/vertex_gemini_benchmark/results.json
 # DeepEval cache
 .deepeval/
 
-# Headroom specific
-.headroom/
-headroom.db
-headroom_*.db
+# Horizon specific
+.horizon/
+horizon.db
+horizon_*.db
 *.jsonl
 !tests/fixtures/*.jsonl
 docker/differential-network-capture/captures/
@@ -249,7 +249,7 @@ CLAUDE.md
 .vitals/
 
 # Separate private repos — never commit here
-headroom-managed/
+horizon-managed/
 
 # Local act testing (never commit test tokens)
 /.env.act
@@ -262,12 +262,12 @@ headroom-managed/
 uv.lock
 
 # Rust extension `.so` symlinks placed by `scripts/build_rust_extension.sh`
-# into the `headroom/` package dir for local development. The real binary
-# lives in `crates/headroom-py/python/headroom/`; this is the dev overlay
-# that lets `import headroom._core` resolve when the source `headroom/`
+# into the `horizon/` package dir for local development. The real binary
+# lives in `crates/horizon-py/python/horizon/`; this is the dev overlay
+# that lets `import horizon._core` resolve when the source `horizon/`
 # package shadows the maturin overlay on sys.path.
-/headroom/_core.*.so
-/headroom/_core.so
+/horizon/_core.*.so
+/horizon/_core.so
 .tokensave
 
 .codebase-memory/

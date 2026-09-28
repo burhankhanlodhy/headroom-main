@@ -1,6 +1,6 @@
 """Tests for routing a selected EXTERNAL compressor through the content router.
 
-Scope 3 of the pluggable-compressor work: an opt-in ``headroom.compressor``
+Scope 3 of the pluggable-compressor work: an opt-in ``horizon.compressor``
 entry point, when SELECTED, actually compresses matching real traffic through
 :meth:`ContentRouter._apply_strategy_to_content`, with fail-open fallback to the
 built-in dispatch. BACKWARD COMPATIBILITY is the hard requirement — with nothing
@@ -22,17 +22,17 @@ import hashlib
 
 import pytest
 
-from headroom.cache.compression_store import (
+from horizon.cache.compression_store import (
     get_compression_store,
     reset_compression_store,
 )
-from headroom.proxy.server import _external_compressor_selection
-from headroom.transforms.compressor_registry import (
+from horizon.proxy.server import _external_compressor_selection
+from horizon.transforms.compressor_registry import (
     CompressInput,
     CompressorDescriptor,
     CompressOutput,
 )
-from headroom.transforms.content_router import (
+from horizon.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
@@ -56,13 +56,13 @@ _JSON_ARRAY = (
 def _memory_ccr(monkeypatch):
     """Isolated in-memory CCR store + offline content detection per test.
 
-    ``HEADROOM_DETECT_BACKEND=python`` forces the pure-Python regex detector so
+    ``HORIZON_DETECT_BACKEND=python`` forces the pure-Python regex detector so
     ``compress()`` never touches the native Magika/ONNX detector (which needs a
     model download and blocks in this offline environment). The external-dispatch
     branch under test is independent of the detector backend.
     """
-    monkeypatch.setenv("HEADROOM_CCR_BACKEND", "memory")
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "python")
+    monkeypatch.setenv("HORIZON_CCR_BACKEND", "memory")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "python")
     reset_compression_store()
     yield
     reset_compression_store()

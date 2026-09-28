@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from headroom.config import HeadroomConfig
-from headroom.proxy.models import ProxyConfig
-from headroom.testing import (
+from horizon.config import HorizonConfig
+from horizon.proxy.models import ProxyConfig
+from horizon.testing import (
     AgentEvalsPricing,
     ArmName,
     Configurator,
     GuaranteeResult,
-    Headroom,
+    Horizon,
     ProviderTarget,
     ScenarioOrchestrator,
     ScenarioTask,
@@ -22,7 +22,7 @@ from headroom.testing import (
 AGENT_EVALS_RUN_MANIFEST_FIELDS = {
     "experiment_id",
     "created_at",
-    "headroom_git_sha",
+    "horizon_git_sha",
     "agent_evals_git_sha",
     "model_snapshot",
     "provider",
@@ -48,16 +48,16 @@ def _configure_bedrock_apple(c: Configurator) -> None:
     c.default_mode = "optimize"
 
 
-def test_contract_covers_current_headroom_and_proxy_config_fields() -> None:
-    scenario = Headroom.scenario("contract").build()
+def test_contract_covers_current_horizon_and_proxy_config_fields() -> None:
+    scenario = Horizon.scenario("contract").build()
 
-    assert scenario.contract.field_names("headroom") == set(HeadroomConfig.__dataclass_fields__)
+    assert scenario.contract.field_names("horizon") == set(HorizonConfig.__dataclass_fields__)
     assert scenario.contract.field_names("proxy") == set(ProxyConfig.__dataclass_fields__)
 
 
 def test_fluent_builder_configures_real_proxy_and_sdk_configs() -> None:
     scenario = (
-        Headroom.WithBedrock(region="us-east-1", profile="bench")
+        Horizon.WithBedrock(region="us-east-1", profile="bench")
         .named("bedrock-apple")
         .OnAppleSilicon()
         .configure(_configure_bedrock_apple)
@@ -71,30 +71,30 @@ def test_fluent_builder_configures_real_proxy_and_sdk_configs() -> None:
     assert scenario.proxy_config.bedrock_profile == "bench"
     assert scenario.proxy_config.disable_kompress is True
     assert scenario.proxy_config.mode == "cache"
-    assert scenario.headroom_config.default_mode.value == "optimize"
+    assert scenario.horizon_config.default_mode.value == "optimize"
 
     command = scenario.proxy_command(port=18800)
-    assert command[:4] == ("headroom", "proxy", "--port", "18800")
+    assert command[:4] == ("horizon", "proxy", "--port", "18800")
     assert "--backend" in command
     assert "bedrock" in command
     assert "--disable-kompress" in command
     assert "--savings-profile" not in command
 
     env = scenario.env()
-    assert env["HEADROOM_BACKEND"] == "bedrock"
-    assert env["HEADROOM_DISABLE_KOMPRESS"] == "1"
-    assert env["HEADROOM_BEDROCK_REGION"] == "us-east-1"
+    assert env["HORIZON_BACKEND"] == "bedrock"
+    assert env["HORIZON_DISABLE_KOMPRESS"] == "1"
+    assert env["HORIZON_BEDROCK_REGION"] == "us-east-1"
     assert env["AWS_PROFILE"] == "bench"
 
 
 def test_unknown_config_field_fails_fast() -> None:
-    with pytest.raises(AttributeError, match="unknown Headroom harness config field"):
-        Headroom.scenario().configure(not_a_real_knob=True)
+    with pytest.raises(AttributeError, match="unknown Horizon harness config field"):
+        Horizon.scenario().configure(not_a_real_knob=True)
 
 
-def test_bench_manifest_fragment_matches_headroom_bench_arm_shape() -> None:
+def test_bench_manifest_fragment_matches_horizon_bench_arm_shape() -> None:
     scenario = (
-        Headroom.with_openai()
+        Horizon.with_openai()
         .configure(mode="cache", kompress_enabled=False)
         .configure_proxy(savings_profile="coding")
         .build()
@@ -102,19 +102,19 @@ def test_bench_manifest_fragment_matches_headroom_bench_arm_shape() -> None:
 
     fragment = scenario.bench_manifest_fragment(provider="openai").to_dict()
 
-    assert fragment["harness"] == "headroom.testing"
+    assert fragment["harness"] == "horizon.testing"
     assert [arm["name"] for arm in fragment["arms"]] == [
         ArmName.A0_DIRECT.value,
         ArmName.A1_PASSTHROUGH.value,
-        ArmName.B_HEADROOM.value,
+        ArmName.B_HORIZON.value,
     ]
     assert fragment["arms"][0]["proxy_mode"] is None
     assert fragment["arms"][1]["proxy_mode"] == "off"
     assert fragment["arms"][2]["proxy_mode"] == "cache"
     assert fragment["arms"][2]["proxy_flags"] == ["--disable-kompress"]
-    assert fragment["env"]["HEADROOM_MODE"] == "cache"
-    assert fragment["env"]["HEADROOM_SAVINGS_PROFILE"] == "coding"
-    assert fragment["deployment_plan"]["config_env_var"] == "HEADROOM_PROXY_CONFIG_JSON"
+    assert fragment["env"]["HORIZON_MODE"] == "cache"
+    assert fragment["env"]["HORIZON_SAVINGS_PROFILE"] == "coding"
+    assert fragment["deployment_plan"]["config_env_var"] == "HORIZON_PROXY_CONFIG_JSON"
     assert fragment["contract_audit"]["passed"] is True
     json.dumps(fragment)
 
@@ -122,7 +122,7 @@ def test_bench_manifest_fragment_matches_headroom_bench_arm_shape() -> None:
 def test_agent_evals_manifest_matches_run_manifest_contract() -> None:
     now = datetime(2026, 6, 15, 9, 30, tzinfo=timezone.utc)
     scenario = (
-        Headroom.with_openai()
+        Horizon.with_openai()
         .named("openai-cache")
         .WithCompression(mode="cache", kompress=False)
         .Build()
@@ -134,7 +134,7 @@ def test_agent_evals_manifest_matches_run_manifest_contract() -> None:
         provider="openai",
         now=now,
         model_snapshot="openai/gpt-4o",
-        headroom_repo_path="/nonexistent-headroom",
+        horizon_repo_path="/nonexistent-horizon",
         agent_evals_repo_path="/nonexistent-agent-evals",
         k_runs=3,
         pricing=AgentEvalsPricing(input_usd_per_1m=2.5, output_usd_per_1m=10.0),
@@ -144,12 +144,12 @@ def test_agent_evals_manifest_matches_run_manifest_contract() -> None:
     assert set(payload) == AGENT_EVALS_RUN_MANIFEST_FIELDS
     assert payload["experiment_id"] == "mini_swebench-openai-cache-20260615T093000Z"
     assert payload["created_at"] == "2026-06-15T09:30:00+00:00"
-    assert payload["headroom_git_sha"] == "unknown"
+    assert payload["horizon_git_sha"] == "unknown"
     assert payload["agent_evals_git_sha"] == "unknown"
     assert payload["provider"] == "openai"
     assert payload["benchmark"] == "mini_swebench"
     assert payload["benchmark_ref"] == "mini@abc123"
-    assert payload["harness"] == "headroom.testing"
+    assert payload["harness"] == "horizon.testing"
     assert payload["model_snapshot"] == "openai/gpt-4o"
     assert payload["seeds"] == [0, 1, 2]
     assert payload["margins"] == {"ccr": 0.0, "lossy": 2.0}
@@ -157,7 +157,7 @@ def test_agent_evals_manifest_matches_run_manifest_contract() -> None:
     assert [arm["name"] for arm in payload["arms"]] == [
         "a0_direct",
         "a1_passthrough",
-        "b_headroom",
+        "b_horizon",
     ]
     assert payload["arms"][2]["proxy_mode"] == "cache"
     assert payload["arms"][2]["proxy_flags"] == ["--disable-kompress"]
@@ -165,7 +165,7 @@ def test_agent_evals_manifest_matches_run_manifest_contract() -> None:
 
 
 def test_sdk_simulation_runs_without_provider_api_keys() -> None:
-    scenario = Headroom.with_openai().configure(default_mode="optimize").build()
+    scenario = Horizon.with_openai().configure(default_mode="optimize").build()
     messages = [
         {"role": "system", "content": "You are concise."},
         {"role": "user", "content": "Summarize this small payload."},
@@ -180,18 +180,18 @@ def test_sdk_simulation_runs_without_provider_api_keys() -> None:
 
 def test_deployment_plan_carries_full_proxy_config_payload_through_env() -> None:
     scenario = (
-        Headroom.WithBedrock(region="us-east-2", profile="bench")
+        Horizon.WithBedrock(region="us-east-2", profile="bench")
         .Configure(mode="cache", kompress_enabled=False)
         .ConfigureProxy(memory_enabled=True, memory_top_k=3, offline=True)
         .Build()
     )
 
     plan = scenario.deployment_plan(port=18888)
-    payload_from_env = json.loads(plan.env["HEADROOM_PROXY_CONFIG_JSON"])
+    payload_from_env = json.loads(plan.env["HORIZON_PROXY_CONFIG_JSON"])
 
-    assert plan.command[:4] == ("headroom", "proxy", "--port", "18888")
+    assert plan.command[:4] == ("horizon", "proxy", "--port", "18888")
     assert payload_from_env == plan.config_payload
-    assert plan.env["HEADROOM_SKIP_UPSTREAM_CHECK"] == "1"
+    assert plan.env["HORIZON_SKIP_UPSTREAM_CHECK"] == "1"
     assert plan.config_payload["backend"] == "bedrock"
     assert plan.config_payload["memory_enabled"] is True
     assert plan.config_payload["memory_top_k"] == 3
@@ -201,7 +201,7 @@ def test_deployment_plan_carries_full_proxy_config_payload_through_env() -> None
 
 def test_contract_audit_reports_full_payload_coverage_and_proxy_only_notes() -> None:
     scenario = (
-        Headroom.WithBedrock(region="us-east-1")
+        Horizon.WithBedrock(region="us-east-1")
         .WithReadMaturation(enabled=True, quiesce_turns=2)
         .Build()
     )
@@ -209,20 +209,20 @@ def test_contract_audit_reports_full_payload_coverage_and_proxy_only_notes() -> 
     audit = scenario.audit_contract()
 
     assert audit.passed is True
-    assert audit.missing_headroom_payload_fields == ()
+    assert audit.missing_horizon_payload_fields == ()
     assert audit.missing_proxy_payload_fields == ()
-    assert audit.extra_headroom_payload_fields == ()
+    assert audit.extra_horizon_payload_fields == ()
     assert audit.extra_proxy_payload_fields == ()
-    assert audit.headroom_fields_total == len(HeadroomConfig.__dataclass_fields__)
+    assert audit.horizon_fields_total == len(HorizonConfig.__dataclass_fields__)
     assert audit.proxy_fields_total == len(ProxyConfig.__dataclass_fields__)
     assert "read_maturation is currently a proxy-only surface" in audit.notes
     json.dumps(audit.to_dict())
 
 
 def test_write_manifest_fragment_outputs_json_file(tmp_path: Path) -> None:
-    path = tmp_path / "headroom-manifest-fragment.json"
+    path = tmp_path / "horizon-manifest-fragment.json"
     scenario = (
-        Headroom.WithOpenAI(api_url="https://openai.internal")
+        Horizon.WithOpenAI(api_url="https://openai.internal")
         .WithCompression(mode="cache", kompress=False)
         .Build()
     )
@@ -231,7 +231,7 @@ def test_write_manifest_fragment_outputs_json_file(tmp_path: Path) -> None:
     payload = json.loads(written.read_text(encoding="utf-8"))
 
     assert written == path
-    assert payload["harness"] == "headroom.testing"
+    assert payload["harness"] == "horizon.testing"
     assert payload["provider"] == "openai"
     assert (
         payload["deployment_plan"]["config_payload"]["openai_api_url"] == "https://openai.internal"
@@ -241,7 +241,7 @@ def test_write_manifest_fragment_outputs_json_file(tmp_path: Path) -> None:
 
 def test_feature_facets_configure_authoritative_scenario_surfaces() -> None:
     scenario = (
-        Headroom.WithAnthropic(api_url="https://anthropic.internal")
+        Horizon.WithAnthropic(api_url="https://anthropic.internal")
         .named("enterprise-feature-matrix")
         .WithCompression(
             mode="cache",
@@ -282,21 +282,21 @@ def test_feature_facets_configure_authoritative_scenario_surfaces() -> None:
     assert scenario.proxy_config.compressors == {"smart_crusher", "log", "diff"}
     assert scenario.proxy_config.min_tokens_to_crush == 25
     assert scenario.proxy_config.max_items_after_crush == 9
-    assert scenario.headroom_config.smart_crusher.lossless_only is True
-    assert scenario.headroom_config.smart_crusher.min_tokens_to_crush == 25
-    assert scenario.headroom_config.smart_crusher.max_items_after_crush == 9
+    assert scenario.horizon_config.smart_crusher.lossless_only is True
+    assert scenario.horizon_config.smart_crusher.min_tokens_to_crush == 25
+    assert scenario.horizon_config.smart_crusher.max_items_after_crush == 9
     assert scenario.proxy_config.ccr_inject_tool is False
     assert scenario.proxy_config.ccr_inject_marker is True
     assert scenario.proxy_config.ccr_proactive_expansion is False
     assert scenario.proxy_config.ccr_max_retrieval_rounds == 1
-    assert scenario.headroom_config.ccr.enabled is True
-    assert scenario.headroom_config.ccr.inject_tool is False
-    assert scenario.headroom_config.ccr.inject_retrieval_marker is True
+    assert scenario.horizon_config.ccr.enabled is True
+    assert scenario.horizon_config.ccr.inject_tool is False
+    assert scenario.horizon_config.ccr.inject_retrieval_marker is True
     assert scenario.proxy_config.cache_ttl_seconds == 120
     assert scenario.proxy_config.cache_max_entries == 33
-    assert scenario.headroom_config.cache_optimizer.enable_semantic_cache is True
+    assert scenario.horizon_config.cache_optimizer.enable_semantic_cache is True
     assert scenario.proxy_config.prefix_freeze_enabled is False
-    assert scenario.headroom_config.prefix_freeze.enabled is False
+    assert scenario.horizon_config.prefix_freeze.enabled is False
     assert scenario.proxy_config.read_maturation is True
     assert scenario.metadata["read_maturation"]["quiesce_turns"] == 2
     assert scenario.proxy_config.memory_enabled is True
@@ -316,25 +316,25 @@ def test_feature_facets_configure_authoritative_scenario_surfaces() -> None:
     ("builder", "expected_provider", "expected_backend"),
     [
         (
-            lambda: Headroom.WithAnthropic(api_url="https://anthropic.internal"),
+            lambda: Horizon.WithAnthropic(api_url="https://anthropic.internal"),
             "anthropic",
             "anthropic",
         ),
-        (lambda: Headroom.WithOpenAI(api_url="https://openai.internal"), "openai", "anthropic"),
-        (lambda: Headroom.WithGemini(api_url="https://gemini.internal"), "gemini", "anthropic"),
+        (lambda: Horizon.WithOpenAI(api_url="https://openai.internal"), "openai", "anthropic"),
+        (lambda: Horizon.WithGemini(api_url="https://gemini.internal"), "gemini", "anthropic"),
         (
-            lambda: Headroom.WithCloudCode(api_url="https://cloudcode.internal"),
+            lambda: Horizon.WithCloudCode(api_url="https://cloudcode.internal"),
             "cloudcode",
             "anthropic",
         ),
         (
-            lambda: Headroom.WithVertex(api_url="https://vertex.internal"),
+            lambda: Horizon.WithVertex(api_url="https://vertex.internal"),
             "vertex",
             "litellm-vertex",
         ),
-        (lambda: Headroom.WithBedrock(region="us-east-1"), "bedrock", "bedrock"),
-        (lambda: Headroom.WithAnyLLM(provider="mistral"), "anyllm", "anyllm"),
-        (lambda: Headroom.WithLiteLLM(provider="openrouter"), "litellm", "litellm-openrouter"),
+        (lambda: Horizon.WithBedrock(region="us-east-1"), "bedrock", "bedrock"),
+        (lambda: Horizon.WithAnyLLM(provider="mistral"), "anyllm", "anyllm"),
+        (lambda: Horizon.WithLiteLLM(provider="openrouter"), "litellm", "litellm-openrouter"),
     ],
 )
 def test_provider_builders_cover_current_proxy_targets(
@@ -347,19 +347,19 @@ def test_provider_builders_cover_current_proxy_targets(
 
     assert scenario.provider.value == expected_provider
     assert plan.config_payload["backend"] == expected_backend
-    assert plan.command[:4] == ("headroom", "proxy", "--port", "18901")
-    assert json.loads(plan.env["HEADROOM_PROXY_CONFIG_JSON"]) == plan.config_payload
+    assert plan.command[:4] == ("horizon", "proxy", "--port", "18901")
+    assert json.loads(plan.env["HORIZON_PROXY_CONFIG_JSON"]) == plan.config_payload
 
 
 def test_scenario_orchestrator_runs_multiple_scenarios_and_reports_guarantees() -> None:
     passthrough = (
-        Headroom.with_openai()
+        Horizon.with_openai()
         .named("passthrough")
         .Configure(optimize=False, default_mode="audit")
         .Build()
     )
     optimized = (
-        Headroom.with_openai()
+        Horizon.with_openai()
         .named("optimized")
         .Configure(mode="cache", default_mode="optimize")
         .Build()
@@ -384,7 +384,7 @@ def test_scenario_orchestrator_runs_multiple_scenarios_and_reports_guarantees() 
 
 
 def test_orchestrator_surfaces_custom_guarantee_failures() -> None:
-    scenario = Headroom.with_openai().named("guarded").Build()
+    scenario = Horizon.with_openai().named("guarded").Build()
     task = ScenarioTask(
         task_id="expected-failure",
         messages=[{"role": "user", "content": "hello"}],
@@ -402,12 +402,12 @@ def test_orchestrator_surfaces_custom_guarantee_failures() -> None:
     ]
 
 
-def test_headroom_suite_orchestrates_matrix_and_assigns_deployment_ports(tmp_path: Path) -> None:
+def test_horizon_suite_orchestrates_matrix_and_assigns_deployment_ports(tmp_path: Path) -> None:
     suite = (
-        Headroom.Suite("phase-1-matrix")
-        .Add(Headroom.WithOpenAI().named("openai-cache").WithCompression(mode="cache"))
+        Horizon.Suite("phase-1-matrix")
+        .Add(Horizon.WithOpenAI().named("openai-cache").WithCompression(mode="cache"))
         .Add(
-            Headroom.WithBedrock(region="us-east-1")
+            Horizon.WithBedrock(region="us-east-1")
             .named("bedrock-token")
             .WithCompression(mode="token")
         )
@@ -433,8 +433,8 @@ def test_headroom_suite_orchestrates_matrix_and_assigns_deployment_ports(tmp_pat
     assert report.passed is True
     assert len(report.cases) == 2
     assert set(plans) == {"openai-cache", "bedrock-token"}
-    assert plans["openai-cache"].command[:4] == ("headroom", "proxy", "--port", "19000")
-    assert plans["bedrock-token"].command[:4] == ("headroom", "proxy", "--port", "19001")
+    assert plans["openai-cache"].command[:4] == ("horizon", "proxy", "--port", "19000")
+    assert plans["bedrock-token"].command[:4] == ("horizon", "proxy", "--port", "19001")
     assert bundle["name"] == "phase-1-matrix"
     assert [scenario["suite_port"] for scenario in bundle["scenarios"]] == [19000, 19001]
     assert written == bundle
@@ -447,13 +447,13 @@ def test_headroom_suite_orchestrates_matrix_and_assigns_deployment_ports(tmp_pat
     assert first_agent_payload["provider"] == "openai"
 
 
-def test_headroom_suite_rejects_duplicate_scenario_names() -> None:
-    suite = Headroom.Suite("duplicates").Add(Headroom.WithOpenAI().named("same"))
+def test_horizon_suite_rejects_duplicate_scenario_names() -> None:
+    suite = Horizon.Suite("duplicates").Add(Horizon.WithOpenAI().named("same"))
 
     with pytest.raises(ValueError, match="duplicate scenario name"):
-        suite.Add(Headroom.WithBedrock(region="us-east-1").named("same"))
+        suite.Add(Horizon.WithBedrock(region="us-east-1").named("same"))
 
 
 def test_empty_suite_fails_loudly() -> None:
     with pytest.raises(ValueError, match="requires at least one scenario"):
-        Headroom.Suite("empty").DeploymentPlans()
+        Horizon.Suite("empty").DeploymentPlans()

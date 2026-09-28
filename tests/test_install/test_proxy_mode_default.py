@@ -1,9 +1,9 @@
-"""`headroom install` must default to cache mode, like `headroom proxy` does.
+"""`horizon install` must default to cache mode, like `horizon proxy` does.
 
-#1893 shipped the coding/cache posture as Headroom's out-of-box default, but it
+#1893 shipped the coding/cache posture as Horizon's out-of-box default, but it
 only touched `cli/proxy.py` and `proxy/server.py` — the install path kept the
-older `token` default from #1404. Since `planner.py` writes `HEADROOM_MODE` into
-the install env, an installed Headroom actively *overrode* the good server default
+older `token` default from #1404. Since `planner.py` writes `HORIZON_MODE` into
+the install env, an installed Horizon actively *overrode* the good server default
 with the cache-busting one.
 
 Cache mode freezes prior turns and compresses only the newest delta ("~0
@@ -14,8 +14,8 @@ two entry points cannot drift apart again.
 
 from __future__ import annotations
 
-from headroom.install.models import DeploymentManifest
-from headroom.proxy.proxy_mode_policy import PROXY_MODE_CACHE
+from horizon.install.models import DeploymentManifest
+from horizon.proxy.proxy_mode_policy import PROXY_MODE_CACHE
 
 
 def _mode_option_default(command) -> str:
@@ -27,13 +27,13 @@ def _mode_option_default(command) -> str:
 
 
 def test_install_apply_defaults_to_cache_mode() -> None:
-    from headroom.cli.install import install_apply
+    from horizon.cli.install import install_apply
 
     assert _mode_option_default(install_apply) == PROXY_MODE_CACHE
 
 
 def test_deploy_defaults_to_cache_mode() -> None:
-    from headroom.cli.install import deploy
+    from horizon.cli.install import deploy
 
     assert _mode_option_default(deploy) == PROXY_MODE_CACHE
 
@@ -46,11 +46,11 @@ def test_manifest_default_is_cache_mode() -> None:
 def test_install_and_proxy_agree_on_the_default() -> None:
     """The whole point: both entry points land on the same posture.
 
-    `headroom proxy` resolves `mode or HEADROOM_MODE or PROXY_MODE_CACHE`, so its
-    default is PROXY_MODE_CACHE. Install must match, or installing Headroom
+    `horizon proxy` resolves `mode or HORIZON_MODE or PROXY_MODE_CACHE`, so its
+    default is PROXY_MODE_CACHE. Install must match, or installing Horizon
     silently changes the compression posture versus running it directly.
     """
-    from headroom.cli.install import deploy, install_apply
+    from horizon.cli.install import deploy, install_apply
 
     assert _mode_option_default(install_apply) == _mode_option_default(deploy) == PROXY_MODE_CACHE
 
@@ -62,8 +62,8 @@ def test_token_mode_is_still_reachable() -> None:
     token (plus its aliases), so `--mode token` remains available to anyone who
     wants maximum compression and accepts the prefix-cache busts.
     """
-    from headroom.cli.install import deploy, install_apply
-    from headroom.proxy.proxy_mode_policy import (
+    from horizon.cli.install import deploy, install_apply
+    from horizon.proxy.proxy_mode_policy import (
         PROXY_MODE_TOKEN,
         normalize_proxy_mode_value,
     )
@@ -73,4 +73,4 @@ def test_token_mode_is_still_reachable() -> None:
         assert param.type.name == "text", f"{command.name} --mode became restrictive"
 
     assert normalize_proxy_mode_value("token") == PROXY_MODE_TOKEN
-    assert normalize_proxy_mode_value("token_headroom") == PROXY_MODE_TOKEN
+    assert normalize_proxy_mode_value("token_horizon") == PROXY_MODE_TOKEN

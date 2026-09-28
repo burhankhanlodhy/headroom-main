@@ -1,9 +1,9 @@
-"""End-to-end: Kong 3.9 + the `headroom` Lua plugin against a live Headroom.
+"""End-to-end: Kong 3.9 + the `horizon` Lua plugin against a live Horizon.
 
-Skipped unless ``HEADROOM_KONG_E2E=1``. Needs Docker Desktop (the container
-reaches the host as ``host.docker.internal``). Runs Headroom in-process on a
-uvicorn thread (``HEADROOM_COMPRESS_ALLOW_REMOTE=1``) and the scripted fake
-provider on another, brings up the kong-plugin-headroom repo's ``docker/`` compose with
+Skipped unless ``HORIZON_KONG_E2E=1``. Needs Docker Desktop (the container
+reaches the host as ``host.docker.internal``). Runs Horizon in-process on a
+uvicorn thread (``HORIZON_COMPRESS_ALLOW_REMOTE=1``) and the scripted fake
+provider on another, brings up the kong-plugin-horizon repo's ``docker/`` compose with
 ``docker compose up -d --wait``, and sends requests through Kong's ``/openai``
 route.
 
@@ -11,14 +11,14 @@ Four checks, mirroring the spec (section 5):
 
 a. proxy path: the provider receives a compressed body and the usage relay
    completes the pending turn (registry drained, outcome recorded);
-b. loop path: a re-driving hook makes Headroom ask for a redrive; the client
+b. loop path: a re-driving hook makes Horizon ask for a redrive; the client
    sees only the final answer and the provider saw two calls;
-c. fail-open: with Headroom stopped the request still reaches the provider;
+c. fail-open: with Horizon stopped the request still reaches the provider;
 d. header contract: an Anthropic request through ``/anthropic`` with a large
-   tool set is natively deferred, and the ``anthropic-beta`` header Headroom
+   tool set is natively deferred, and the ``anthropic-beta`` header Horizon
    returns (client betas + ``advanced-tool-use``) reaches the provider.
 
-Ports (env, defaults): ``HEADROOM_PORT=18787``, ``PROVIDER_PORT=18081``,
+Ports (env, defaults): ``HORIZON_PORT=18787``, ``PROVIDER_PORT=18081``,
 ``KONG_PROXY_PORT=18000``, ``KONG_ADMIN_PORT=18001``.
 """
 
@@ -38,8 +38,8 @@ from typing import Any
 import httpx
 import pytest
 
-from headroom.proxy.models import ProxyConfig
-from headroom.proxy.turn_hooks import clear_turn_hooks
+from horizon.proxy.models import ProxyConfig
+from horizon.proxy.turn_hooks import clear_turn_hooks
 from tests.gateway.fake_provider import (
     FakeProvider,
     anthropic_text_response,
@@ -55,33 +55,33 @@ except ImportError:  # pragma: no cover - harness not present yet
     register_redrive_hook = None
 
 pytestmark = pytest.mark.skipif(
-    os.environ.get("HEADROOM_KONG_E2E") != "1",
-    reason="set HEADROOM_KONG_E2E=1 to run the Kong docker integration",
+    os.environ.get("HORIZON_KONG_E2E") != "1",
+    reason="set HORIZON_KONG_E2E=1 to run the Kong docker integration",
 )
 
 REPO = Path(__file__).resolve().parents[2]
-# The Kong plugin lives in its own repo (kong-plugin-headroom); by default a
-# sibling checkout of this one. Point HEADROOM_KONG_PLUGIN_DIR elsewhere if not.
+# The Kong plugin lives in its own repo (kong-plugin-horizon); by default a
+# sibling checkout of this one. Point HORIZON_KONG_PLUGIN_DIR elsewhere if not.
 PLUGIN_DIR = Path(
-    os.environ.get("HEADROOM_KONG_PLUGIN_DIR") or str(REPO.parent / "kong-plugin-headroom")
+    os.environ.get("HORIZON_KONG_PLUGIN_DIR") or str(REPO.parent / "kong-plugin-horizon")
 ).resolve()
 COMPOSE_FILE = PLUGIN_DIR / "docker" / "docker-compose.yml"
-COMPOSE_PROJECT = "headroom-kong-e2e"
+COMPOSE_PROJECT = "horizon-kong-e2e"
 
-HEADROOM_PORT = int(os.environ.get("HEADROOM_PORT", "18787"))
+HORIZON_PORT = int(os.environ.get("HORIZON_PORT", "18787"))
 PROVIDER_PORT = int(os.environ.get("PROVIDER_PORT", "18081"))
 KONG_PROXY_PORT = int(os.environ.get("KONG_PROXY_PORT", "18000"))
 KONG_ADMIN_PORT = int(os.environ.get("KONG_ADMIN_PORT", "18001"))
-SESSION_HEADER = "x-headroom-session-id"
+SESSION_HEADER = "x-horizon-session-id"
 
 
 # --------------------------------------------------------------------------- #
-# Headroom on a uvicorn thread                                                 #
+# Horizon on a uvicorn thread                                                 #
 # --------------------------------------------------------------------------- #
 
 
-class HeadroomServer:
-    """Headroom's FastAPI app served on ``0.0.0.0:<port>`` from a daemon thread."""
+class HorizonServer:
+    """Horizon's FastAPI app served on ``0.0.0.0:<port>`` from a daemon thread."""
 
     def __init__(self, port: int) -> None:
         self.port = port
@@ -94,10 +94,10 @@ class HeadroomServer:
     def start(self) -> str:
         import uvicorn
 
-        from headroom.proxy.server import create_app
+        from horizon.proxy.server import create_app
 
         # The loopback guard on /v1/compress is decided when the app is built.
-        os.environ["HEADROOM_COMPRESS_ALLOW_REMOTE"] = "1"
+        os.environ["HORIZON_COMPRESS_ALLOW_REMOTE"] = "1"
         self.app = create_app(
             ProxyConfig(
                 host="0.0.0.0",
@@ -114,12 +114,12 @@ class HeadroomServer:
         self._capture_outcomes()
         config = uvicorn.Config(self.app, host="0.0.0.0", port=self.port, log_level="warning")
         self._server = uvicorn.Server(config)
-        self._thread = threading.Thread(target=self._server.run, name="headroom-e2e", daemon=True)
+        self._thread = threading.Thread(target=self._server.run, name="horizon-e2e", daemon=True)
         self._thread.start()
         deadline = time.time() + 20
         while not self._server.started:
             if time.time() > deadline or not self._thread.is_alive():
-                raise RuntimeError("headroom did not start")
+                raise RuntimeError("horizon did not start")
             time.sleep(0.05)
         return f"http://127.0.0.1:{self.port}"
 
@@ -167,7 +167,7 @@ def _wait_port_closed(port: int, timeout: float = 10.0) -> None:
 def _compose(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     env = dict(
         os.environ,
-        HEADROOM_PORT=str(HEADROOM_PORT),
+        HORIZON_PORT=str(HORIZON_PORT),
         PROVIDER_PORT=str(PROVIDER_PORT),
         KONG_PROXY_PORT=str(KONG_PROXY_PORT),
         KONG_ADMIN_PORT=str(KONG_ADMIN_PORT),
@@ -190,7 +190,7 @@ def kong_logs(tail: int = 80) -> str:
 @dataclass
 class Stack:
     provider: FakeProvider
-    headroom: HeadroomServer
+    horizon: HorizonServer
     kong_url: str
 
     def chat(
@@ -238,11 +238,11 @@ def stack() -> Iterator[Stack]:
     provider.start(PROVIDER_PORT, host="0.0.0.0")
     stack_obj = Stack(
         provider=provider,
-        headroom=HeadroomServer(HEADROOM_PORT),
+        horizon=HorizonServer(HORIZON_PORT),
         kong_url=f"http://127.0.0.1:{KONG_PROXY_PORT}",
     )
     try:
-        stack_obj.headroom.start()
+        stack_obj.horizon.start()
         try:
             _compose("up", "-d", "--wait", "--force-recreate")
         except subprocess.CalledProcessError as exc:
@@ -251,9 +251,9 @@ def stack() -> Iterator[Stack]:
     finally:
         # `down` even after a failed `up`: it may have created the container.
         _compose("down", "-v", "--remove-orphans", check=False)
-        stack_obj.headroom.stop()  # the fail-open test may have swapped this
+        stack_obj.horizon.stop()  # the fail-open test may have swapped this
         provider.stop()
-        os.environ.pop("HEADROOM_COMPRESS_ALLOW_REMOTE", None)
+        os.environ.pop("HORIZON_COMPRESS_ALLOW_REMOTE", None)
 
 
 @pytest.fixture(autouse=True)
@@ -296,9 +296,9 @@ def _sse_frames(text: str) -> list[dict[str, Any]]:
 
 def test_proxy_path_compresses_and_relays_usage(stack: Stack) -> None:
     """Streaming turn: Kong proxies, provider sees the compressed body, and the
-    body_filter/log relay closes the turn on Headroom's side."""
+    body_filter/log relay closes the turn on Horizon's side."""
     stack.provider.reset()
-    stack.headroom.recorded_outcomes.clear()
+    stack.horizon.recorded_outcomes.clear()
     stack.provider.script(
         [openai_text_response("streamed answer", usage=openai_usage(120, 7, cached=64))]
     )
@@ -323,22 +323,22 @@ def test_proxy_path_compresses_and_relays_usage(stack: Stack) -> None:
     assert received_bytes < sent_bytes, (
         f"provider got {received_bytes}B, client sent {sent_bytes}B: not compressed\n{kong_logs()}"
     )
-    # The relay carries the plugin version; the body must not leak Headroom-only keys.
+    # The relay carries the plugin version; the body must not leak Horizon-only keys.
     assert "gateway" not in received.body and "config" not in received.body
 
-    # Response half: the log-phase timer posts usage; Headroom drains the turn
+    # Response half: the log-phase timer posts usage; Horizon drains the turn
     # and records one outcome. Requires the server side of the contract.
-    pending = stack.headroom.pending_turns
+    pending = stack.horizon.pending_turns
     if pending() is None:
         pytest.fail(
             "TODO(gateway-turn-contract): proxy has no `gateway_turns` registry yet; "
             "the usage relay cannot be asserted until the server side lands"
         )
-    assert _poll(lambda: pending() == 0 and len(stack.headroom.recorded_outcomes) >= 1), (
-        f"relay did not land: pending={pending()} outcomes={len(stack.headroom.recorded_outcomes)}\n"
+    assert _poll(lambda: pending() == 0 and len(stack.horizon.recorded_outcomes) >= 1), (
+        f"relay did not land: pending={pending()} outcomes={len(stack.horizon.recorded_outcomes)}\n"
         f"{kong_logs()}"
     )
-    outcome = stack.headroom.recorded_outcomes[-1]
+    outcome = stack.horizon.recorded_outcomes[-1]
     assert getattr(outcome, "output_tokens", None) == 7
 
 
@@ -348,7 +348,7 @@ def test_proxy_path_compresses_and_relays_usage(stack: Stack) -> None:
 
 
 def test_loop_path_redrives_and_hides_search_tools(stack: Stack) -> None:
-    """Non-streaming turn with deferrable tools: Headroom asks for a redrive,
+    """Non-streaming turn with deferrable tools: Horizon asks for a redrive,
     the plugin runs it in `access`, the client sees only the final answer."""
     if register_redrive_hook is None:
         pytest.skip("tests/gateway/redrive_hook_ext.py not present; no re-driving hook to arm")
@@ -380,7 +380,7 @@ def test_loop_path_redrives_and_hides_search_tools(stack: Stack) -> None:
     assert any(n.startswith("deferred_") for n in second_names), second_names
     # Both provider calls carried the client's auth on the loop path.
     assert all(c.headers.get("authorization") == "Bearer sk-test" for c in calls)
-    assert _poll(lambda: stack.headroom.pending_turns() in (0, None)), "turn not drained"
+    assert _poll(lambda: stack.horizon.pending_turns() in (0, None)), "turn not drained"
 
 
 # --------------------------------------------------------------------------- #
@@ -388,19 +388,19 @@ def test_loop_path_redrives_and_hides_search_tools(stack: Stack) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_fail_open_when_headroom_is_down(stack: Stack) -> None:
+def test_fail_open_when_horizon_is_down(stack: Stack) -> None:
     stack.provider.reset()
     stack.provider.script([openai_text_response("still here")])
     body = {"model": "gpt-4o", "messages": big_tool_history(n_items=20)}
 
-    stack.headroom.stop()
-    _wait_port_closed(HEADROOM_PORT)
+    stack.horizon.stop()
+    _wait_port_closed(HORIZON_PORT)
     try:
         resp = stack.chat(body, session="kong-e2e-down")
     finally:
         # Order-independent: leave the stack as we found it.
-        stack.headroom = HeadroomServer(HEADROOM_PORT)
-        stack.headroom.start()
+        stack.horizon = HorizonServer(HORIZON_PORT)
+        stack.horizon.start()
 
     assert resp.status_code == 200, f"{resp.text}\n{kong_logs()}"
     assert resp.json()["choices"][0]["message"]["content"] == "still here"
@@ -420,7 +420,7 @@ CLIENT_BETA = "some-other-beta"
 
 def anthropic_tool_set() -> list[dict[str, Any]]:
     """Thirteen Anthropic-shaped tools: three core coding tools that must stay
-    resident plus ten integration tools Headroom is expected to defer."""
+    resident plus ten integration tools Horizon is expected to defer."""
     schema = {
         "type": "object",
         "properties": {"query": {"type": "string", "description": "What to do. " * 8}},
@@ -445,7 +445,7 @@ def anthropic_tool_set() -> list[dict[str, Any]]:
 
 
 def _compress_contract_probe(body: dict[str, Any]) -> dict[str, Any]:
-    """Ask Headroom directly what its /v1/compress answer looks like for this
+    """Ask Horizon directly what its /v1/compress answer looks like for this
     body, offering no capabilities so no pending turn is registered. Used only
     to tell "core not landed" apart from "plugin broke"."""
     payload = {
@@ -459,7 +459,7 @@ def _compress_contract_probe(body: dict[str, Any]) -> dict[str, Any]:
             "request_headers": {"anthropic-beta": CLIENT_BETA},
         },
     }
-    resp = httpx.post(f"http://127.0.0.1:{HEADROOM_PORT}/v1/compress", json=payload, timeout=60)
+    resp = httpx.post(f"http://127.0.0.1:{HORIZON_PORT}/v1/compress", json=payload, timeout=60)
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert isinstance(data, dict)
@@ -470,18 +470,18 @@ def test_anthropic_native_deferral_sets_merged_beta_header(stack: Stack) -> None
     """Anthropic-shaped request with 13 tools and a client ``anthropic-beta``:
     the provider must see the non-core tools deferred behind a regex tool-search
     tool, and an ``anthropic-beta`` header carrying both the client's beta and
-    Anthropic's ``advanced-tool-use`` token (the plugin sets what Headroom
+    Anthropic's ``advanced-tool-use`` token (the plugin sets what Horizon
     returned in ``headers``)."""
     stack.provider.reset()
-    stack.headroom.recorded_outcomes.clear()
+    stack.horizon.recorded_outcomes.clear()
     stack.provider.script([anthropic_text_response("deferred answer")])
     # Deferral is a turn hook's job on this path: the tool-search extension's
-    # native tier when it is importable here, else the reference hook. Headroom
+    # native tier when it is importable here, else the reference hook. Horizon
     # runs in-process, so registering here is what an installed extension does.
-    from headroom.proxy.turn_hooks import register_turn_hook
+    from horizon.proxy.turn_hooks import register_turn_hook
 
     try:
-        from headroom_tool_search.native import NativeDeferralHook
+        from horizon_tool_search.native import NativeDeferralHook
 
         register_turn_hook(NativeDeferralHook(None))
     except Exception:
@@ -536,7 +536,7 @@ def test_anthropic_native_deferral_sets_merged_beta_header(stack: Stack) -> None
     tokens = [t.strip() for t in beta.split(",") if t.strip()]
     assert CLIENT_BETA in tokens, f"client beta dropped: {beta!r}\n{kong_logs()}"
     assert any(t.startswith(ADVANCED_TOOL_USE_TOKEN) for t in tokens), (
-        f"advanced-tool-use missing from {beta!r}; headroom returned {probe.get('headers')!r}\n"
+        f"advanced-tool-use missing from {beta!r}; horizon returned {probe.get('headers')!r}\n"
         f"{kong_logs()}"
     )
-    assert _poll(lambda: stack.headroom.pending_turns() in (0, None)), "turn not drained"
+    assert _poll(lambda: stack.horizon.pending_turns() in (0, None)), "turn not drained"

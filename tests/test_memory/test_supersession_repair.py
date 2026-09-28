@@ -10,12 +10,12 @@ import numpy as np
 import pytest
 from click.testing import CliRunner
 
-import headroom.cli.memory as memory_cli
-from headroom.cli.main import main
-from headroom.memory.adapters.sqlite import SQLiteMemoryStore
-from headroom.memory.core import HierarchicalMemory
-from headroom.memory.models import Memory
-from headroom.memory.ports import MemoryFilter
+import horizon.cli.memory as memory_cli
+from horizon.cli.main import main
+from horizon.memory.adapters.sqlite import SQLiteMemoryStore
+from horizon.memory.core import HierarchicalMemory
+from horizon.memory.models import Memory
+from horizon.memory.ports import MemoryFilter
 
 
 @pytest.mark.asyncio

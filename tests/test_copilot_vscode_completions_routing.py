@@ -1,8 +1,8 @@
 """VS Code Copilot inline completions must reach Copilot, not OpenAI (#3076).
 
-When `github.copilot.advanced.debug.overrideProxyUrl` points at Headroom, the
+When `github.copilot.advanced.debug.overrideProxyUrl` points at Horizon, the
 Copilot extension sends its "ghost text" completions to
-``/v1/engines/<engine>/completions``. Headroom registers no route for that path,
+``/v1/engines/<engine>/completions``. Horizon registers no route for that path,
 so it lands in the catch-all passthrough — which resolves an upstream from the
 auth headers alone and therefore fell through to the OpenAI target. Editor
 keystrokes were forwarded to ``api.openai.com``, a host that has not served the
@@ -19,14 +19,14 @@ import asyncio
 
 import pytest
 
-from headroom import copilot_auth
-from headroom.copilot_auth import (
+from horizon import copilot_auth
+from horizon.copilot_auth import (
     build_copilot_upstream_url,
     copilot_completions_base_url,
     is_copilot_completions_path,
     reset_observed_completions_endpoint,
 )
-from headroom.providers.proxy_targets import select_passthrough_base_url
+from horizon.providers.proxy_targets import select_passthrough_base_url
 
 COPILOT_API = "https://api.githubcopilot.com"
 # GitHub serves inline completions from a *different* host than chat. Verified
@@ -117,7 +117,7 @@ def test_completions_do_not_fall_through_to_the_openai_target() -> None:
 def test_a_chat_host_is_not_treated_as_a_completions_host() -> None:
     """A CAPI host must still be redirected, because it does not serve this path.
 
-    `headroom wrap vscode` points the OpenAI target at the resolved subscription
+    `horizon wrap vscode` points the OpenAI target at the resolved subscription
     URL, which is the *chat* surface (it is what `GITHUB_COPILOT_API_URL` is set
     to). Leaving it alone — as an "it's already a Copilot host" guard did — sent
     `/v1/engines/.../completions` to a host that answers 404.
@@ -450,7 +450,7 @@ def test_a_completions_host_is_marked_as_copilot_routed() -> None:
 @pytest.mark.parametrize(
     "configured_api_url",
     [
-        # What `headroom wrap vscode` actually exports (wrap.py sets
+        # What `horizon wrap vscode` actually exports (wrap.py sets
         # GITHUB_COPILOT_API_URL to the resolved subscription URL).
         "https://api.business.githubcopilot.com",
         "https://api.individual.githubcopilot.com",
@@ -463,7 +463,7 @@ def test_a_public_capi_url_does_not_become_the_completions_host(
     """A configured *chat* URL must not drag completions back onto the 404 host.
 
     The in-tenant rule for a custom deployment has to exclude public Copilot
-    hosts, or the single most common setup — `headroom wrap vscode`, which
+    hosts, or the single most common setup — `horizon wrap vscode`, which
     exports GITHUB_COPILOT_API_URL — lands right back where it started.
     """
     monkeypatch.setenv("GITHUB_COPILOT_API_URL", configured_api_url)

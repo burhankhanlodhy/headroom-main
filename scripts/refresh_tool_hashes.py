@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Refresh SHA-256 pins for externally fetched tool binaries (WEB-03).
 
-Fetches every asset URL in ``headroom/tools.json``, computes its SHA-256, and
+Fetches every asset URL in ``horizon/tools.json``, computes its SHA-256, and
 writes the digests back into the registry. Run it locally after bumping a tool
 version, or let the ``tools-hash-refresh`` CI workflow run it.
 
@@ -20,11 +20,11 @@ import sys
 import urllib.request
 from pathlib import Path
 
-REGISTRY = Path(__file__).resolve().parent.parent / "headroom" / "tools.json"
+REGISTRY = Path(__file__).resolve().parent.parent / "horizon" / "tools.json"
 
 
 def _fetch_sha256(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": "headroom-tools-refresh/1"})
+    req = urllib.request.Request(url, headers={"User-Agent": "horizon-tools-refresh/1"})
     digest = hashlib.sha256()
     with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310 - https enforced below
         for chunk in iter(lambda: resp.read(1024 * 64), b""):

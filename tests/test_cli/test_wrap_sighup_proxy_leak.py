@@ -27,7 +27,7 @@ from typing import Any
 
 import pytest
 
-from headroom.cli import wrap as wrap_cli
+from horizon.cli import wrap as wrap_cli
 
 requires_sighup = pytest.mark.skipif(not hasattr(signal, "SIGHUP"), reason="SIGHUP is POSIX-only")
 
@@ -70,7 +70,7 @@ def test_launch_tool_installs_sighup_handler(
     Asserts the handler is actually installed by running the real registration,
     rather than pattern-matching the source.
     """
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path / "workspace"))
+    monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path / "workspace"))
     monkeypatch.setattr(wrap_cli, "_ensure_proxy", lambda *a, **k: (None, 18787))
     monkeypatch.setattr(wrap_cli, "_push_runtime_env", lambda *a, **k: None)
 
@@ -109,7 +109,7 @@ def test_proxy_only_watcher_installs_sighup_handler(
     This path already special-cased Windows' SIGBREAK while leaving the POSIX
     terminal-close signal unhandled.
     """
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path / "workspace"))
+    monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path / "workspace"))
     monkeypatch.setattr(wrap_cli, "_ensure_proxy", lambda *a, **k: (_AlreadyExitedProxy(), 18787))
     monkeypatch.setattr(wrap_cli, "_push_runtime_env", lambda *a, **k: None)
 
@@ -139,7 +139,7 @@ def test_proxy_only_watcher_installs_sighup_handler(
 _HARNESS = textwrap.dedent(
     """
     import os, subprocess, sys
-    from headroom.cli import wrap
+    from horizon.cli import wrap
 
     port = 18787
     proxy = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
@@ -193,7 +193,7 @@ def test_sighup_on_launch_tool_reaps_the_proxy(tmp_path: Path) -> None:
     ready = tmp_path / "ready"
 
     env = dict(os.environ)
-    env["HEADROOM_WORKSPACE_DIR"] = str(tmp_path / "workspace")
+    env["HORIZON_WORKSPACE_DIR"] = str(tmp_path / "workspace")
 
     # Own session/process group: the wrapper's children (stand-in proxy and
     # stand-in CLI) inherit it, so the cleanup below can reap the whole tree

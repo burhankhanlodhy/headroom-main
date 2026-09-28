@@ -1,6 +1,6 @@
 """Tests for Compression Hooks interface."""
 
-from headroom.hooks import CompressContext, CompressEvent, CompressionHooks
+from horizon.hooks import CompressContext, CompressEvent, CompressionHooks
 
 
 class TestCompressionHooksDefaults:

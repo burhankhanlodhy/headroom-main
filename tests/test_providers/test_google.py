@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.providers import GoogleProvider
+from horizon.providers import GoogleProvider
 
 
 class TestGoogleProvider:

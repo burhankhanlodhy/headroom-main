@@ -4,19 +4,19 @@ import importlib
 from types import SimpleNamespace
 from typing import Any
 
-from headroom.client import HeadroomClient
-from headroom.compress import compress
-from headroom.config import HeadroomConfig, HeadroomMode, TransformResult
-from headroom.hooks import CompressionHooks
-from headroom.pipeline import (
+from horizon.client import HorizonClient
+from horizon.compress import compress
+from horizon.config import HorizonConfig, HorizonMode, TransformResult
+from horizon.hooks import CompressionHooks
+from horizon.pipeline import (
     CANONICAL_PIPELINE_STAGES,
     PipelineExtensionManager,
     PipelineStage,
     summarize_routing_markers,
 )
-from headroom.providers.base import Provider, TokenCounter
-from headroom.transforms import ContentRouter, TransformPipeline
-from headroom.transforms.content_router import CompressionStrategy
+from horizon.providers.base import Provider, TokenCounter
+from horizon.transforms import ContentRouter, TransformPipeline
+from horizon.transforms.content_router import CompressionStrategy
 
 
 class RecordingExtension:
@@ -149,7 +149,7 @@ def test_pipeline_extension_manager_uses_canonical_stage_contract():
 
 
 def test_default_transform_pipeline_always_uses_content_router() -> None:
-    config = HeadroomConfig()
+    config = HorizonConfig()
 
     pipeline = TransformPipeline(config)
 
@@ -200,7 +200,7 @@ def test_pipeline_extension_manager_replaces_events_and_ignores_failures(caplog)
         discover=False,
     )
 
-    with caplog.at_level("WARNING", logger="headroom.pipeline"):
+    with caplog.at_level("WARNING", logger="horizon.pipeline"):
         event = manager.emit(
             PipelineStage.PRE_SEND,
             operation="test",
@@ -215,7 +215,7 @@ def test_pipeline_extension_manager_replaces_events_and_ignores_failures(caplog)
 
 
 def test_discover_pipeline_extensions_handles_load_and_init_failures(monkeypatch):
-    pipeline_module = importlib.import_module("headroom.pipeline")
+    pipeline_module = importlib.import_module("horizon.pipeline")
 
     class Entry:
         def __init__(self, name, loader):
@@ -257,7 +257,7 @@ def test_discover_pipeline_extensions_handles_load_and_init_failures(monkeypatch
 
 
 def test_discover_pipeline_extensions_returns_empty_when_entrypoint_lookup_fails(monkeypatch):
-    pipeline_module = importlib.import_module("headroom.pipeline")
+    pipeline_module = importlib.import_module("horizon.pipeline")
     monkeypatch.setattr(
         pipeline_module.importlib.metadata,
         "entry_points",
@@ -269,7 +269,7 @@ def test_discover_pipeline_extensions_returns_empty_when_entrypoint_lookup_fails
 
 def test_compress_emits_canonical_pipeline_events(monkeypatch):
     hooks = RecordingHooks()
-    compress_module = importlib.import_module("headroom.compress")
+    compress_module = importlib.import_module("horizon.compress")
     monkeypatch.setattr(compress_module, "_get_pipeline", lambda: StubPipeline())
 
     result = compress(
@@ -289,19 +289,19 @@ def test_compress_emits_canonical_pipeline_events(monkeypatch):
     ]
 
 
-def test_headroom_client_emits_canonical_pipeline_events(tmp_path):
+def test_horizon_client_emits_canonical_pipeline_events(tmp_path):
     recorder = RecordingExtension()
     original = DummyOriginalClient()
-    config = HeadroomConfig(
-        store_url=f"jsonl://{tmp_path / 'headroom.jsonl'}",
-        default_mode=HeadroomMode.OPTIMIZE,
+    config = HorizonConfig(
+        store_url=f"jsonl://{tmp_path / 'horizon.jsonl'}",
+        default_mode=HorizonMode.OPTIMIZE,
         pipeline_extensions=[recorder],
         discover_pipeline_extensions=False,
     )
-    client = HeadroomClient(
+    client = HorizonClient(
         original_client=original,
         provider=StubProvider(),
-        store_url=f"jsonl://{tmp_path / 'headroom-client.jsonl'}",
+        store_url=f"jsonl://{tmp_path / 'horizon-client.jsonl'}",
         enable_cache_optimizer=False,
         config=config,
     )

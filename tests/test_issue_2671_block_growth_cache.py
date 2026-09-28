@@ -21,7 +21,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from headroom.cache.prefix_tracker import (
+from horizon.cache.prefix_tracker import (
     RELATION_BLOCK_APPEND,
     RELATION_BLOCK_REWRITE_TAIL,
     RELATION_DIVERGED,
@@ -280,7 +280,7 @@ def test_cache_oracle_proves_rewritten_tail_stops_perpetual_full_writes() -> Non
 
 def test_relocation_kill_switch_restores_newest_block(monkeypatch) -> None:  # noqa: ANN001
     previous = normalize_message_cache_control(_rewritten_tail(1, 3))
-    monkeypatch.setenv("HEADROOM_STABLE_BOUNDARY_BREAKPOINT", "0")
+    monkeypatch.setenv("HORIZON_STABLE_BOUNDARY_BREAKPOINT", "0")
     current = _rewritten_tail(2, 5)
 
     forwarded = normalize_message_cache_control(current, previous)

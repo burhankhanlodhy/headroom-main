@@ -13,7 +13,7 @@ import math
 
 import pytest
 
-from headroom.proxy.savings_attribution import (
+from horizon.proxy.savings_attribution import (
     MAX_STAGE_MS,
     MAX_STAGES,
     SAVINGS_ATTRIBUTION_TAG,
@@ -304,7 +304,7 @@ pytest.importorskip("fastapi")
 
 
 class _Harness:
-    """Just enough of HeadroomProxy to drive the real funnel method.
+    """Just enough of HorizonProxy to drive the real funnel method.
 
     Mirrors ``tests/test_request_outcome.py::_FunnelHarness`` — the real
     implementation is bound to the harness, so nothing under test is mocked.
@@ -313,19 +313,19 @@ class _Harness:
     def __init__(self) -> None:
         from unittest.mock import AsyncMock, MagicMock
 
-        from headroom.proxy.server import HeadroomProxy
+        from horizon.proxy.server import HorizonProxy
 
         self.metrics = MagicMock()
         self.metrics.record_request = AsyncMock()
         self.cost_tracker = MagicMock()
         self.logger = None
-        self._record_request_outcome = HeadroomProxy._record_request_outcome.__get__(
+        self._record_request_outcome = HorizonProxy._record_request_outcome.__get__(
             self, type(self)
         )
 
 
 def _outcome(**overrides):
-    from headroom.proxy.outcome import RequestOutcome
+    from horizon.proxy.outcome import RequestOutcome
 
     defaults = {
         "request_id": "req-1",
@@ -345,7 +345,7 @@ def _outcome(**overrides):
 async def test_extension_timing_reaches_pipeline_timing() -> None:
     """The whole point of the timing half: ``pipeline_timing`` is what
     ``/stats``, the dashboard's Performance panel and
-    ``headroom_transform_timing_ms_*`` are all built on."""
+    ``horizon_transform_timing_ms_*`` are all built on."""
     scope = _scope()
     record_scope_timing(scope, "routemegood", 8.0)
     tags: dict = {}

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 
-from headroom.telemetry.backends.filesystem import FileSystemTOINBackend
-from headroom.telemetry.models import ToolSignature
-from headroom.telemetry.toin import TOINConfig, ToolIntelligenceNetwork
+from horizon.telemetry.backends.filesystem import FileSystemTOINBackend
+from horizon.telemetry.models import ToolSignature
+from horizon.telemetry.toin import TOINConfig, ToolIntelligenceNetwork
 
 
 def _signature(index: int) -> ToolSignature:

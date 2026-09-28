@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from headroom.release_version import (
+from horizon.release_version import (
     CommitInfo,
     classify_commit_bump,
     compute_release_version,
@@ -146,7 +146,7 @@ def test_list_release_commits_parses_empty_body_entries(
     run.return_value = Mock(
         stdout="feat: add capability\x1f\x1efix: patch bug\x1fbody text\x1e",
     )
-    monkeypatch.setattr("headroom.release_version.run", run)
+    monkeypatch.setattr("horizon.release_version.run", run)
 
     commits = list_release_commits(ROOT, "")
 
@@ -156,7 +156,7 @@ def test_list_release_commits_parses_empty_body_entries(
     ]
 
 
-def test_release_version_script_runs_directly_without_importing_headroom_package(
+def test_release_version_script_runs_directly_without_importing_horizon_package(
     tmp_path: Path,
 ) -> None:
     output_path = tmp_path / "github-output.txt"
@@ -166,7 +166,7 @@ def test_release_version_script_runs_directly_without_importing_headroom_package
     env["MANUAL_VER"] = "0.6.0"
 
     result = subprocess.run(
-        [sys.executable, str(ROOT / "headroom" / "release_version.py")],
+        [sys.executable, str(ROOT / "horizon" / "release_version.py")],
         cwd=ROOT,
         capture_output=True,
         text=True,

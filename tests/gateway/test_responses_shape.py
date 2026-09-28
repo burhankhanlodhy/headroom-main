@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import copy
 
-from headroom.proxy.gateway_responses import (
+from horizon.proxy.gateway_responses import (
     VIEW_MARKER,
     apply_view,
     build_view,
@@ -23,7 +23,7 @@ from headroom.proxy.gateway_responses import (
     is_responses_body,
     mark_view,
 )
-from headroom.proxy.gateway_turn import build_provider_body
+from horizon.proxy.gateway_turn import build_provider_body
 
 ENCRYPTED = "gAAAAABqmk3crgbgbbcsDuoytKItfYE_AeLFYB0cl2Ikew"
 
@@ -273,8 +273,8 @@ def test_the_ccr_tool_is_declared_in_the_flat_responses_shape():
     Falling through to the OpenAI shape would inject a tool the provider
     refuses, on exactly the turns where compression markers made it necessary.
     """
-    from headroom.ccr import CCR_TOOL_NAME
-    from headroom.ccr.tool_injection import create_ccr_tool_definition
+    from horizon.ccr import CCR_TOOL_NAME
+    from horizon.ccr.tool_injection import create_ccr_tool_definition
 
     flat = create_ccr_tool_definition("openai_responses")
     assert flat["type"] == "function"
@@ -287,8 +287,8 @@ def test_the_ccr_tool_is_declared_in_the_flat_responses_shape():
 
 
 def test_arming_ccr_on_a_responses_turn_injects_the_flat_tool():
-    from headroom.ccr import CCR_TOOL_NAME
-    from headroom.proxy.gateway_turn import (
+    from horizon.ccr import CCR_TOOL_NAME
+    from horizon.proxy.gateway_turn import (
         GatewayCapabilities,
         RequestTransformResult,
         arm_ccr_redrive,
@@ -320,7 +320,7 @@ def test_a_redrive_goes_back_in_the_responses_shape():
     ``messages`` -- which the provider rejects. This covers every re-drive, CCR
     and tool-router alike.
     """
-    from headroom.proxy.gateway_turn import PendingTurn, Step, _redrive_payload
+    from horizon.proxy.gateway_turn import PendingTurn, Step, _redrive_payload
 
     body = codex_body()
     view = build_view(body)
@@ -356,7 +356,7 @@ def test_a_responses_body_with_no_view_never_grows_a_messages_key():
     """The bypass header returns before a view is built.
 
     ``build_provider_body`` used to add ``messages`` unconditionally, so
-    ``x-headroom-bypass: true`` -- the path whose whole job is to change
+    ``x-horizon-bypass: true`` -- the path whose whole job is to change
     nothing -- turned every Codex request into a provider 400: "Unsupported
     parameter: 'messages'. In the Responses API, this parameter has moved to
     'input'."

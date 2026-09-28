@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from click.testing import CliRunner
 
-from headroom.providers.copilot.wrap import (
+from horizon.providers.copilot.wrap import (
     COPILOT_BYOK_ENV_VARS,
     COPILOT_NATIVE_API_URL_ENV,
     build_launch_env,
@@ -66,8 +66,8 @@ def _invoke_native(
     *,
     support: bool | None = True,
 ):
-    from headroom.cli import wrap as wrap_mod
-    from headroom.cli.main import main
+    from horizon.cli import wrap as wrap_mod
+    from horizon.cli.main import main
 
     captured: dict[str, object] = {}
 
@@ -90,8 +90,8 @@ def _invoke_native(
 
 
 def test_implicit_oauth_uses_native_routing_without_flag(monkeypatch) -> None:
-    from headroom.cli import wrap as wrap_mod
-    from headroom.cli.main import main
+    from horizon.cli import wrap as wrap_mod
+    from horizon.cli.main import main
 
     captured: dict[str, object] = {}
     monkeypatch.setattr(wrap_mod.shutil, "which", lambda _name: "/usr/bin/copilot")

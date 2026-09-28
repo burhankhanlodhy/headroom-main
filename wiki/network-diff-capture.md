@@ -1,7 +1,7 @@
 # Differential Network Capture
 
-Headroom includes a containerized harness for comparing Claude Code traffic sent
-directly to Anthropic with traffic sent through a Headroom proxy. The harness
+Horizon includes a containerized harness for comparing Claude Code traffic sent
+directly to Anthropic with traffic sent through a Horizon proxy. The harness
 uses mitmproxy in two isolated lanes, writes sanitized JSONL captures, and then
 generates Markdown/JSON reports with request route, header, body size, body hash,
 and JSON payload differences.
@@ -12,30 +12,30 @@ and JSON payload differences.
 cd docker/differential-network-capture
 mkdir -p captures
 export ANTHROPIC_API_KEY=...
-export HEADROOM_PROXY_TOKEN='capture-secret'
+export HORIZON_PROXY_TOKEN='capture-secret'
 export CLAUDE_PROMPT="Summarize this repository in one sentence."
-docker compose up --build mitm-direct mitm-headroom-upstream headroom-proxy mitm-headroom-client
+docker compose up --build mitm-direct mitm-horizon-upstream horizon-proxy mitm-horizon-client
 docker compose --profile run run --rm claude-direct
-docker compose --profile run run --rm claude-headroom
+docker compose --profile run run --rm claude-horizon
 ```
 
 The primary captures are written to:
 
 - `docker/differential-network-capture/captures/direct.jsonl`
-- `docker/differential-network-capture/captures/headroom-client.jsonl`
+- `docker/differential-network-capture/captures/horizon-client.jsonl`
 
-The Headroom lane also writes
-`docker/differential-network-capture/captures/headroom-upstream.jsonl`, which is
-the request Headroom forwards to Anthropic after proxy processing.
+The Horizon lane also writes
+`docker/differential-network-capture/captures/horizon-upstream.jsonl`, which is
+the request Horizon forwards to Anthropic after proxy processing.
 
-`HEADROOM_PROXY_TOKEN` is required for the Headroom lane. The capture addon
-adds it only to requests from `mitm-headroom-client`; direct and upstream
+`HORIZON_PROXY_TOKEN` is required for the Horizon lane. The capture addon
+adds it only to requests from `mitm-horizon-client`; direct and upstream
 captures never receive it. Keep this value private and use the same value when
-calling a deliberately public Headroom proxy.
+calling a deliberately public Horizon proxy.
 
 The direct and upstream mitmproxy ports are published on loopback for local
 inspection. The client capture stays on the internal Compose network because
-it is an internal hop, so `HEADROOM_CLIENT_MITM_PORT` is intentionally not a
+it is an internal hop, so `HORIZON_CLIENT_MITM_PORT` is intentionally not a
 supported setting.
 
 By default only `api.anthropic.com` is logged. Override
@@ -44,9 +44,9 @@ By default only `api.anthropic.com` is logged. Override
 ## Generate A Report
 
 ```bash
-headroom capture network-diff \
+horizon capture network-diff \
   --direct docker/differential-network-capture/captures/direct.jsonl \
-  --headroom docker/differential-network-capture/captures/headroom-client.jsonl \
+  --horizon docker/differential-network-capture/captures/horizon-client.jsonl \
   --output docker/differential-network-capture/captures/report.md \
   --json-output docker/differential-network-capture/captures/report.json
 ```
@@ -58,8 +58,8 @@ may contain prompts, tool outputs, and repository context.
 
 For Claude Code deferred-tool investigations, the paired exchange table includes
 top-level Anthropic `tools` counts and serialized tool bytes. A jump from
-`tools=0->N` in the Headroom client lane is evidence that Claude Code eagerly
-materialized tool schemas before the request reached Headroom.
+`tools=0->N` in the Horizon client lane is evidence that Claude Code eagerly
+materialized tool schemas before the request reached Horizon.
 
 ## Custom Claude Invocation
 
@@ -69,8 +69,8 @@ Set `CLAUDE_COMMAND` to run the exact command under test in both lanes:
 CLAUDE_COMMAND='claude -p "read README.md and summarize the proxy setup"' \
   docker compose --profile run run --rm claude-direct
 CLAUDE_COMMAND='claude -p "read README.md and summarize the proxy setup"' \
-  docker compose --profile run run --rm claude-headroom
+  docker compose --profile run run --rm claude-horizon
 ```
 
-Use `CLAUDE_DIRECT_ARGS` and `CLAUDE_HEADROOM_ARGS` when each lane needs
+Use `CLAUDE_DIRECT_ARGS` and `CLAUDE_HORIZON_ARGS` when each lane needs
 different flags.

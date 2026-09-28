@@ -24,24 +24,24 @@ import pytest
 pytest.importorskip("fastapi")
 pytest.importorskip("httpx")
 
-from headroom import OpenAIProvider, Tokenizer
-from headroom.config import HeadroomConfig
-from headroom.parser import parse_messages
-from headroom.proxy.server import HeadroomProxy, ProxyConfig
-from headroom.transforms.pipeline import TransformPipeline
+from horizon import OpenAIProvider, Tokenizer
+from horizon.config import HorizonConfig
+from horizon.parser import parse_messages
+from horizon.proxy.server import HorizonProxy, ProxyConfig
+from horizon.transforms.pipeline import TransformPipeline
 
 _provider = OpenAIProvider()
 
 
 @pytest.fixture
-def proxy() -> HeadroomProxy:
+def proxy() -> HorizonProxy:
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,
         rate_limit_enabled=False,
         cost_tracking_enabled=False,
     )
-    return HeadroomProxy(config)
+    return HorizonProxy(config)
 
 
 @pytest.fixture
@@ -202,10 +202,10 @@ class TestPipelineWasteMessages:
         messages = self._base_messages()
         extra_tool = {"role": "tool", "content": json.dumps(_big_payload(300))}
 
-        baseline = TransformPipeline(HeadroomConfig()).apply(
+        baseline = TransformPipeline(HorizonConfig()).apply(
             [dict(m) for m in messages], model="gpt-4o", model_limit=128000
         )
-        enriched = TransformPipeline(HeadroomConfig()).apply(
+        enriched = TransformPipeline(HorizonConfig()).apply(
             [dict(m) for m in messages],
             model="gpt-4o",
             model_limit=128000,
@@ -220,10 +220,10 @@ class TestPipelineWasteMessages:
         messages = self._base_messages()
         extra_tool = {"role": "tool", "content": json.dumps(_big_payload(300))}
 
-        baseline = TransformPipeline(HeadroomConfig()).apply(
+        baseline = TransformPipeline(HorizonConfig()).apply(
             [dict(m) for m in messages], model="gpt-4o", model_limit=128000
         )
-        enriched = TransformPipeline(HeadroomConfig()).apply(
+        enriched = TransformPipeline(HorizonConfig()).apply(
             [dict(m) for m in messages],
             model="gpt-4o",
             model_limit=128000,
@@ -235,7 +235,7 @@ class TestPipelineWasteMessages:
         assert enriched.tokens_after == baseline.tokens_after
 
     def test_no_waste_messages_falls_back_to_transform_input(self, tokenizer):
-        result = TransformPipeline(HeadroomConfig()).apply(
+        result = TransformPipeline(HorizonConfig()).apply(
             [dict(m) for m in self._base_messages()], model="gpt-4o", model_limit=128000
         )
         assert result.waste_signals is not None

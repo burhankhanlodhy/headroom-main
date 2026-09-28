@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from headroom.learn.plugins._paths import path_exists
+from horizon.learn.plugins._paths import path_exists
 
 
 class _BoomPath(type(Path())):  # type: ignore[misc]
@@ -35,7 +35,7 @@ def test_path_exists_true_for_real_path(tmp_path: Path) -> None:
 def test_gemini_detect_project_path_survives_permission_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from headroom.learn.plugins.gemini import GeminiPlugin
+    from horizon.learn.plugins.gemini import GeminiPlugin
 
     session = tmp_path / "session-1.json"
     session.write_text(json.dumps({"projectPath": "/restricted/project"}), encoding="utf-8")
@@ -54,7 +54,7 @@ def test_gemini_detect_project_path_survives_permission_error(
 def test_grok_discover_projects_survives_permission_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from headroom.learn.plugins.grok import GrokPlugin
+    from horizon.learn.plugins.grok import GrokPlugin
 
     workspace = tmp_path / "sessions" / "%2Fhome%2Fu%2Fproj"
     (workspace / "s1").mkdir(parents=True)
@@ -83,7 +83,7 @@ def test_opencode_discover_projects_survives_permission_error(
 ) -> None:
     import sqlite3
 
-    from headroom.learn.plugins.opencode import OpenCodePlugin
+    from horizon.learn.plugins.opencode import OpenCodePlugin
 
     db_path = tmp_path / "opencode.db"
     conn = sqlite3.connect(db_path)
@@ -126,7 +126,7 @@ def test_opencode_discover_projects_survives_permission_error(
 def test_claude_discover_projects_survives_unreadable_memory_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from headroom.learn.plugins.claude import ClaudeCodePlugin
+    from horizon.learn.plugins.claude import ClaudeCodePlugin
 
     # A project dir left behind by a root-run session: the entry itself stats
     # (its parent is ours) but nothing under it is traversable.

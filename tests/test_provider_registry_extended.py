@@ -7,14 +7,14 @@ from unittest.mock import patch
 
 import pytest
 
-from headroom.providers.registry import (
+from horizon.providers.registry import (
     ProviderApiTargets,
     ProxyProviderRuntime,
     call_client_transport,
     create_proxy_backend,
     format_backend_status,
 )
-from headroom.proxy import upstream_guard
+from horizon.proxy import upstream_guard
 
 
 class DummyStorage:
@@ -97,7 +97,7 @@ def test_proxy_provider_runtime_selects_targets_and_providers() -> None:
     ):
         assert (
             runtime.select_passthrough_base_url(
-                {"api-key": "azure-key", "x-headroom-base-url": "https://azure.example/openai/"}
+                {"api-key": "azure-key", "x-horizon-base-url": "https://azure.example/openai/"}
             )
             == "https://azure.example/openai"
         )
@@ -188,7 +188,7 @@ def test_format_backend_status_uses_litellm_provider_metadata(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "headroom.backends.litellm.get_provider_config",
+        "horizon.backends.litellm.get_provider_config",
         lambda provider: SimpleNamespace(
             display_name=provider.upper(),
             uses_region=(provider == "bedrock"),

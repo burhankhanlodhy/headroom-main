@@ -23,11 +23,11 @@ import json
 
 import pytest
 
-from headroom.providers import OpenAIProvider
-from headroom.tokenizer import Tokenizer
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
-from headroom.transforms.lossless_compaction import expand_runs, search_unheading, strip_ansi
-from headroom.transforms.lossless_provider import (
+from horizon.providers import OpenAIProvider
+from horizon.tokenizer import Tokenizer
+from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
+from horizon.transforms.lossless_compaction import expand_runs, search_unheading, strip_ansi
+from horizon.transforms.lossless_provider import (
     get_lossless_provider,
     set_lossless_provider,
 )

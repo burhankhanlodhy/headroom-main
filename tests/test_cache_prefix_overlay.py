@@ -11,7 +11,7 @@ so the cache still hits — in BOTH proxy modes.
 
 import copy
 
-from headroom.cache.prefix_tracker import overlay_cached_prefix
+from horizon.cache.prefix_tracker import overlay_cached_prefix
 
 
 def M(role, text):
@@ -101,7 +101,7 @@ def test_overlay_returns_optimized_when_json_sizing_fails(monkeypatch):
     forwarded = [M("user", "compressed")]
 
     monkeypatch.setattr(
-        "headroom.cache.prefix_tracker.json.dumps",
+        "horizon.cache.prefix_tracker.json.dumps",
         lambda *args, **kwargs: (_ for _ in ()).throw(TypeError("cannot size")),
     )
 
@@ -248,7 +248,7 @@ def test_cache_hit_property_prefix_matches_last_forward():
 # giving OpenAI/Kimi tool harnesses ~zero compression. These lock in the fix.
 import json as _json
 
-from headroom.cache.prefix_tracker import PrefixCacheTracker, PrefixFreezeConfig
+from horizon.cache.prefix_tracker import PrefixCacheTracker, PrefixFreezeConfig
 
 
 def _openai_asst(cmd):

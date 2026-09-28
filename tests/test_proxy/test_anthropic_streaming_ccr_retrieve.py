@@ -16,9 +16,9 @@ from fastapi.responses import StreamingResponse  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from starlette.requests import Request  # noqa: E402
 
-from headroom.cache.compression_store import get_compression_store  # noqa: E402
-from headroom.ccr.tool_injection import create_ccr_tool_definition  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.cache.compression_store import get_compression_store  # noqa: E402
+from horizon.ccr.tool_injection import create_ccr_tool_definition  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 def _make_config() -> ProxyConfig:
@@ -38,8 +38,8 @@ def _make_config() -> ProxyConfig:
 @pytest.fixture(autouse=True)
 def _fresh_compression_store():
     """Each test gets its own store, so seeded markers cannot leak between them."""
-    from headroom.cache.backends import InMemoryBackend
-    from headroom.cache.compression_store import get_compression_store, reset_compression_store
+    from horizon.cache.backends import InMemoryBackend
+    from horizon.cache.compression_store import get_compression_store, reset_compression_store
 
     reset_compression_store()
     get_compression_store(backend=InMemoryBackend())
@@ -53,7 +53,7 @@ def _buffered(text: str) -> str:
     """User content carrying a marker this proxy owns.
 
     The buffered path engages only when retrieval has something to expand
-    (#3071); a resident ``headroom_retrieve`` with no redeemable marker in the
+    (#3071); a resident ``horizon_retrieve`` with no redeemable marker in the
     request keeps streaming. Every test below that is *about* the buffered path
     therefore has to earn it with a real marker rather than the tool alone.
     """
@@ -103,7 +103,7 @@ class _ContinuationClient:
         return None
 
 
-def test_streaming_headroom_retrieve_is_intercepted_and_returned_as_sse() -> None:
+def test_streaming_horizon_retrieve_is_intercepted_and_returned_as_sse() -> None:
     config = _make_config()
     store = get_compression_store()
     hash_key = store.store(
@@ -116,7 +116,7 @@ def test_streaming_headroom_retrieve_is_intercepted_and_returned_as_sse() -> Non
             {
                 "type": "tool_use",
                 "id": "toolu_ccr",
-                "name": "headroom_retrieve",
+                "name": "horizon_retrieve",
                 "input": {"hash": hash_key},
             }
         ],
@@ -126,7 +126,7 @@ def test_streaming_headroom_retrieve_is_intercepted_and_returned_as_sse() -> Non
         [{"type": "text", "text": "retrieved answer is now available"}]
     )
 
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(config)
         with TestClient(app) as client:
             proxy = client.app.state.proxy
@@ -165,7 +165,7 @@ def test_streaming_headroom_retrieve_is_intercepted_and_returned_as_sse() -> Non
     assert resp.status_code == 200, resp.text
     assert "text/event-stream" in resp.headers["content-type"]
     assert "retrieved answer is now available" in resp.text
-    assert "headroom_retrieve" not in resp.text
+    assert "horizon_retrieve" not in resp.text
     assert initial_bodies and initial_bodies[0]["stream"] is False
     assert len(continuation_client.post_calls) == 1
     continuation_body = json.loads(continuation_client.post_calls[0]["content"].decode())
@@ -179,10 +179,10 @@ def test_streaming_headroom_retrieve_is_intercepted_and_returned_as_sse() -> Non
     assert "accept-encoding" not in continuation_headers
 
 
-def test_streaming_without_headroom_retrieve_uses_normal_streaming_path() -> None:
+def test_streaming_without_horizon_retrieve_uses_normal_streaming_path() -> None:
     config = _make_config()
 
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(config)
         with TestClient(app) as client:
             proxy = client.app.state.proxy
@@ -213,11 +213,11 @@ def test_streaming_without_headroom_retrieve_uses_normal_streaming_path() -> Non
     proxy._stream_response.assert_awaited_once()
 
 
-def test_streaming_with_headroom_retrieve_available_but_unused_returns_sse() -> None:
+def test_streaming_with_horizon_retrieve_available_but_unused_returns_sse() -> None:
     config = _make_config()
     text_response = _message_response([{"type": "text", "text": "plain answer"}])
 
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(config)
         with TestClient(app) as client:
             proxy = client.app.state.proxy
@@ -251,14 +251,14 @@ def test_streaming_with_headroom_retrieve_available_but_unused_returns_sse() -> 
     assert resp.status_code == 200, resp.text
     assert "text/event-stream" in resp.headers["content-type"]
     assert "plain answer" in resp.text
-    assert "headroom_retrieve" not in resp.text
+    assert "horizon_retrieve" not in resp.text
     assert initial_bodies and initial_bodies[0]["stream"] is False
     assert continuation_client.post_calls == []
     proxy._stream_response.assert_not_awaited()
 
 
 def test_mixed_ccr_and_client_tool_streams_both_blocks_as_sse() -> None:
-    """LEGAL mixed turn (#839, #2089): headroom_retrieve emitted alongside a
+    """LEGAL mixed turn (#839, #2089): horizon_retrieve emitted alongside a
     client tool. The proxy cannot synthesize the client tool_result, so it must
     hand the turn back for the client to resolve — a 200 SSE stream preserving
     BOTH tool_use blocks, matching the non-streaming path. It must NOT 502 and
@@ -269,7 +269,7 @@ def test_mixed_ccr_and_client_tool_streams_both_blocks_as_sse() -> None:
             {
                 "type": "tool_use",
                 "id": "toolu_ccr",
-                "name": "headroom_retrieve",
+                "name": "horizon_retrieve",
                 "input": {"hash": "abc123"},
             },
             {
@@ -282,7 +282,7 @@ def test_mixed_ccr_and_client_tool_streams_both_blocks_as_sse() -> None:
         stop_reason="tool_use",
     )
 
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(config)
         with TestClient(app) as client:
             proxy = client.app.state.proxy
@@ -320,7 +320,7 @@ def test_mixed_ccr_and_client_tool_streams_both_blocks_as_sse() -> None:
     assert resp.status_code == 200, resp.text
     assert "text/event-stream" in resp.headers["content-type"]
     # Both tool_use blocks are preserved for the client to resolve.
-    assert "headroom_retrieve" in resp.text
+    assert "horizon_retrieve" in resp.text
     assert "client_tool" in resp.text
     assert "toolu_ccr" in resp.text
     assert "toolu_client" in resp.text
@@ -331,9 +331,9 @@ def test_mixed_ccr_and_client_tool_streams_both_blocks_as_sse() -> None:
 
 def test_unresolved_ccr_only_streams_through_as_200() -> None:
     """CCR-only turn that never resolves: the model keeps re-emitting
-    headroom_retrieve so the continuation exhausts its retrieval rounds with a
+    horizon_retrieve so the continuation exhausts its retrieval rounds with a
     residual marker and no accompanying client tool. Per #2089 the streaming
-    path streams the residual headroom_retrieve back as a 200 SSE so the client
+    path streams the residual horizon_retrieve back as a 200 SSE so the client
     can resolve or retry it, matching the non-streaming path."""
     config = _make_config()
     persistent_ccr = _message_response(
@@ -341,21 +341,21 @@ def test_unresolved_ccr_only_streams_through_as_200() -> None:
             {
                 "type": "tool_use",
                 "id": "toolu_ccr",
-                "name": "headroom_retrieve",
+                "name": "horizon_retrieve",
                 "input": {"hash": "deadbeef"},
             },
         ],
         stop_reason="tool_use",
     )
 
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(config)
         with TestClient(app) as client:
             proxy = client.app.state.proxy
             proxy._stream_response = AsyncMock(
                 side_effect=AssertionError("live streaming path should not be used")
             )
-            # Every continuation re-emits headroom_retrieve, so it never resolves.
+            # Every continuation re-emits horizon_retrieve, so it never resolves.
             continuation_client = _ContinuationClient(persistent_ccr)
             proxy.http_client = continuation_client
 
@@ -378,7 +378,7 @@ def test_unresolved_ccr_only_streams_through_as_200() -> None:
 
     assert resp.status_code == 200, resp.text
     assert "text/event-stream" in resp.headers["content-type"]
-    assert "headroom_retrieve" in resp.text
+    assert "horizon_retrieve" in resp.text
 
 
 @pytest.mark.asyncio
@@ -428,7 +428,7 @@ async def test_buffered_ccr_withholds_output_until_delayed_upstream_resolves() -
         "root_path": "",
     }
 
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(config)
         with TestClient(app):
             proxy = app.state.proxy
@@ -490,7 +490,7 @@ async def test_buffered_ccr_preserves_early_failure_status_and_headers() -> None
         "root_path": "",
     }
 
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(config)
         with TestClient(app):
             proxy = app.state.proxy
@@ -516,7 +516,7 @@ async def test_buffered_ccr_preserves_early_failure_status_and_headers() -> None
     headers = dict(start["headers"])
     assert start["status"] == 429
     assert headers[b"retry-after"] == b"7"
-    assert b": headroom-keepalive\n\n" not in b"".join(
+    assert b": horizon-keepalive\n\n" not in b"".join(
         event["body"] for event in events if event["type"] == "http.response.body"
     )
 
@@ -525,7 +525,7 @@ async def test_buffered_ccr_preserves_early_failure_status_and_headers() -> None
 async def test_buffered_ccr_preserves_late_failure_status_and_headers() -> None:
     """The reported failure: a non-200 landing after the old keepalive deadline.
 
-    Headroom had already committed ``200 text/event-stream`` by then, so the 429
+    Horizon had already committed ``200 text/event-stream`` by then, so the 429
     reached Claude Code as a 200 whose body carried no ``message_start`` — shown
     as "API returned an empty or malformed response (HTTP 200) — check for a
     proxy or gateway intercepting the request" — and ``retry-after`` was dropped,
@@ -559,7 +559,7 @@ async def test_buffered_ccr_preserves_late_failure_status_and_headers() -> None:
         "root_path": "",
     }
 
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(config)
         with TestClient(app):
             proxy = app.state.proxy
@@ -600,7 +600,7 @@ async def test_buffered_ccr_preserves_late_failure_status_and_headers() -> None:
 def test_buffered_ccr_rejects_malformed_success_as_502() -> None:
     """A non-SSE, non-JSON 200 is an upstream protocol error, not success."""
     config = _make_config()
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(config)
         with TestClient(app) as client:
             proxy = app.state.proxy
@@ -636,7 +636,7 @@ def test_buffered_ccr_rejects_ping_only_sse_as_502() -> None:
     successful stream loses the turn behind a valid-looking 200 (#3266).
     """
     config = _make_config()
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(config)
         with TestClient(app) as client:
             proxy = app.state.proxy
@@ -695,11 +695,11 @@ async def test_buffered_ccr_late_failure_returns_sanitized_json_error() -> None:
         "root_path": "",
     }
 
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(config)
         with TestClient(app):
             proxy = app.state.proxy
-            proxy_logger = logging.getLogger("headroom.proxy")
+            proxy_logger = logging.getLogger("horizon.proxy")
             error_records: list[logging.LogRecord] = []
             log_handler = logging.Handler()
             log_handler.setLevel(logging.ERROR)
@@ -771,7 +771,7 @@ async def test_buffered_ccr_pre_keepalive_exception_returns_json_error() -> None
         "root_path": "",
     }
 
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(config)
         with TestClient(app):
             proxy = app.state.proxy

@@ -1,23 +1,23 @@
 # Proxy Server Documentation
 
-The Headroom proxy server is a production-ready HTTP server that applies context optimization to all requests passing through it.
+The Horizon proxy server is a production-ready HTTP server that applies context optimization to all requests passing through it.
 
-> The proxy exposes compression-as-a-service via the `POST /v1/compress` endpoint — used by the [TypeScript SDK](typescript-sdk.md), LiteLLM's `headroom` guardrail, and gateway sidecars. It is loopback-only by default; see the endpoint section below.
+> The proxy exposes compression-as-a-service via the `POST /v1/compress` endpoint — used by the [TypeScript SDK](typescript-sdk.md), LiteLLM's `horizon` guardrail, and gateway sidecars. It is loopback-only by default; see the endpoint section below.
 
 ## Starting the Proxy
 
 ```bash
 # Basic usage
-headroom proxy
+horizon proxy
 
 # Deliberate public access, with the existing token protocol
-HEADROOM_PROXY_TOKEN='replace-with-a-secret' headroom proxy --host 0.0.0.0 --port 8080
+HORIZON_PROXY_TOKEN='replace-with-a-secret' horizon proxy --host 0.0.0.0 --port 8080
 # Send `Authorization: Bearer replace-with-a-secret` or
-# `X-Headroom-Proxy-Token: replace-with-a-secret` from the caller.
+# `X-Horizon-Proxy-Token: replace-with-a-secret` from the caller.
 
 # With logging and budget
-headroom proxy \
-  --log-file /var/log/headroom.jsonl \
+horizon proxy \
+  --log-file /var/log/horizon.jsonl \
   --budget 100.0
 ```
 
@@ -28,37 +28,37 @@ headroom proxy \
 ANTHROPIC_BASE_URL=http://localhost:8787 claude
 
 # GitHub Copilot CLI
-headroom wrap copilot -- --model claude-sonnet-4-20250514
+horizon wrap copilot -- --model claude-sonnet-4-20250514
 
 # OpenAI-compatible clients
 OPENAI_BASE_URL=http://localhost:8787/v1 your-app
 ```
 
-`headroom wrap copilot` uses Copilot CLI's BYOK provider settings under the hood. In `provider-type=auto`, it chooses Headroom's Anthropic route for the default proxy backend and the OpenAI-compatible `/v1` route for translated backends such as `anyllm` and LiteLLM.
+`horizon wrap copilot` uses Copilot CLI's BYOK provider settings under the hood. In `provider-type=auto`, it chooses Horizon's Anthropic route for the default proxy backend and the OpenAI-compatible `/v1` route for translated backends such as `anyllm` and LiteLLM.
 
-Anonymous aggregate telemetry is **off by default** (opt-in). Opt in with `HEADROOM_TELEMETRY=on` or `headroom proxy --telemetry`. Downstream apps can set `HEADROOM_SDK=headroom-app` to override the anonymous telemetry `sdk` label; the default remains `proxy`.
+Anonymous aggregate telemetry is **off by default** (opt-in). Opt in with `HORIZON_TELEMETRY=on` or `horizon proxy --telemetry`. Downstream apps can set `HORIZON_SDK=horizon-app` to override the anonymous telemetry `sdk` label; the default remains `proxy`.
 
-Operational OTEL metrics are configured separately and are **off by default**. Install `headroom-ai[proxy,otel]` and set:
+Operational OTEL metrics are configured separately and are **off by default**. Install `horizon-ai[proxy,otel]` and set:
 
 ```bash
-HEADROOM_OTEL_METRICS_ENABLED=1
-HEADROOM_OTEL_METRICS_EXPORTER=otlp_http
-HEADROOM_OTEL_METRICS_ENDPOINT=http://127.0.0.1:4318/v1/metrics
-HEADROOM_OTEL_SERVICE_NAME=headroom-proxy
+HORIZON_OTEL_METRICS_ENABLED=1
+HORIZON_OTEL_METRICS_EXPORTER=otlp_http
+HORIZON_OTEL_METRICS_ENDPOINT=http://127.0.0.1:4318/v1/metrics
+HORIZON_OTEL_SERVICE_NAME=horizon-proxy
 ```
 
-Use `HEADROOM_OTEL_METRICS_EXPORTER=console` for local smoke testing. `HEADROOM_TELEMETRY` controls the anonymous data-flywheel beacon only; it does not disable or enable OTEL export.
+Use `HORIZON_OTEL_METRICS_EXPORTER=console` for local smoke testing. `HORIZON_TELEMETRY` controls the anonymous data-flywheel beacon only; it does not disable or enable OTEL export.
 
-Langfuse can be enabled alongside this OTEL path for **trace ingestion**. Langfuse does **not** ingest OTEL metrics, so Headroom keeps metrics and Langfuse traces as complementary signals:
+Langfuse can be enabled alongside this OTEL path for **trace ingestion**. Langfuse does **not** ingest OTEL metrics, so Horizon keeps metrics and Langfuse traces as complementary signals:
 
 ```bash
-HEADROOM_LANGFUSE_ENABLED=1
+HORIZON_LANGFUSE_ENABLED=1
 LANGFUSE_PUBLIC_KEY=pk-lf-...
 LANGFUSE_SECRET_KEY=sk-lf-...
 LANGFUSE_BASE_URL=https://cloud.langfuse.com
 ```
 
-When configured, Headroom emits OTLP traces for the shared compression pipeline to Langfuse while continuing to expose metrics through `/metrics` and OTEL metric exporters.
+When configured, Horizon emits OTLP traces for the shared compression pipeline to Langfuse while continuing to expose metrics through `/metrics` and OTEL metric exporters.
 
 ## Command Line Options
 
@@ -74,7 +74,7 @@ When configured, Headroom emits OTLP traces for the shared compression pipeline 
 | `--no-rate-limit` | `false` | Disable rate limiting |
 | `--log-file` | None | Path to JSONL log file |
 | `--budget` | None | Daily budget limit in USD |
-| `--code-aware` / `--no-code-aware` | disabled | Enable or disable AST-based code compression. Requires `headroom-ai[code]` (env: HEADROOM_CODE_AWARE_ENABLED=1 to enable) |
+| `--code-aware` / `--no-code-aware` | disabled | Enable or disable AST-based code compression. Requires `horizon-ai[code]` (env: HORIZON_CODE_AWARE_ENABLED=1 to enable) |
 | `--anthropic-api-url` | `https://api.anthropic.com` | Custom Anthropic API URL endpoint |
 | `--openai-api-url` | `https://api.openai.com` | Custom OpenAI API URL endpoint |
 | `--anthropic-extra-headers` | unset | JSON object of extra headers merged into (and overriding) forwarded Anthropic requests, e.g. `'{"Api-Key": "..."}'` |
@@ -82,7 +82,7 @@ When configured, Headroom emits OTLP traces for the shared compression pipeline 
 
 ### Run Modes
 
-Headroom proxy has two explicit run modes:
+Horizon proxy has two explicit run modes:
 
 - `token` mode: prioritize token reduction. Prior history may be rewritten when that improves compression.
 - `cache` mode: prioritize provider prefix cache stability. Prior turns are frozen; only the newest turn is mutable.
@@ -90,8 +90,8 @@ Headroom proxy has two explicit run modes:
 Set via CLI or env:
 
 ```bash
-headroom proxy --mode token
-HEADROOM_MODE=cache headroom proxy
+horizon proxy --mode token
+HORIZON_MODE=cache horizon proxy
 ```
 
 When to pick each:
@@ -99,7 +99,7 @@ When to pick each:
 - `token`: best for maximizing immediate compression savings.
 - `cache`: best for long conversations where preserving prior-turn bytes improves prefix-cache reuse.
 
-Legacy values (`token_headroom`, `cost_savings`) are still accepted as aliases.
+Legacy values (`token_horizon`, `cost_savings`) are still accepted as aliases.
 
 ### Context Management Options
 
@@ -109,14 +109,14 @@ Key CCR-related proxy flags:
 
 | Option | Description |
 |--------|-------------|
-| `--no-ccr` | Disable CCR entirely — no retrieval markers in compressed output and no injected `headroom_retrieve` tool (lossy, no recovery path) |
+| `--no-ccr` | Disable CCR entirely — no retrieval markers in compressed output and no injected `horizon_retrieve` tool (lossy, no recovery path) |
 | `--no-ccr-proactive-expansion` | Disable proactive context expansion before the LLM asks |
 
 ### ML Compression — RETIRED `--llmlingua` flag
 
 The `--llmlingua` / `--llmlingua-device` / `--llmlingua-rate` flags and
-the `headroom-ai[llmlingua]` extra were retired and replaced by Kompress
-(ModernBERT). For the current opt-in path, install `headroom-ai[ml]`
+the `horizon-ai[llmlingua]` extra were retired and replaced by Kompress
+(ModernBERT). For the current opt-in path, install `horizon-ai[ml]`
 and see [transforms.md](transforms.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## API Endpoints
@@ -130,7 +130,7 @@ curl http://localhost:8787/livez
 Response:
 ```json
 {
-  "service": "headroom-proxy",
+  "service": "horizon-proxy",
   "status": "healthy",
   "alive": true,
   "version": "0.5.21",
@@ -148,7 +148,7 @@ curl http://localhost:8787/readyz
 Response:
 ```json
 {
-  "service": "headroom-proxy",
+  "service": "horizon-proxy",
   "status": "healthy",
   "ready": true,
   "version": "0.5.21",
@@ -164,7 +164,7 @@ Response:
 }
 ```
 
-`/readyz` returns HTTP 503 when Headroom has not completed startup or a required enabled subsystem is unavailable. This is the endpoint used by the container health checks.
+`/readyz` returns HTTP 503 when Horizon has not completed startup or a required enabled subsystem is unavailable. This is the endpoint used by the container health checks.
 
 ### Aggregate Health
 
@@ -219,7 +219,7 @@ curl http://localhost:8787/stats-history
 ```
 
 `/stats-history` exposes durable proxy compression history for dashboards and
-other Headroom frontends. It returns:
+other Horizon frontends. It returns:
 
 - lifetime proxy compression totals
 - compact checkpoint history by default, with `history_mode=full` available for
@@ -229,10 +229,10 @@ other Headroom frontends. It returns:
 - UTC timestamps throughout
 
 By default the proxy stores this history at
-`${HEADROOM_WORKSPACE_DIR}/proxy_savings.json` (i.e.
-`~/.headroom/proxy_savings.json` when `HEADROOM_WORKSPACE_DIR` is unset).
-Set `HEADROOM_SAVINGS_PATH` to override the location directly, or set
-`HEADROOM_WORKSPACE_DIR` to relocate the full state root. See the
+`${HORIZON_WORKSPACE_DIR}/proxy_savings.json` (i.e.
+`~/.horizon/proxy_savings.json` when `HORIZON_WORKSPACE_DIR` is unset).
+Set `HORIZON_SAVINGS_PATH` to override the location directly, or set
+`HORIZON_WORKSPACE_DIR` to relocate the full state root. See the
 [Filesystem Contract](filesystem-contract.md).
 
 `/dashboard` uses this endpoint directly for its historical view, including the
@@ -266,15 +266,15 @@ POST /v1/chat/completions
 
 ### `POST /v1/compress`
 
-Compression-only endpoint. Compresses messages without ever making a **completion request to an LLM provider** — no generation, no provider API key. Used by the [TypeScript SDK](typescript-sdk.md), LiteLLM's `headroom` guardrail, and gateway sidecars.
+Compression-only endpoint. Compresses messages without ever making a **completion request to an LLM provider** — no generation, no provider API key. Used by the [TypeScript SDK](typescript-sdk.md), LiteLLM's `horizon` guardrail, and gateway sidecars.
 
-**It does run local ML models.** Compression is ML-backed: Kompress is a ModernBERT encoder scoring tokens for retention (classification, not generation) and Magika classifies content types, both in-process by default. If `HEADROOM_KOMPRESS_ENDPOINT` is set, Kompress inference is offloaded over HTTP to that model server — real egress from the sidecar. Only inference goes remote; the CCR store and markers stay proxy-local. `HEADROOM_DISABLE_KOMPRESS=1` gives structural compression only.
+**It does run local ML models.** Compression is ML-backed: Kompress is a ModernBERT encoder scoring tokens for retention (classification, not generation) and Magika classifies content types, both in-process by default. If `HORIZON_KOMPRESS_ENDPOINT` is set, Kompress inference is offloaded over HTTP to that model server — real egress from the sidecar. Only inference goes remote; the CCR store and markers stay proxy-local. `HORIZON_DISABLE_KOMPRESS=1` gives structural compression only.
 
-**Loopback-only by default.** Non-loopback callers get **404** (not 403 — the route stays invisible to scanners). Set `HEADROOM_COMPRESS_ALLOW_REMOTE=1` to allow remote callers.
+**Loopback-only by default.** Non-loopback callers get **404** (not 403 — the route stays invisible to scanners). Set `HORIZON_COMPRESS_ALLOW_REMOTE=1` to allow remote callers.
 
 **No format conversion.** `messages` may be OpenAI-shaped (`role: "tool"` + `tool_call_id`) or Anthropic-shaped (`tool_use` / `tool_result` content blocks); the same shape comes back. `model` selects the tokenizer and context limit — send the real name, including gateway-prefixed forms like `bedrock/anthropic.claude-3-5-sonnet`.
 
-**`system` and `tools` are ignored outside gateway mode.** Anthropic sends both out of band. Without a `gateway` block this endpoint accepts them without complaint (200, no warning) and returns neither, so neither is compressed — keep carrying them yourself. That means the Anthropic system prompt is not compressed here, and tool-schema compaction / tool-search deferral are not reachable this way. Gateway mode (below) passes `tools` through and compacts them; in OSS, native tool-search deferral is still proxy-only — the headroom-tool-search extension adds it to gateway mode as a turn hook.
+**`system` and `tools` are ignored outside gateway mode.** Anthropic sends both out of band. Without a `gateway` block this endpoint accepts them without complaint (200, no warning) and returns neither, so neither is compressed — keep carrying them yourself. That means the Anthropic system prompt is not compressed here, and tool-schema compaction / tool-search deferral are not reachable this way. Gateway mode (below) passes `tools` through and compacts them; in OSS, native tool-search deferral is still proxy-only — the horizon-tool-search extension adds it to gateway mode as a turn hook.
 
 **Request:**
 ```json
@@ -285,7 +285,7 @@ Compression-only endpoint. Compresses messages without ever making a **completio
   "config": {                 // optional
     "mode": "lossy_inline",       // ccr | lossy_inline | lossless_then_lossy
     "frozen_message_count": 12,   // pin an already-cached prefix
-    "session_id": "conv-8f1c",    // session mode: Headroom keeps the replay state
+    "session_id": "conv-8f1c",    // session mode: Horizon keeps the replay state
     "compress_user_messages": false,
     "target_ratio": 0.5,
     "protect_recent": 2,
@@ -310,13 +310,13 @@ Compression-only endpoint. Compresses messages without ever making a **completio
 ```
 
 **Headers:**
-- `x-headroom-bypass: true` — skip compression, return messages as-is with zeroed metrics
+- `x-horizon-bypass: true` — skip compression, return messages as-is with zeroed metrics
 
-**Error responses:** 400 (missing/invalid fields, bad `config.mode`, `config.frozen_message_count` or `config.session_id`, `session_id` with `compress_user_messages`, malformed `gateway` block), 401 (bad `HEADROOM_PROXY_TOKEN`), 404 (non-loopback without `HEADROOM_COMPRESS_ALLOW_REMOTE=1`), 503 (compression failed; in session mode also `compression_timeout` — retry the turn)
+**Error responses:** 400 (missing/invalid fields, bad `config.mode`, `config.frozen_message_count` or `config.session_id`, `session_id` with `compress_user_messages`, malformed `gateway` block), 401 (bad `HORIZON_PROXY_TOKEN`), 404 (non-loopback without `HORIZON_COMPRESS_ALLOW_REMOTE=1`), 503 (compression failed; in session mode also `compression_timeout` — retry the turn)
 
 **Fail-open:** without a session, on timeout you get 200 with the original messages plus `compression_skipped: true` and `skip_reason: "compression_timeout"`. In session mode a timeout or busy session lock is a 503 instead, because handing back originals would desync the replay state.
 
-**Multi-turn callers — don't lose the prefix cache.** Without `config.session_id` this endpoint is stateless: unlike the proxy's own request path (which runs a CacheAligner and tracks provider cache hits across turns), it has no idea what the provider already cached. Either let Headroom keep the state (session mode, below) or keep it yourself with `frozen_message_count`.
+**Multi-turn callers — don't lose the prefix cache.** Without `config.session_id` this endpoint is stateless: unlike the proxy's own request path (which runs a CacheAligner and tracks provider cache hits across turns), it has no idea what the provider already cached. Either let Horizon keep the state (session mode, below) or keep it yourself with `frozen_message_count`.
 
 The provider caches the bytes you *forwarded*, which compression already changed — so your originals and the cached prefix are no longer the same thing, and it is the forwarded version you must keep reproducing. Compression also varies with position: an older tool result can fall outside the recent-read protection window as the conversation grows and be compressed harder than last turn, so re-compression is not guaranteed to reproduce earlier output either. Two rules:
 
@@ -342,21 +342,21 @@ def next_turn(new_messages):
 
 Note `protect_recent` is not a substitute — it guards the newest messages, while `frozen_message_count` guards the oldest, which is the cached end.
 
-**Session mode.** Pass `config.session_id` (non-empty, at most 256 chars) and Headroom keeps the conversation's replay state itself — the same per-session compression cache and prefix tracker the proxy uses — so a gateway that owns routing can resend the raw conversation every turn and get a byte-identical prefix back. Everything previously returned for the session comes back unchanged; only the new tail is compressed; an explicit `frozen_message_count` still wins when larger. Forward the returned messages verbatim. `compress_user_messages` is refused (400). State is in-process (replay cache: `HEADROOM_COMPRESSION_CACHE_TTL_SECONDS`, default 3900; tracker state: 10 idle minutes), so multi-process deployments must pin a session to one process. `HEADROOM_COMPRESS_SESSION_FROM_HEADER=1` lets the `x-headroom-session-id` header stand in for `config.session_id` (off by default).
+**Session mode.** Pass `config.session_id` (non-empty, at most 256 chars) and Horizon keeps the conversation's replay state itself — the same per-session compression cache and prefix tracker the proxy uses — so a gateway that owns routing can resend the raw conversation every turn and get a byte-identical prefix back. Everything previously returned for the session comes back unchanged; only the new tail is compressed; an explicit `frozen_message_count` still wins when larger. Forward the returned messages verbatim. `compress_user_messages` is refused (400). State is in-process (replay cache: `HORIZON_COMPRESSION_CACHE_TTL_SECONDS`, default 3900; tracker state: 10 idle minutes), so multi-process deployments must pin a session to one process. `HORIZON_COMPRESS_SESSION_FROM_HEADER=1` lets the `x-horizon-session-id` header stand in for `config.session_id` (off by default).
 
 Optionally relay the provider's usage for attribution with `POST /v1/usage` `{"session_id": "...", "usage": {...}}`. Anthropic `cache_read_input_tokens` / `cache_creation_input_tokens` and OpenAI `prompt_tokens_details.cached_tokens` / flat `cached_tokens` are accepted; a block with none of them is a 400. Replies `{"session_id", "frozen_message_count", "applied"}` (`applied: false, reason: "no_cache_signal"` when the only present field is 0), 404 `unknown_session`, or 503 `session_busy` (retry). Telemetry only — it never raises the frozen count.
 
-**Gateway mode (two-half turn contract).** Add a top-level `gateway` object (`{}` is enough) and one model turn becomes two calls, so a gateway that never lets Headroom see the provider response can still run transforms whose reload step needs it — the proxy's "no shrink without reload" rule at the API boundary. `gateway` fields: `can_redrive` (default `false`: the gateway can call the provider again with a request Headroom hands it; send `false` when streaming), `can_relay_response` (default `false`: the gateway will post status/usage after each turn), `session_affinity` (default `true`; `false` disables re-driving because pending turns are in-process), `plugin_version` (diagnostics). Every other top-level field (`system`, `tools`, `temperature`, …) passes through; `tools` is compacted deterministically (`tool_schema_compaction`; `tool_desc_compaction` with `HEADROOM_TOOL_DESC_MAX_CHARS`); extension turn hooks run, stream-safe-only unless `can_redrive` and `session_affinity` both hold. The response adds `body` (the complete provider request — forward it as-is; never contains `config`, `gateway`, `token_budget`), `turn_id`, `route` (`{model, provider, service_tier, reason}`, advisory; a routing extension's model is also written into `body.model`), `obligations` (`redrive` and/or `relay_usage`) and a `gateway` echo. Fail-open answers carry the same keys with originals and `obligations: []`. A turn is registered only when `obligations` is non-empty; with `relay_usage` the `/stats` record waits for the response half. Knobs: `HEADROOM_GATEWAY_TURN_TTL_SECONDS` (120), `HEADROOM_GATEWAY_MAX_PENDING_TURNS` (10000), `HEADROOM_GATEWAY_MAX_REDRIVES` (8). With `config.mode: "ccr"` and re-drive allowed, `headroom_retrieve` is injected into `body.tools` (`ccr_tool_injected`) and the response half answers the model's retrieval calls itself.
+**Gateway mode (two-half turn contract).** Add a top-level `gateway` object (`{}` is enough) and one model turn becomes two calls, so a gateway that never lets Horizon see the provider response can still run transforms whose reload step needs it — the proxy's "no shrink without reload" rule at the API boundary. `gateway` fields: `can_redrive` (default `false`: the gateway can call the provider again with a request Horizon hands it; send `false` when streaming), `can_relay_response` (default `false`: the gateway will post status/usage after each turn), `session_affinity` (default `true`; `false` disables re-driving because pending turns are in-process), `plugin_version` (diagnostics). Every other top-level field (`system`, `tools`, `temperature`, …) passes through; `tools` is compacted deterministically (`tool_schema_compaction`; `tool_desc_compaction` with `HORIZON_TOOL_DESC_MAX_CHARS`); extension turn hooks run, stream-safe-only unless `can_redrive` and `session_affinity` both hold. The response adds `body` (the complete provider request — forward it as-is; never contains `config`, `gateway`, `token_budget`), `turn_id`, `route` (`{model, provider, service_tier, reason}`, advisory; a routing extension's model is also written into `body.model`), `obligations` (`redrive` and/or `relay_usage`) and a `gateway` echo. Fail-open answers carry the same keys with originals and `obligations: []`. A turn is registered only when `obligations` is non-empty; with `relay_usage` the `/stats` record waits for the response half. Knobs: `HORIZON_GATEWAY_TURN_TTL_SECONDS` (120), `HORIZON_GATEWAY_MAX_PENDING_TURNS` (10000), `HORIZON_GATEWAY_MAX_REDRIVES` (8). With `config.mode: "ccr"` and re-drive allowed, `horizon_retrieve` is injected into `body.tools` (`ccr_tool_injected`) and the response half answers the model's retrieval calls itself.
 
-`POST /v1/compress/response` (same exposure rules as `/v1/compress`) is the response half: `{"turn_id", "status": 200, "latency_ms", "usage": {...}, "response": {...}}`. `usage` accepts Anthropic, OpenAI chat (`prompt_tokens_details.cached_tokens`), OpenAI Responses (`input_tokens_details.cached_tokens`) and Kong's flat `cached_tokens` shapes, or the whole provider body (a nested `usage` key is descended into once); billed counters are summed across re-drive rounds. `response` is required when the turn carries `redrive` and the provider call succeeded; a failed call closes the turn with its `status` alone. Answers: `{"action": "done", "turn_id", "response": <replacement, the latest provider response after a re-drive, or null — forward what you hold>, "frozen_message_count", "usage_applied", "rounds", "billed_usage"}` or `{"action": "redrive", "turn_id", "request": <full provider body to send>, "round"}` — post the provider's JSON back under the same `turn_id`; `billed_usage` sums every counter (cache reads and writes included) across rounds in Anthropic keys, and a re-driven turn's `response` is never null and reports that total as its `usage`; past `HEADROOM_GATEWAY_MAX_REDRIVES` the turn ends with `done` and the latest provider response. Errors: 400 `invalid_request` / `missing_response`, 404 `unknown_turn` (unregistered, finished, or expired), 409 `turn_busy`.
+`POST /v1/compress/response` (same exposure rules as `/v1/compress`) is the response half: `{"turn_id", "status": 200, "latency_ms", "usage": {...}, "response": {...}}`. `usage` accepts Anthropic, OpenAI chat (`prompt_tokens_details.cached_tokens`), OpenAI Responses (`input_tokens_details.cached_tokens`) and Kong's flat `cached_tokens` shapes, or the whole provider body (a nested `usage` key is descended into once); billed counters are summed across re-drive rounds. `response` is required when the turn carries `redrive` and the provider call succeeded; a failed call closes the turn with its `status` alone. Answers: `{"action": "done", "turn_id", "response": <replacement, the latest provider response after a re-drive, or null — forward what you hold>, "frozen_message_count", "usage_applied", "rounds", "billed_usage"}` or `{"action": "redrive", "turn_id", "request": <full provider body to send>, "round"}` — post the provider's JSON back under the same `turn_id`; `billed_usage` sums every counter (cache reads and writes included) across rounds in Anthropic keys, and a re-driven turn's `response` is never null and reports that total as its `usage`; past `HORIZON_GATEWAY_MAX_REDRIVES` the turn ends with `done` and the latest provider response. Errors: 400 `invalid_request` / `missing_response`, 404 `unknown_turn` (unregistered, finished, or expired), 409 `turn_busy`.
 
-**Kong plugin.** [kong-plugin-headroom](https://github.com/headroomlabs-ai/kong-plugin-headroom) (its own repo; `luarocks install kong-plugin-headroom`) implements both halves for Kong Gateway 3.9 (session id from a header, usage relay from the `log` phase, re-drive loop in `access`). The contract itself is installed in Headroom through the compress-turn seam (`headroom.proxy.compress_turn`, `HEADROOM_GATEWAY_CONTRACT`), the same seam a third-party contract would use.
+**Kong plugin.** [kong-plugin-horizon](https://github.com/your-org/kong-plugin-horizon) (its own repo; `luarocks install kong-plugin-horizon`) implements both halves for Kong Gateway 3.9 (session id from a header, usage relay from the `log` phase, re-drive loop in `access`). The contract itself is installed in Horizon through the compress-turn seam (`horizon.proxy.compress_turn`, `HORIZON_GATEWAY_CONTRACT`), the same seam a third-party contract would use.
 
 ## Using with Claude Code
 
 ```bash
 # Start proxy
-headroom proxy --port 8787
+horizon proxy --port 8787
 
 # In another terminal
 ANTHROPIC_BASE_URL=http://localhost:8787 claude
@@ -364,7 +364,7 @@ ANTHROPIC_BASE_URL=http://localhost:8787 claude
 
 ## Using with Cursor
 
-1. Start the proxy: `headroom proxy`
+1. Start the proxy: `horizon proxy`
 2. In Cursor settings, set the base URL to `http://localhost:8787`
 
 ## Using with OpenAI SDK
@@ -384,9 +384,9 @@ client = OpenAI(
 
 > The earlier LLMLingua-2 integration documented in this section
 > (`--llmlingua`, `--llmlingua-device`, `--llmlingua-rate`,
-> `headroom-ai[llmlingua]`, `LLMLinguaCompressor`) was retired and
+> `horizon-ai[llmlingua]`, `LLMLinguaCompressor`) was retired and
 > replaced by **Kompress** (ModernBERT). Install with `pip install
-> 'headroom-ai[ml]'`. See [transforms.md](transforms.md) and
+> 'horizon-ai[ml]'`. See [transforms.md](transforms.md) and
 > [ARCHITECTURE.md](ARCHITECTURE.md) for current configuration.
 
 ### Semantic Caching
@@ -418,20 +418,20 @@ Track spending and enforce budgets:
 Export metrics for monitoring:
 
 ```
-headroom_requests_total
-headroom_tokens_saved_total
-headroom_cost_usd_total
-headroom_latency_ms_sum
+horizon_requests_total
+horizon_tokens_saved_total
+horizon_cost_usd_total
+horizon_latency_ms_sum
 ```
 
 ## Configuration via Environment
 
 ```bash
 # For deliberate public access, configure the existing token and send it from callers.
-export HEADROOM_HOST=0.0.0.0
-export HEADROOM_PROXY_TOKEN='replace-with-a-secret'
-export HEADROOM_PORT=8787
-export HEADROOM_BUDGET=100.0
+export HORIZON_HOST=0.0.0.0
+export HORIZON_PROXY_TOKEN='replace-with-a-secret'
+export HORIZON_PORT=8787
+export HORIZON_BUDGET=100.0
 
 # Route OpenAI passthrough requests to a custom endpoint
 export OPENAI_TARGET_API_URL=https://custom.openai.endpoint.com
@@ -439,7 +439,7 @@ export OPENAI_TARGET_API_URL=https://custom.openai.endpoint.com
 # Route Anthropic passthrough requests to a custom endpoint
 export ANTHROPIC_TARGET_API_URL=https://litellm.company.internal
 
-headroom proxy
+horizon proxy
 ```
 
 ## Running in Production
@@ -452,13 +452,13 @@ pip install gunicorn
 
 # Run with gunicorn — server.py has no module-level `app`; FastAPI is built
 # by the create_app() factory, so gunicorn needs --factory
-gunicorn headroom.proxy.server:create_app \
+gunicorn horizon.proxy.server:create_app \
   --workers 4 \
   --bind 0.0.0.0:8787 \
   --worker-class uvicorn.workers.UvicornWorker \
   --factory
 # Callers must send `Authorization: Bearer replace-with-a-secret` or
-# `X-Headroom-Proxy-Token: replace-with-a-secret`.
+# `X-Horizon-Proxy-Token: replace-with-a-secret`.
 ```
 
 Or with Docker:
@@ -466,24 +466,24 @@ Or with Docker:
 ```dockerfile
 FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
-    && pip install "headroom-ai[proxy]" \
+    && pip install "horizon-ai[proxy]" \
     && apt-get purge -y build-essential && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 EXPOSE 8787
-CMD ["headroom", "proxy", "--host", "0.0.0.0", "--port", "8787"]
+CMD ["horizon", "proxy", "--host", "0.0.0.0", "--port", "8787"]
 ```
 
 Run this image with an explicit token and a deliberate publication choice:
 
 ```bash
 docker run --rm -p 127.0.0.1:8787:8787 \
-  -e HEADROOM_PROXY_TOKEN='replace-with-a-secret' \
-  headroom-proxy
+  -e HORIZON_PROXY_TOKEN='replace-with-a-secret' \
+  horizon-proxy
 ```
 
 Callers must send `Authorization: Bearer replace-with-a-secret` or
-`X-Headroom-Proxy-Token: replace-with-a-secret`. For network access, replace
+`X-Horizon-Proxy-Token: replace-with-a-secret`. For network access, replace
 the host-side `127.0.0.1` with an intentional public address and keep the
 token configured.
 
-> **Note:** `build-essential` is required at install time because `headroom-ai` includes `hnswlib`, a C++ extension that must be compiled from source. It is removed after installation to keep the image slim.
+> **Note:** `build-essential` is required at install time because `horizon-ai` includes `hnswlib`, a C++ extension that must be compiled from source. It is removed after installation to keep the image slim.

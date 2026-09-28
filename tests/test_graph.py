@@ -9,7 +9,7 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from headroom.graph import installer, watcher
+from horizon.graph import installer, watcher
 
 
 def _build_archive(member_name: str = installer.CBM_BIN_NAME) -> bytes:
@@ -79,7 +79,7 @@ def test_get_cbm_path_prefers_path_then_install_dir(monkeypatch, tmp_path: Path)
 def test_download_cbm_success_and_verification_paths(monkeypatch, tmp_path: Path) -> None:
     # v1.2.3 is not in the registry and the mock archive would not match a pin
     # anyway; this test is about the install mechanics, not verification.
-    monkeypatch.setenv("HEADROOM_BINARIES_ALLOW_UNVERIFIED", "1")
+    monkeypatch.setenv("HORIZON_BINARIES_ALLOW_UNVERIFIED", "1")
     monkeypatch.setattr(installer, "CBM_BIN_DIR", tmp_path)
     monkeypatch.setattr(installer, "_detect_platform", lambda: "linux-amd64")
     monkeypatch.setattr(
@@ -115,7 +115,7 @@ def test_download_cbm_invalid_url_download_failure_and_extract_errors(
 ) -> None:
     # These failure modes are reached with an overridden (off-registry) release
     # host, so verification would refuse them before the code under test runs.
-    monkeypatch.setenv("HEADROOM_BINARIES_ALLOW_UNVERIFIED", "1")
+    monkeypatch.setenv("HORIZON_BINARIES_ALLOW_UNVERIFIED", "1")
     monkeypatch.setattr(installer, "CBM_BIN_DIR", tmp_path)
     monkeypatch.setattr(installer, "_detect_platform", lambda: "linux-amd64")
 
@@ -151,9 +151,9 @@ def test_download_cbm_refuses_an_off_registry_version(monkeypatch, tmp_path: Pat
     The default CBM_VERSION is pinned for every platform in tools.json, so only
     an override reaches this path.
     """
-    from headroom import binaries
+    from horizon import binaries
 
-    monkeypatch.delenv("HEADROOM_BINARIES_ALLOW_UNVERIFIED", raising=False)
+    monkeypatch.delenv("HORIZON_BINARIES_ALLOW_UNVERIFIED", raising=False)
     monkeypatch.setattr(installer, "CBM_BIN_DIR", tmp_path)
     monkeypatch.setattr(installer, "_detect_platform", lambda: "linux-amd64")
     monkeypatch.setattr(
@@ -181,7 +181,7 @@ def test_ensure_cbm_uses_existing_or_returns_none_on_failure(monkeypatch, tmp_pa
 def test_code_graph_watcher_init_start_stop_and_event_filtering(
     monkeypatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr("headroom.graph.installer.get_cbm_path", lambda: tmp_path / "cbm")
+    monkeypatch.setattr("horizon.graph.installer.get_cbm_path", lambda: tmp_path / "cbm")
     graph_watcher = watcher.CodeGraphWatcher(tmp_path)
     assert graph_watcher.cbm_binary == str(tmp_path / "cbm")
 

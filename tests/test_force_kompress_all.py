@@ -1,4 +1,4 @@
-"""Tests for the --force-kompress-all / HEADROOM_FORCE_KOMPRESS_ALL flag.
+"""Tests for the --force-kompress-all / HORIZON_FORCE_KOMPRESS_ALL flag.
 
 force_kompress_all routes ALL compressible content through Kompress, bypassing
 per-type compressor selection. Critically it must NOT change protection: excluded
@@ -13,16 +13,16 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from headroom.config import DEFAULT_EXCLUDE_TOOLS
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+from horizon.config import DEFAULT_EXCLUDE_TOOLS
+from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
 
 if TYPE_CHECKING:
-    from headroom.tokenizer import Tokenizer
+    from horizon.tokenizer import Tokenizer
 
 
 def _tokenizer() -> Tokenizer:
-    from headroom.providers import OpenAIProvider
-    from headroom.tokenizer import Tokenizer
+    from horizon.providers import OpenAIProvider
+    from horizon.tokenizer import Tokenizer
 
     provider = OpenAIProvider()
     return Tokenizer(provider.get_token_counter("gpt-4o"), "gpt-4o")

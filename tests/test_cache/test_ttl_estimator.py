@@ -1,4 +1,4 @@
-"""Tests for the offline cache-TTL estimator (`headroom-cache-ttl`)."""
+"""Tests for the offline cache-TTL estimator (`horizon-cache-ttl`)."""
 
 from __future__ import annotations
 
@@ -6,12 +6,12 @@ import json
 
 import pytest
 
-from headroom.cache.ttl_estimator import (
+from horizon.cache.ttl_estimator import (
     estimate_ttls,
     main,
     write_learned,
 )
-from headroom.cache.ttl_observations import resolve_learned_ttl
+from horizon.cache.ttl_observations import resolve_learned_ttl
 
 
 def _row(
@@ -190,8 +190,8 @@ class TestMain:
     def paths(self, tmp_path, monkeypatch):
         obs = tmp_path / "obs.jsonl"
         out = tmp_path / "learned.json"
-        monkeypatch.setenv("HEADROOM_CACHE_TTL_OBS_PATH", str(obs))
-        monkeypatch.setenv("HEADROOM_CACHE_TTL_LEARNED_PATH", str(out))
+        monkeypatch.setenv("HORIZON_CACHE_TTL_OBS_PATH", str(obs))
+        monkeypatch.setenv("HORIZON_CACHE_TTL_LEARNED_PATH", str(out))
         return obs, out
 
     def test_end_to_end_resolve_learned_ttl_reads_output(self, paths):

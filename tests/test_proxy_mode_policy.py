@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from headroom.proxy.proxy_mode_policy import (
+from horizon.proxy.proxy_mode_policy import (
     PROXY_MODE_CACHE,
     PROXY_MODE_TOKEN,
     normalize_proxy_mode_decision,
@@ -23,8 +23,8 @@ def test_decision_normalizes_canonical_modes() -> None:
 
 
 def test_decision_normalizes_aliases_and_marks_alias_used() -> None:
-    token = normalize_proxy_mode_decision(" token_headroom ")
-    assert token.key == "token_headroom"
+    token = normalize_proxy_mode_decision(" token_horizon ")
+    assert token.key == "token_horizon"
     assert token.normalized == PROXY_MODE_TOKEN
     assert token.alias_used is True
 

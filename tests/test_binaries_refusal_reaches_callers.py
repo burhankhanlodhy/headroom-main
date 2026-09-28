@@ -13,7 +13,7 @@ import logging
 import pytest
 from click.testing import CliRunner
 
-from headroom import binaries
+from horizon import binaries
 
 
 @pytest.fixture
@@ -23,16 +23,16 @@ def _refuse(monkeypatch: pytest.MonkeyPatch):
     def _raise(tool: str):
         raise binaries.UnpinnedDownload(
             f"refusing unpinned download {tool}: no sha256 in the registry. "
-            "Pin it, or set HEADROOM_BINARIES_ALLOW_UNVERIFIED=1."
+            "Pin it, or set HORIZON_BINARIES_ALLOW_UNVERIFIED=1."
         )
 
     monkeypatch.setattr(binaries, "resolve", _raise)
-    monkeypatch.delenv("HEADROOM_BINARIES_ALLOW_UNVERIFIED", raising=False)
+    monkeypatch.delenv("HORIZON_BINARIES_ALLOW_UNVERIFIED", raising=False)
 
 
 def test_tools_run_reports_a_refusal_instead_of_a_traceback(_refuse) -> None:
-    """`headroom tools <name>` must exit 2 with `error: ...`, like every sibling."""
-    from headroom.cli.tools import diff_cmd
+    """`horizon tools <name>` must exit 2 with `error: ...`, like every sibling."""
+    from horizon.cli.tools import diff_cmd
 
     result = CliRunner().invoke(diff_cmd, ["--version"])
 
@@ -49,7 +49,7 @@ def test_tools_install_keeps_going_and_still_sets_an_exit_code(_refuse) -> None:
     The escape skipped the final `sys.exit(exit_code)` entirely, so the command
     reported success-by-omission for every tool after the first refusal.
     """
-    from headroom.cli.tools import tools_group
+    from horizon.cli.tools import tools_group
 
     result = CliRunner().invoke(tools_group, ["install"])
 
@@ -61,7 +61,7 @@ def test_tools_install_keeps_going_and_still_sets_an_exit_code(_refuse) -> None:
 
 def test_ensure_cbm_honours_its_documented_none_contract(monkeypatch) -> None:
     """`ensure_cbm` promises "path, or None if the download failed"."""
-    from headroom.graph import installer
+    from horizon.graph import installer
 
     monkeypatch.setattr(installer, "get_cbm_path", lambda: None)
 
@@ -79,7 +79,7 @@ def test_a_tamper_signal_still_propagates_from_ensure_cbm(monkeypatch) -> None:
     An unpinned asset is a misconfiguration; a mismatch is evidence of tampering
     and has to stay loud rather than becoming a quiet "feature unavailable".
     """
-    from headroom.graph import installer
+    from horizon.graph import installer
 
     monkeypatch.setattr(installer, "get_cbm_path", lambda: None)
 
@@ -97,9 +97,9 @@ def test_the_escape_hatch_warning_is_not_printed_twice(monkeypatch, capsys) -> N
 
     Printing unconditionally as well produced the same sentence twice.
     """
-    monkeypatch.setenv("HEADROOM_BINARIES_ALLOW_UNVERIFIED", "1")
+    monkeypatch.setenv("HORIZON_BINARIES_ALLOW_UNVERIFIED", "1")
 
-    logger = logging.getLogger("headroom.binaries")
+    logger = logging.getLogger("horizon.binaries")
     saved, logger.handlers = logger.handlers, []
     saved_propagate, logger.propagate = logger.propagate, False
     try:

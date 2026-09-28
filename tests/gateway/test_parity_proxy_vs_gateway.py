@@ -41,7 +41,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.server import create_app  # noqa: E402
+from horizon.proxy.server import create_app  # noqa: E402
 
 OPENAI_UPSTREAM = "https://api.openai.com/v1/chat/completions"
 SAVED_TOLERANCE_ABS = 32
@@ -74,7 +74,7 @@ def _body(messages: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _make_app_client() -> TestClient:
     # CCR off on the proxy path: the chat handler would otherwise inject the
-    # ``headroom_retrieve`` tool and CCR markers, which the compress path's
+    # ``horizon_retrieve`` tool and CCR markers, which the compress path's
     # default (marker-free) mode never does. Parity is measured with both paths
     # in marker-free mode.
     app = create_app(
@@ -106,7 +106,7 @@ def _run_proxy_path(client: TestClient, provider: FakeProvider) -> list[dict[str
         resp = client.post(
             "/v1/chat/completions",
             json=_body(messages),
-            headers={"authorization": "Bearer sk-test", "x-headroom-session-id": "parity"},
+            headers={"authorization": "Bearer sk-test", "x-horizon-session-id": "parity"},
         )
         assert resp.status_code == 200, resp.text
         finals.append(resp.json())

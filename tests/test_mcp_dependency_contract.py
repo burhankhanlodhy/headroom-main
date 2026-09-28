@@ -1,4 +1,4 @@
-"""Keep the installed MCP SDK compatible with Headroom's live server API."""
+"""Keep the installed MCP SDK compatible with Horizon's live server API."""
 
 from __future__ import annotations
 

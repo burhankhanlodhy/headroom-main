@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import os
 
-from headroom.transforms import kompress_compressor as kc
-from headroom.transforms.kompress_compressor import (
+from horizon.transforms import kompress_compressor as kc
+from horizon.transforms.kompress_compressor import (
     _KOMPRESS_MUST_KEEP_ENV,
     _KOMPRESS_MUST_KEEP_RE,
     KompressCompressor,
@@ -141,7 +141,7 @@ class TestBooleanConnectivesCompression:
 
 class TestMustKeepEnvVar:
     def test_env_var_name(self):
-        assert _KOMPRESS_MUST_KEEP_ENV == "HEADROOM_KOMPRESS_MUST_KEEP"
+        assert _KOMPRESS_MUST_KEEP_ENV == "HORIZON_KOMPRESS_MUST_KEEP"
 
     def test_env_var_default_is_enabled(self, monkeypatch):
         monkeypatch.delenv(_KOMPRESS_MUST_KEEP_ENV, raising=False)

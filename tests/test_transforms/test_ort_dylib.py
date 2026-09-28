@@ -1,4 +1,4 @@
-"""Tests for headroom._ort -- the ORT_DYLIB_PATH auto-pin.
+"""Tests for horizon._ort -- the ORT_DYLIB_PATH auto-pin.
 
 The resolver points the Rust core's ort-load-dynamic runtime at the pip
 onnxruntime package's shared library on every platform: on Windows it
@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import headroom._ort as _ort
+import horizon._ort as _ort
 
 
 @pytest.fixture(autouse=True)
@@ -89,9 +89,9 @@ def test_incompatible_package_is_not_pinned(monkeypatch, tmp_path, caplog):
 
 
 def test_content_router_bypasses_native_detector_for_incompatible_ort(monkeypatch, caplog):
-    import headroom.transforms.content_router as router
+    import horizon.transforms.content_router as router
 
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "rust")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "rust")
     monkeypatch.setattr(_ort, "rust_ort_runtime_compatible", lambda: False)
     monkeypatch.setattr(router, "_detect_native_unhealthy", False)
 

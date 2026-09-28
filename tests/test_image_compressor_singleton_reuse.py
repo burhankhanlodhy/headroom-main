@@ -10,14 +10,14 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from headroom.image.compressor import ImageCompressor
+from horizon.image.compressor import ImageCompressor
 
 
 def test_onnx_router_is_built_once_and_cached() -> None:
     compressor = ImageCompressor()
     fake_router = MagicMock(name="OnnxTechniqueRouter")
 
-    with patch("headroom.image.onnx_router.OnnxTechniqueRouter", return_value=fake_router) as ctor:
+    with patch("horizon.image.onnx_router.OnnxTechniqueRouter", return_value=fake_router) as ctor:
         first = compressor._get_onnx_router()
         second = compressor._get_onnx_router()
 
@@ -54,7 +54,7 @@ def test_close_releases_models_on_a_non_singleton_instance() -> None:
 
 
 def test_get_image_compressor_returns_a_shared_singleton() -> None:
-    import headroom.proxy.helpers as helpers
+    import horizon.proxy.helpers as helpers
 
     helpers._image_compressor_available = None
     helpers._image_compressor_instance = None
@@ -70,7 +70,7 @@ def test_get_image_compressor_returns_a_shared_singleton() -> None:
 
 
 def test_worker_compressor_is_reused_across_calls() -> None:
-    import headroom.proxy.image_isolation as iso
+    import horizon.proxy.image_isolation as iso
 
     iso._WORKER_COMPRESSOR = None
     try:

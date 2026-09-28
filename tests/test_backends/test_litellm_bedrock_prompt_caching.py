@@ -23,7 +23,7 @@ importorskip_no_env_leak("litellm")
 
 import litellm  # noqa: E402
 
-from headroom.backends.litellm import (  # noqa: E402  (must follow importorskip)
+from horizon.backends.litellm import (  # noqa: E402  (must follow importorskip)
     LiteLLMBackend,
     _place_system_cache_control,
 )
@@ -65,7 +65,7 @@ def _make_response() -> SimpleNamespace:
 
 def _make_backend(provider: str = "bedrock") -> LiteLLMBackend:
     # Patch the inference-profile fetch so `__init__` doesn't try to talk to AWS.
-    with patch("headroom.backends.litellm._fetch_bedrock_inference_profiles", return_value={}):
+    with patch("horizon.backends.litellm._fetch_bedrock_inference_profiles", return_value={}):
         return LiteLLMBackend(provider=provider, region="us-east-1")
 
 
@@ -81,7 +81,7 @@ def _request_body(model: str = CACHING_MODEL) -> dict[str, Any]:
 
 
 async def _send(backend: LiteLLMBackend, body: dict[str, Any]) -> dict[str, Any]:
-    with patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
+    with patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
         mock_acomp.return_value = _make_response()
         await backend.send_openai_message(body, {})
     return mock_acomp.await_args.kwargs
@@ -91,7 +91,7 @@ async def _stream(backend: LiteLLMBackend, body: dict[str, Any]) -> dict[str, An
     stream = _FakeAsyncStream(
         [SimpleNamespace(model_dump=lambda **kwargs: {"id": "chunk1", "choices": []})]
     )
-    with patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
+    with patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp:
         mock_acomp.return_value = stream
         chunks = [chunk async for chunk in backend.stream_openai_message(body, {})]
     assert chunks[-1] == "data: [DONE]\n\n"
@@ -100,14 +100,14 @@ async def _stream(backend: LiteLLMBackend, body: dict[str, Any]) -> dict[str, An
 
 @pytest.fixture
 def feature_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HEADROOM_FEATURES", FEATURE)
-    monkeypatch.delenv("HEADROOM_DISABLE_FEATURES", raising=False)
+    monkeypatch.setenv("HORIZON_FEATURES", FEATURE)
+    monkeypatch.delenv("HORIZON_DISABLE_FEATURES", raising=False)
 
 
 @pytest.fixture
 def feature_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("HEADROOM_FEATURES", raising=False)
-    monkeypatch.delenv("HEADROOM_DISABLE_FEATURES", raising=False)
+    monkeypatch.delenv("HORIZON_FEATURES", raising=False)
+    monkeypatch.delenv("HORIZON_DISABLE_FEATURES", raising=False)
 
 
 # =============================================================================
@@ -243,7 +243,7 @@ async def test_feature_on_marks_system_prompt_for_caching_model(call: Any) -> No
 async def test_feature_on_skips_models_without_prompt_caching() -> None:
     body = _request_body(model="meta.llama3-1-70b-instruct-v1:0")
 
-    with patch("headroom.backends.litellm.supports_prompt_caching", return_value=False):
+    with patch("horizon.backends.litellm.supports_prompt_caching", return_value=False):
         kwargs = await _send(_make_backend(), body)
 
     assert kwargs["messages"] is body["messages"]
@@ -257,7 +257,7 @@ async def test_gate_checks_the_mapped_litellm_model() -> None:
     backend = _make_backend()
 
     with patch(
-        "headroom.backends.litellm.supports_prompt_caching", return_value=True
+        "horizon.backends.litellm.supports_prompt_caching", return_value=True
     ) as mock_supports:
         kwargs = await _send(backend, body)
 
@@ -269,7 +269,7 @@ async def test_gate_checks_the_mapped_litellm_model() -> None:
 async def test_feature_on_is_a_no_op_for_non_bedrock_providers() -> None:
     body = _request_body(model="anthropic/claude-3-5-sonnet-20241022")
 
-    with patch("headroom.backends.litellm.supports_prompt_caching") as mock_supports:
+    with patch("horizon.backends.litellm.supports_prompt_caching") as mock_supports:
         kwargs = await _send(_make_backend(provider="openrouter"), body)
 
     mock_supports.assert_not_called()
@@ -287,8 +287,8 @@ async def test_feature_on_respects_client_placed_markers() -> None:
 
 
 def test_disable_features_is_the_kill_switch(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HEADROOM_FEATURES", FEATURE)
-    monkeypatch.setenv("HEADROOM_DISABLE_FEATURES", FEATURE)
+    monkeypatch.setenv("HORIZON_FEATURES", FEATURE)
+    monkeypatch.setenv("HORIZON_DISABLE_FEATURES", FEATURE)
 
     assert _make_backend()._openai_prompt_caching is False
 

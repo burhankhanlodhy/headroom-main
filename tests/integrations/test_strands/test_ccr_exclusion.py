@@ -7,15 +7,15 @@ from unittest.mock import Mock
 
 import pytest
 
-pytest.importorskip("headroom._core")
+pytest.importorskip("horizon._core")
 
-from headroom.integrations.strands import hooks
+from horizon.integrations.strands import hooks
 
 
 @pytest.fixture
-def hook(monkeypatch: pytest.MonkeyPatch) -> hooks.HeadroomHookProvider:
+def hook(monkeypatch: pytest.MonkeyPatch) -> hooks.HorizonHookProvider:
     monkeypatch.setattr(hooks, "STRANDS_AVAILABLE", True)
-    provider = hooks.HeadroomHookProvider(min_tokens_to_compress=0)
+    provider = hooks.HorizonHookProvider(min_tokens_to_compress=0)
     provider._crusher = Mock()
     provider._crusher.crush.return_value = SimpleNamespace(
         compressed="compressed", was_modified=True
@@ -45,14 +45,14 @@ def _event(tool_name: str, content: str) -> SimpleNamespace:
 
 
 def test_qualified_ccr_result_is_preserved_through_the_registered_hook(
-    hook: hooks.HeadroomHookProvider,
+    hook: hooks.HorizonHookProvider,
 ) -> None:
     """Drive the seam Strands actually drives: register_hooks, then dispatch."""
     registry = _Registry()
     hook.register_hooks(registry)
 
     content = "x" * 400
-    event = _event("mcp__headroom__headroom_retrieve", content)
+    event = _event("mcp__horizon__horizon_retrieve", content)
     registry.dispatch(hooks.AfterToolCallEvent, event)
 
     assert event.result["content"][0]["text"] == content
@@ -63,13 +63,13 @@ def test_qualified_ccr_result_is_preserved_through_the_registered_hook(
 @pytest.mark.parametrize(
     "tool_name",
     [
-        "mcp__headroom__headroom_retrieve",
-        "mcp_headroom_headroom_retrieve",
-        "headroom_retrieve",
+        "mcp__horizon__horizon_retrieve",
+        "mcp_horizon_horizon_retrieve",
+        "horizon_retrieve",
     ],
 )
 def test_qualified_ccr_tool_result_is_preserved(
-    hook: hooks.HeadroomHookProvider, tool_name: str
+    hook: hooks.HorizonHookProvider, tool_name: str
 ) -> None:
     content = "x" * 400
     event = _event(tool_name, content)
@@ -81,8 +81,8 @@ def test_qualified_ccr_tool_result_is_preserved(
     hook._crusher.crush.assert_not_called()
 
 
-def test_near_match_tool_name_still_compresses(hook: hooks.HeadroomHookProvider) -> None:
-    event = _event("mcp__headroom__headroom_retrieve_extra", "x" * 400)
+def test_near_match_tool_name_still_compresses(hook: hooks.HorizonHookProvider) -> None:
+    event = _event("mcp__horizon__horizon_retrieve_extra", "x" * 400)
 
     hook._compress_tool_result(event)
 

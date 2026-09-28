@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.providers.openai import OpenAIProvider
+from horizon.providers.openai import OpenAIProvider
 
 # (model, input $/1M, output $/1M)
 EXPECTED = [
@@ -77,7 +77,7 @@ def test_pricing_metadata_is_not_stale() -> None:
     If someone edits _PRICING without re-verifying, this starts failing rather
     than silently shipping a stale table behind a fresh-looking date.
     """
-    from headroom.providers.openai import _PRICING_LAST_UPDATED, _PRICING_STALE_DAYS
+    from horizon.providers.openai import _PRICING_LAST_UPDATED, _PRICING_STALE_DAYS
 
     assert _PRICING_STALE_DAYS > 0
     # Sanity: the stamp should postdate the gpt-4.1/gpt-5 entries it covers.

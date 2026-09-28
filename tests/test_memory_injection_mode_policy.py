@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.proxy.memory_injection_mode_policy import (
+from horizon.proxy.memory_injection_mode_policy import (
     MEMORY_INJECTION_MODE_DEFAULT,
     resolve_memory_injection_mode,
 )
@@ -20,5 +20,5 @@ def test_resolve_memory_injection_mode_accepts_known_values_case_insensitively()
 
 
 def test_resolve_memory_injection_mode_rejects_unknown_values() -> None:
-    with pytest.raises(ValueError, match="HEADROOM_MEMORY_INJECTION_MODE"):
+    with pytest.raises(ValueError, match="HORIZON_MEMORY_INJECTION_MODE"):
         resolve_memory_injection_mode("system_prompt")

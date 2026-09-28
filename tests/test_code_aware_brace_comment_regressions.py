@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.transforms.code_compressor import (
+from horizon.transforms.code_compressor import (
     CodeAwareCompressor,
     CodeCompressorConfig,
     CodeLanguage,
@@ -32,7 +32,7 @@ from headroom.transforms.code_compressor import (
 
 pytestmark = pytest.mark.skipif(
     not _check_tree_sitter_available(),
-    reason="tree-sitter not installed (pip install headroom-ai[code])",
+    reason="tree-sitter not installed (pip install horizon-ai[code])",
 )
 
 TS_EXPORTED = """export interface User {

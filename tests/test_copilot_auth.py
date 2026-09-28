@@ -10,8 +10,8 @@ from urllib import error as urllib_error
 
 import pytest
 
-from headroom import copilot_auth
-from headroom.proxy import ssl_context
+from horizon import copilot_auth
+from horizon.proxy import ssl_context
 
 
 def test_device_authorization_uses_form_encoded_request(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -75,7 +75,7 @@ def _isolated_copilot_auth(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     ):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(copilot_auth, "_provider", None)
-    monkeypatch.setenv("HEADROOM_COPILOT_AUTH_FILE", str(tmp_path / "copilot_auth.json"))
+    monkeypatch.setenv("HORIZON_COPILOT_AUTH_FILE", str(tmp_path / "copilot_auth.json"))
     monkeypatch.setattr(copilot_auth, "read_macos_keychain_token", lambda *, host: None)
     monkeypatch.setattr(copilot_auth, "read_linux_secret_token", lambda *, host: None)
 
@@ -85,23 +85,23 @@ def test_read_cached_oauth_token_prefers_env(monkeypatch: pytest.MonkeyPatch) ->
     assert copilot_auth.read_cached_oauth_token() == "gho-env"
 
 
-def test_read_cached_oauth_token_prefers_headroom_login(
+def test_read_cached_oauth_token_prefers_horizon_login(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("GITHUB_COPILOT_TOKEN", "gho-env")
-    copilot_auth.save_headroom_copilot_oauth_token("gho-headroom")
+    copilot_auth.save_horizon_copilot_oauth_token("gho-horizon")
 
-    assert copilot_auth.read_cached_oauth_token() == "gho-headroom"
+    assert copilot_auth.read_cached_oauth_token() == "gho-horizon"
 
 
 def test_saved_oauth_token_file_content_roundtrips(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The token still writes and reads back after the private-write change."""
-    copilot_auth.save_headroom_copilot_oauth_token("gho-headroom")
-    assert copilot_auth.read_cached_oauth_token() == "gho-headroom"
+    copilot_auth.save_horizon_copilot_oauth_token("gho-horizon")
+    assert copilot_auth.read_cached_oauth_token() == "gho-horizon"
     # Re-saving over an existing file rotates the token cleanly.
-    copilot_auth.save_headroom_copilot_oauth_token("gho-rotated")
+    copilot_auth.save_horizon_copilot_oauth_token("gho-rotated")
     assert copilot_auth.read_cached_oauth_token() == "gho-rotated"
 
 
@@ -117,7 +117,7 @@ def test_saved_oauth_token_file_is_private_under_permissive_umask() -> None:
     """
     old_umask = os.umask(0o022)
     try:
-        path = Path(copilot_auth.save_headroom_copilot_oauth_token("gho-headroom"))
+        path = Path(copilot_auth.save_horizon_copilot_oauth_token("gho-horizon"))
     finally:
         os.umask(old_umask)
 
@@ -134,13 +134,13 @@ def test_token_write_failure_preserves_existing_token(monkeypatch: pytest.Monkey
     ``O_TRUNC`` before writing). The temp file is cleaned up so no secret is left
     behind in a stray path.
     """
-    copilot_auth.save_headroom_copilot_oauth_token("gho-original")
-    path = copilot_auth.headroom_copilot_auth_path()
+    copilot_auth.save_horizon_copilot_oauth_token("gho-original")
+    path = copilot_auth.horizon_copilot_auth_path()
     before = set(os.listdir(path.parent))
 
     monkeypatch.setattr(copilot_auth.os, "replace", _boom)
     with pytest.raises(OSError):
-        copilot_auth.save_headroom_copilot_oauth_token("gho-should-not-land")
+        copilot_auth.save_horizon_copilot_oauth_token("gho-should-not-land")
 
     # Old token intact; no partial/temp file left behind.
     assert copilot_auth.read_cached_oauth_token() == "gho-original"
@@ -366,7 +366,7 @@ def test_subscription_enterprise_host_repro(
         lambda: [
             copilot_auth.CopilotTokenCandidate(
                 token="gho-oauth",
-                source="headroom-copilot-auth:/tmp/copilot_auth.json",
+                source="horizon-copilot-auth:/tmp/copilot_auth.json",
                 confidence="copilot-oauth",
             ),
         ],
@@ -391,7 +391,7 @@ def test_subscription_enterprise_host_repro(
 
     assert resolution is not None
     assert resolution.token == "copilot-api"
-    assert resolution.source == "headroom-copilot-auth:/tmp/copilot_auth.json:token-exchange"
+    assert resolution.source == "horizon-copilot-auth:/tmp/copilot_auth.json:token-exchange"
     assert resolution.confidence == "copilot-token-exchange"
     assert resolution.api_url == copilot_auth.DEFAULT_API_URL
     assert resolution.token_fingerprint == copilot_auth.token_fingerprint("copilot-api")
@@ -1153,13 +1153,13 @@ def test_apply_copilot_api_auth_passes_through_github_oauth_bearer(
     """A caller-supplied GitHub OAuth (gho_/ghs_/ghp_/github_pat_) bearer
     token must be forwarded unchanged, not replaced.
 
-    Regression test for headroomlabs-ai/headroom#1813: this function used
+    Regression test for your-org/horizon#1813: this function used
     to treat any gho_-prefixed token as "not a suitable Copilot API
-    token" and silently replace it with Headroom's own independently
+    token" and silently replace it with Horizon's own independently
     fetched/exchanged credential. That broke both:
     - a live Copilot CLI session (its own gho_ token worked directly for
       model "claude-sonnet-5", but got 400 model_not_supported once
-      Headroom substituted a differently-entitled token), and
+      Horizon substituted a differently-entitled token), and
     - OpenCode's native GitHub Copilot integration (#1813): replacing its
       gho_ token changed the effective client/integrator lane Copilot's
       backend sees, breaking model discovery/inference parity with
@@ -1231,7 +1231,7 @@ def test_is_forwardable_copilot_bearer_token_matches_expected_prefixes() -> None
     short-lived Copilot API tokens (tid_) AND GitHub OAuth tokens
     (gho_/ghs_/ghp_/github_pat_) as forwardable -- see
     _is_forwardable_copilot_bearer_token()'s docstring and
-    headroomlabs-ai/headroom#1813 for why GitHub OAuth tokens must be
+    your-org/horizon#1813 for why GitHub OAuth tokens must be
     forwardable for chat-completion/inference requests.
     """
     assert copilot_auth._is_forwardable_copilot_bearer_token("tid_session_token") is True

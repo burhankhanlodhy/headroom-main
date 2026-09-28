@@ -34,7 +34,7 @@ httpx = pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 COMPLETE_SSE = (
     "event: message_start\n"
@@ -250,9 +250,9 @@ def test_plain_json_reply_is_untouched() -> None:
 # --------------------------------------------------------------------------- #
 @pytest.fixture()
 def proxy():
-    from headroom.proxy.server import HeadroomProxy
+    from horizon.proxy.server import HorizonProxy
 
-    return HeadroomProxy(_config())
+    return HorizonProxy(_config())
 
 
 def test_strict_mode_requires_a_terminal_event(proxy) -> None:
@@ -272,7 +272,7 @@ def test_strict_mode_rejects_an_unclosed_block(proxy) -> None:
 
 
 def test_strict_mode_rejects_an_unknown_delta_type(proxy) -> None:
-    """A future delta Headroom cannot replay must not pass as complete."""
+    """A future delta Horizon cannot replay must not pass as complete."""
     unknown = COMPLETE_SSE.replace('"type":"text_delta","text":"hello"', '"type":"future_delta"')
 
     assert proxy._parse_sse_to_response(unknown, "anthropic", require_complete=True) is None

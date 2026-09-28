@@ -24,7 +24,7 @@ import json
 
 import pytest
 
-from headroom.proxy.buffered_ccr_response import (
+from horizon.proxy.buffered_ccr_response import (
     ANTHROPIC_ERROR_FORMAT,
     OPENAI_ERROR_FORMAT,
     buffered_ccr_asgi_call,

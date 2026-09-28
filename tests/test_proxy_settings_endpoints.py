@@ -17,8 +17,8 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom import settings_store  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon import settings_store  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 def _make_app():
@@ -40,11 +40,11 @@ def _make_app():
 @pytest.fixture
 def workspace(tmp_path, monkeypatch):
     """Isolate settings.json under a tmp workspace for each test."""
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path))
-    monkeypatch.delenv("HEADROOM_SETTINGS_PATH", raising=False)
+    monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path))
+    monkeypatch.delenv("HORIZON_SETTINGS_PATH", raising=False)
     # Make deployment detection deterministic: no supervisor env -> foreground.
-    monkeypatch.delenv("HEADROOM_DEPLOYMENT_PROFILE", raising=False)
-    monkeypatch.delenv("HEADROOM_DEPLOYMENT_PRESET", raising=False)
+    monkeypatch.delenv("HORIZON_DEPLOYMENT_PROFILE", raising=False)
+    monkeypatch.delenv("HORIZON_DEPLOYMENT_PRESET", raising=False)
     return tmp_path
 
 
@@ -171,7 +171,7 @@ class TestSameOriginGuard:
         assert resp.status_code == 403, resp.text
 
     def test_foreign_origin_rejected_on_settings_apply(self, client, monkeypatch):
-        from headroom.install import runtime as rt
+        from horizon.install import runtime as rt
 
         monkeypatch.setattr(
             rt, "restart_current_deployment", lambda: {"restarted": False, "mode": "foreground"}
@@ -219,7 +219,7 @@ class TestSecretMasking:
 
 class TestApplyRestart:
     def _patch_mode(self, monkeypatch, mode, restart_result):
-        from headroom.install import runtime as rt
+        from horizon.install import runtime as rt
 
         monkeypatch.setattr(rt, "detect_current_deployment", lambda: (None, mode))
         calls = []
@@ -246,14 +246,14 @@ class TestApplyRestart:
             {
                 "restarted": False,
                 "mode": "docker",
-                "command": "headroom install restart --profile default",
+                "command": "horizon install restart --profile default",
             },
         )
         resp = client.post("/settings/apply", json={})
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["mode"] == "docker"
-        assert "headroom install restart" in body["command"]
+        assert "horizon install restart" in body["command"]
 
     def test_foreground_returns_instruction(self, client, monkeypatch):
         self._patch_mode(

@@ -14,8 +14,8 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from headroom.backends.base import BackendResponse
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.backends.base import BackendResponse
+from horizon.proxy.server import ProxyConfig, create_app
 
 
 class _FakePrefixTracker:
@@ -508,8 +508,8 @@ def test_openai_chat_completions_compacts_tools_when_profile_enabled() -> None:
         )
 
         assert response.status_code == 200
-        assert "openai:chat:tool_schema_compaction" in response.headers["x-headroom-transforms"]
-        assert int(response.headers["x-headroom-tokens-saved"]) > 0
+        assert "openai:chat:tool_schema_compaction" in response.headers["x-horizon-transforms"]
+        assert int(response.headers["x-horizon-tokens-saved"]) > 0
         sent_params = captured["body"]["tools"][0]["function"]["parameters"]
         assert "$schema" not in sent_params
         assert "title" not in sent_params
@@ -761,7 +761,7 @@ def test_openai_backend_buffered_chat_hands_client_originals_to_prefix_tracker()
             headers={"content-type": "application/json"},
         )
     )
-    with patch("headroom.proxy.server.AnyLLMBackend", return_value=backend):
+    with patch("horizon.proxy.server.AnyLLMBackend", return_value=backend):
         with _make_proxy_client(backend="anyllm", anyllm_provider="openai") as client:
             proxy = client.app.state.proxy
             proxy.config.optimize = True
@@ -787,7 +787,7 @@ def test_openai_backend_streaming_chat_hands_client_originals_to_prefix_tracker(
     """Backend-routed streaming chat must record the client's originals too."""
     client_messages = _tool_history() + [{"role": "user", "content": "current turn"}]
     backend = _mock_streaming_backend(_sse_chunks(prompt_tokens=30, cached_tokens=0))
-    with patch("headroom.proxy.server.AnyLLMBackend", return_value=backend):
+    with patch("horizon.proxy.server.AnyLLMBackend", return_value=backend):
         with _make_proxy_client(backend="anyllm", anyllm_provider="openai") as client:
             proxy = client.app.state.proxy
             proxy.config.optimize = True
@@ -817,7 +817,7 @@ def test_openai_chat_real_tracker_stores_client_originals_across_turns() -> None
     otherwise next turn's overlay can never match the client prefix and
     cannot replay the previously forwarded bytes.
     """
-    from headroom.cache.prefix_tracker import PrefixCacheTracker
+    from horizon.cache.prefix_tracker import PrefixCacheTracker
 
     turn1_messages = _tool_history()
     turn2_messages = turn1_messages + [
@@ -1124,7 +1124,7 @@ def test_openai_cache_mode_forwards_last_turns_bytes_unchanged(stream: bool) -> 
     overlay cannot match the client prefix), and the frozen-prefix restore must
     not undo the replay (else the compressed tool results revert to raw bytes).
     """
-    from headroom.cache.prefix_tracker import PrefixCacheTracker
+    from horizon.cache.prefix_tracker import PrefixCacheTracker
 
     def tool_turn(n: int) -> list[dict]:
         call_id = f"call_{n}"

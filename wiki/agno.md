@@ -1,16 +1,16 @@
 # Agno Integration
 
-Headroom integrates with [Agno](https://github.com/agno-agi/agno) (formerly Phidata) to provide automatic context optimization for AI agents. This guide covers model wrapping, observability hooks, and multi-provider support.
+Horizon integrates with [Agno](https://github.com/agno-agi/agno) (formerly Phidata) to provide automatic context optimization for AI agents. This guide covers model wrapping, observability hooks, and multi-provider support.
 
 ---
 
 ## Installation
 
 ```bash
-pip install "headroom-ai[agno]"
+pip install "horizon-ai[agno]"
 ```
 
-This installs Headroom with Agno support. You'll also need Agno itself:
+This installs Horizon with Agno support. You'll also need Agno itself:
 
 ```bash
 pip install agno
@@ -23,10 +23,10 @@ pip install agno
 ```python
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
-from headroom.integrations.agno import HeadroomAgnoModel
+from horizon.integrations.agno import HorizonAgnoModel
 
 # Wrap your model
-model = HeadroomAgnoModel(OpenAIChat(id="gpt-4o"))
+model = HorizonAgnoModel(OpenAIChat(id="gpt-4o"))
 
 # Create agent as usual
 agent = Agent(model=model)
@@ -46,23 +46,23 @@ print(model.get_savings_summary())
 
 ### 1. Basic Model Wrapping
 
-The simplest integration - wrap any Agno model with `HeadroomAgnoModel`:
+The simplest integration - wrap any Agno model with `HorizonAgnoModel`:
 
 ```python
 from agno.models.openai import OpenAIChat
 from agno.models.anthropic import Claude
 from agno.models.google import Gemini
-from headroom.integrations.agno import HeadroomAgnoModel
+from horizon.integrations.agno import HorizonAgnoModel
 
 # Works with any Agno model
-openai_model = HeadroomAgnoModel(OpenAIChat(id="gpt-4o"))
-claude_model = HeadroomAgnoModel(Claude(id="claude-3-5-sonnet-20241022"))
-gemini_model = HeadroomAgnoModel(Gemini(id="gemini-2.0-flash"))
+openai_model = HorizonAgnoModel(OpenAIChat(id="gpt-4o"))
+claude_model = HorizonAgnoModel(Claude(id="claude-3-5-sonnet-20241022"))
+gemini_model = HorizonAgnoModel(Gemini(id="gemini-2.0-flash"))
 
 # Each automatically uses the correct provider for accurate token counting
 ```
 
-**Why this matters**: Headroom automatically detects the underlying provider and applies the correct tokenizer for accurate optimization metrics.
+**Why this matters**: Horizon automatically detects the underlying provider and applies the correct tokenizer for accurate optimization metrics.
 
 ### 2. Agent with Observability Hooks
 
@@ -71,18 +71,18 @@ Use hooks for detailed tracking without modifying your model:
 ```python
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
-from headroom.integrations.agno import (
-    HeadroomAgnoModel,
-    HeadroomPreHook,
-    HeadroomPostHook,
+from horizon.integrations.agno import (
+    HorizonAgnoModel,
+    HorizonPreHook,
+    HorizonPostHook,
 )
 
 # Model wrapper for optimization
-model = HeadroomAgnoModel(OpenAIChat(id="gpt-4o"))
+model = HorizonAgnoModel(OpenAIChat(id="gpt-4o"))
 
 # Hooks for observability
-pre_hook = HeadroomPreHook()
-post_hook = HeadroomPostHook(token_alert_threshold=10000)
+pre_hook = HorizonPreHook()
+post_hook = HorizonPostHook(token_alert_threshold=10000)
 
 agent = Agent(
     model=model,
@@ -105,12 +105,12 @@ print(f"Alerts triggered: {post_hook.alerts}")
 
 ### 3. Convenience Hook Factory
 
-Use `create_headroom_hooks()` to create matched hook pairs:
+Use `create_horizon_hooks()` to create matched hook pairs:
 
 ```python
-from headroom.integrations.agno import create_headroom_hooks
+from horizon.integrations.agno import create_horizon_hooks
 
-pre_hook, post_hook = create_headroom_hooks(
+pre_hook, post_hook = create_horizon_hooks(
     token_alert_threshold=5000,
     log_level="DEBUG",
 )
@@ -124,20 +124,20 @@ agent = Agent(
 
 ### 4. Custom Configuration
 
-Pass a `HeadroomConfig` for fine-grained control:
+Pass a `HorizonConfig` for fine-grained control:
 
 ```python
-from headroom import HeadroomConfig, HeadroomMode
-from headroom.integrations.agno import HeadroomAgnoModel
+from horizon import HorizonConfig, HorizonMode
+from horizon.integrations.agno import HorizonAgnoModel
 
-config = HeadroomConfig(
-    default_mode=HeadroomMode.OPTIMIZE,
+config = HorizonConfig(
+    default_mode=HorizonMode.OPTIMIZE,
     # Add other configuration options as needed
 )
 
-model = HeadroomAgnoModel(
+model = HorizonAgnoModel(
     wrapped_model=OpenAIChat(id="gpt-4o"),
-    headroom_config=config,
+    horizon_config=config,
 )
 ```
 
@@ -146,7 +146,7 @@ model = HeadroomAgnoModel(
 Optimize messages without wrapping a model:
 
 ```python
-from headroom.integrations.agno import optimize_messages
+from horizon.integrations.agno import optimize_messages
 
 messages = [
     {"role": "system", "content": "You are a helpful assistant."},
@@ -165,11 +165,11 @@ Full async support for high-throughput applications:
 
 ```python
 import asyncio
-from headroom.integrations.agno import HeadroomAgnoModel
+from horizon.integrations.agno import HorizonAgnoModel
 
 
 async def process_async():
-    model = HeadroomAgnoModel(OpenAIChat(id="gpt-4o"))
+    model = HorizonAgnoModel(OpenAIChat(id="gpt-4o"))
 
     # Async response
     response = await model.aresponse(messages)
@@ -194,10 +194,10 @@ asyncio.run(process_async())
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from agno.tools.duckduckgo import DuckDuckGoTools
-from headroom.integrations.agno import HeadroomAgnoModel
+from horizon.integrations.agno import HorizonAgnoModel
 
 # Wrap model for optimization
-model = HeadroomAgnoModel(OpenAIChat(id="gpt-4o"))
+model = HorizonAgnoModel(OpenAIChat(id="gpt-4o"))
 
 # Agent with search tools
 agent = Agent(
@@ -219,11 +219,11 @@ print(model.get_savings_summary())
 ```python
 from agno.models.openai import OpenAIChat
 from agno.models.anthropic import Claude
-from headroom.integrations.agno import HeadroomAgnoModel
+from horizon.integrations.agno import HorizonAgnoModel
 
 # Different models for different tasks
-fast_model = HeadroomAgnoModel(OpenAIChat(id="gpt-4o-mini"))
-powerful_model = HeadroomAgnoModel(Claude(id="claude-3-5-sonnet-20241022"))
+fast_model = HorizonAgnoModel(OpenAIChat(id="gpt-4o-mini"))
+powerful_model = HorizonAgnoModel(Claude(id="claude-3-5-sonnet-20241022"))
 
 # Use fast model for simple tasks
 simple_agent = Agent(model=fast_model)
@@ -240,13 +240,13 @@ print(f"Powerful model saved: {powerful_model.total_tokens_saved}")
 
 ```python
 from agno.agent import Agent
-from headroom.integrations.agno import (
-    HeadroomAgnoModel,
-    create_headroom_hooks,
+from horizon.integrations.agno import (
+    HorizonAgnoModel,
+    create_horizon_hooks,
 )
 
-model = HeadroomAgnoModel(OpenAIChat(id="gpt-4o"))
-pre_hook, post_hook = create_headroom_hooks(
+model = HorizonAgnoModel(OpenAIChat(id="gpt-4o"))
+pre_hook, post_hook = create_horizon_hooks(
     token_alert_threshold=50000,  # Alert on large requests
     log_level="WARNING",
 )
@@ -276,7 +276,7 @@ print(f"Average tokens: {summary['average_tokens']}")
 ### Example 4: Reset for New Sessions
 
 ```python
-model = HeadroomAgnoModel(OpenAIChat(id="gpt-4o"))
+model = HorizonAgnoModel(OpenAIChat(id="gpt-4o"))
 
 # Session 1
 agent.run("First conversation...")
@@ -294,7 +294,7 @@ print(f"Session 2 savings: {model.get_savings_summary()}")
 
 ## Supported Providers
 
-HeadroomAgnoModel automatically detects the provider from the wrapped model:
+HorizonAgnoModel automatically detects the provider from the wrapped model:
 
 | Provider | Agno Models | Auto-Detected |
 |----------|-------------|---------------|
@@ -310,7 +310,7 @@ HeadroomAgnoModel automatically detects the provider from the wrapped model:
 To disable auto-detection:
 
 ```python
-model = HeadroomAgnoModel(
+model = HorizonAgnoModel(
     wrapped_model=some_model,
     auto_detect_provider=False,  # Falls back to OpenAI tokenizer
 )
@@ -322,7 +322,7 @@ model = HeadroomAgnoModel(
 
 ### What's Optimized
 
-HeadroomAgnoModel optimizes messages at the LLM call boundary. This covers:
+HorizonAgnoModel optimizes messages at the LLM call boundary. This covers:
 
 | Feature | Optimized | Notes |
 |---------|-----------|-------|
@@ -349,7 +349,7 @@ The integration operates at the model layer, not the agent layer. Some Agno feat
 ### Best Practices for Maximum Savings
 
 1. **Tool-heavy agents see the biggest wins** — Tool results (JSON, logs, search results) compress 70-90%
-2. **Long conversations are handled automatically** — Headroom compresses the newest tool outputs and content blocks in place (live-zone-only compression) and never drops messages from history, so the cache hot zone stays intact. No context-limit configuration is required.
+2. **Long conversations are handled automatically** — Horizon compresses the newest tool outputs and content blocks in place (live-zone-only compression) and never drops messages from history, so the cache hot zone stays intact. No context-limit configuration is required.
 3. **Wrap at the model level, not agent level** — This ensures all LLM calls go through optimization
 4. **Use hooks for observability** — Track token usage patterns to identify optimization opportunities
 
@@ -362,18 +362,18 @@ We're tracking these potential enhancements:
 - **Tool schema deduplication** — Cache and reference repeated tool definitions
 - **Team-level optimization** — Shared context compression across agent teams
 
-Contributions welcome! See [CONTRIBUTING.md](https://github.com/headroomlabs-ai/headroom/blob/main/CONTRIBUTING.md).
+Contributions welcome! See [CONTRIBUTING.md](https://github.com/your-org/horizon/blob/main/CONTRIBUTING.md).
 
 ---
 
 ## Configuration Reference
 
-### HeadroomAgnoModel
+### HorizonAgnoModel
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `wrapped_model` | Any | Required | The Agno model to wrap |
-| `headroom_config` | `HeadroomConfig` | `None` | Custom configuration |
+| `horizon_config` | `HorizonConfig` | `None` | Custom configuration |
 | `auto_detect_provider` | `bool` | `True` | Auto-detect provider for token counting |
 
 **Properties:**
@@ -389,14 +389,14 @@ Contributions welcome! See [CONTRIBUTING.md](https://github.com/headroomlabs-ai/
 - `get_savings_summary()` - Returns dict with stats
 - `reset()` - Clear all metrics
 
-### HeadroomPreHook
+### HorizonPreHook
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `config` | `HeadroomConfig` | `None` | Configuration (for future use) |
+| `config` | `HorizonConfig` | `None` | Configuration (for future use) |
 | `model` | `str` | `"gpt-4o"` | Model name for estimation |
 
-### HeadroomPostHook
+### HorizonPostHook
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
@@ -411,16 +411,16 @@ Contributions welcome! See [CONTRIBUTING.md](https://github.com/headroomlabs-ai/
 - `get_summary()` - Returns dict with request stats
 - `reset()` - Clear history and alerts
 
-### create_headroom_hooks()
+### create_horizon_hooks()
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `config` | `HeadroomConfig` | `None` | Config for pre-hook |
+| `config` | `HorizonConfig` | `None` | Config for pre-hook |
 | `model` | `str` | `"gpt-4o"` | Model for pre-hook |
 | `log_level` | `str` | `"INFO"` | Log level for post-hook |
 | `token_alert_threshold` | `int` | `None` | Alert threshold for post-hook |
 
-Returns: `tuple[HeadroomPreHook, HeadroomPostHook]`
+Returns: `tuple[HorizonPreHook, HorizonPostHook]`
 
 ---
 
@@ -428,25 +428,25 @@ Returns: `tuple[HeadroomPreHook, HeadroomPostHook]`
 
 ```python
 # Main integration
-from headroom.integrations.agno import HeadroomAgnoModel
+from horizon.integrations.agno import HorizonAgnoModel
 
 # Hooks
-from headroom.integrations.agno import HeadroomPreHook
-from headroom.integrations.agno import HeadroomPostHook
-from headroom.integrations.agno import create_headroom_hooks
+from horizon.integrations.agno import HorizonPreHook
+from horizon.integrations.agno import HorizonPostHook
+from horizon.integrations.agno import create_horizon_hooks
 
 # Utilities
-from headroom.integrations.agno import optimize_messages
-from headroom.integrations.agno import agno_available
-from headroom.integrations.agno import get_headroom_provider
-from headroom.integrations.agno import get_model_name_from_agno
+from horizon.integrations.agno import optimize_messages
+from horizon.integrations.agno import agno_available
+from horizon.integrations.agno import get_horizon_provider
+from horizon.integrations.agno import get_model_name_from_agno
 
 # Or import everything from parent
-from headroom.integrations import (
-    HeadroomAgnoModel,
-    HeadroomPreHook,
-    HeadroomPostHook,
-    create_headroom_hooks,
+from horizon.integrations import (
+    HorizonAgnoModel,
+    HorizonPreHook,
+    HorizonPostHook,
+    create_horizon_hooks,
 )
 ```
 
@@ -457,10 +457,10 @@ from headroom.integrations import (
 ### Check if Agno is Available
 
 ```python
-from headroom.integrations.agno import agno_available
+from horizon.integrations.agno import agno_available
 
 if agno_available():
-    from headroom.integrations.agno import HeadroomAgnoModel
+    from horizon.integrations.agno import HorizonAgnoModel
 else:
     print("Install agno: pip install agno")
 ```
@@ -470,10 +470,10 @@ else:
 If auto-detection fails, check the detected provider:
 
 ```python
-from headroom.integrations.agno import get_headroom_provider, get_model_name_from_agno
+from horizon.integrations.agno import get_horizon_provider, get_model_name_from_agno
 
 model = OpenAIChat(id="gpt-4o")
-provider = get_headroom_provider(model)
+provider = get_horizon_provider(model)
 model_name = get_model_name_from_agno(model)
 
 print(f"Detected provider: {type(provider).__name__}")

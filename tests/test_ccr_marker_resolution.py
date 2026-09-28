@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from headroom.cache.compression_store import get_compression_store, reset_compression_store
-from headroom.ccr.marker_resolution import (
+from horizon.cache.compression_store import get_compression_store, reset_compression_store
+from horizon.ccr.marker_resolution import (
     resolve_markers_in_response,
     resolve_markers_in_text,
 )

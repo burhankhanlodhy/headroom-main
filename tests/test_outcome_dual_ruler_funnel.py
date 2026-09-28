@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.proxy.outcome import RequestOutcome
+from horizon.proxy.outcome import RequestOutcome
 
 # Local 10 -> 6 (saved 4); the provider says the prompt was 8. Every number below
 # is derived from exactly this one mismatch.
@@ -47,7 +47,7 @@ def _outcome() -> RequestOutcome:
 
 def test_beacon_input_is_the_billed_provider_count() -> None:
     """``tokens.input`` is a volume figure and must not silently become local."""
-    from headroom.telemetry import session as sess_mod
+    from horizon.telemetry import session as sess_mod
 
     sess = sess_mod._Session(sid="s1", started=0.0, last_seen=0.0)  # type: ignore[attr-defined]
     sess_mod._fold(sess, _outcome(), now=0.0, source="proxy")  # type: ignore[attr-defined]
@@ -62,7 +62,7 @@ def test_beacon_input_is_the_billed_provider_count() -> None:
 
 def test_beacon_falls_back_to_local_when_no_provider_count() -> None:
     """Providers that report no usage must behave exactly as before the split."""
-    from headroom.telemetry import session as sess_mod
+    from horizon.telemetry import session as sess_mod
 
     o = RequestOutcome(
         request_id="r2",
@@ -88,7 +88,7 @@ async def test_ledger_delta_stays_on_the_local_ruler(monkeypatch) -> None:
     (8, provider) paired against a local tokens_saved (4), the old shape recorded
     12 -> 8 for a request that actually went 10 -> 6.
     """
-    from headroom.proxy import prometheus_metrics as pm
+    from horizon.proxy import prometheus_metrics as pm
 
     seen: dict = {}
 
@@ -125,7 +125,7 @@ async def test_ledger_delta_stays_on_the_local_ruler(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_ledger_falls_back_to_billed_when_local_omitted(monkeypatch) -> None:
     """Pre-split callers keep their existing (single-value) behaviour."""
-    from headroom.proxy import prometheus_metrics as pm
+    from horizon.proxy import prometheus_metrics as pm
 
     seen: dict = {}
     monkeypatch.setattr(pm.savings_ledger, "record_savings_event", lambda **kw: seen.update(kw))
@@ -148,7 +148,7 @@ def test_record_request_defaults_local_to_billed_when_omitted() -> None:
     """Callers that never pass local_input_tokens keep pre-split behaviour."""
     import inspect
 
-    from headroom.proxy.prometheus_metrics import PrometheusMetrics
+    from horizon.proxy.prometheus_metrics import PrometheusMetrics
 
     sig = inspect.signature(PrometheusMetrics.record_request)
     assert sig.parameters["local_input_tokens"].default is None

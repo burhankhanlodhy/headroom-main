@@ -11,6 +11,8 @@ Usage:
 The directory renames (headroom/ -> horizon/, crates/headroom-* -> crates/horizon-*)
 are NOT done here; do them with `git mv` BEFORE running --apply so history follows.
 This script handles file CONTENT and file/dir NAME occurrences inside the tree.
+The script always excludes ITSELF from processing (its rules contain the
+literal search strings).
 """
 
 from __future__ import annotations
@@ -18,6 +20,8 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+
+SELF_NAME = "rebrand_to_horizon.py"
 
 SKIP_DIRS = {
     ".git",
@@ -30,7 +34,6 @@ SKIP_DIRS = {
     ".mypy_cache",
     ".ruff_cache",
     ".hypothesis",
-    ".ruff",
     "dist",
     "build",
     ".idea",
@@ -45,16 +48,17 @@ SKIP_DIRS = {
 TEXT_EXTS = {
     ".py", ".toml", ".rs", ".md", ".yml", ".yaml", ".json", ".cfg", ".txt",
     ".html", ".css", ".js", ".mjs", ".ts", ".tsx", ".ps1", ".sh", ".hcl",
-    ".ini", ".svg", ".lock",
+    ".ini", ".svg", ".lock", ".c", ".sql",
 }
 
 SPECIAL_FILENAMES = {
-    "Makefile", "Dockerfile", ".dockerignore", ".gitignore", ".gitattributes",
+    "makefile", "dockerfile", ".dockerignore", ".gitignore", ".gitattributes",
     ".env.example", ".env.act.example", ".commitlintrc.json", ".changelog.md",
 }
 
-# Never touch (history stays upstream's; replaced separately).
-EXCLUDE_FILES = {"CHANGELOG.md"}
+# Never touch: upstream legal history (LICENSE/NOTICE), this tool itself,
+# and files replaced manually elsewhere.
+EXCLUDE_FILES = {"CHANGELOG.md", "LICENSE", "NOTICE", "BASELINE.md", SELF_NAME}
 
 # Ordered: most specific first. The 3-case cascade after the URL rules covers
 # every category (imports, env vars, headers, tool names, config dirs, crates)
@@ -68,8 +72,6 @@ RULES: list[tuple[str, str]] = [
     ("Headroom", "Horizon"),
     ("headroom", "horizon"),
 ]
-
-NAME_MARKERS = ("headroom", "HEADROOM", "Headroom")
 
 
 def is_text_file(path: Path) -> bool:
@@ -90,22 +92,6 @@ def iter_files(root: Path):
         if not is_text_file(path):
             continue
         yield path
-
-
-def rename_paths(root: Path) -> list[tuple[Path, str]]:
-    """Rename files/dirs whose names contain a headroom marker (dirs last)."""
-    renames: list[tuple[Path, str]] = []
-    for path in sorted(root.rglob("*"), key=lambda p: len(p.parts), reverse=True):
-        rel = path.relative_to(root)
-        if any(part in SKIP_DIRS for part in rel.parts[:-1] if path.is_dir() else rel.parts[:-1]):
-            continue
-        name = path.name
-        new_name = name
-        for marker, repl in (("headroom", "horizon"), ("HEADROOM", "HORIZON"), ("Headroom", "Horizon")):
-            new_name = new_name.replace(marker, repl)
-        if new_name != name:
-            renames.append((path, new_name))
-    return renames
 
 
 def main() -> int:
@@ -131,15 +117,9 @@ def main() -> int:
                 new_text = new_text.replace(old, new)
         if new_text != text:
             changed_files += 1
-            print(f"CHANGE ({sum(text.count(o) for o, _ in RULES)}): {path.relative_to(root)}")
+            print(f"CHANGE: {path.relative_to(root)}")
             if args.apply:
                 path.write_text(new_text, encoding="utf-8", newline="")
-
-    if args.apply:
-        for path, new_name in rename_paths(root):
-            target = path.with_name(new_name)
-            print(f"RENAME: {path.relative_to(root)} -> {new_name}")
-            path.rename(target)
 
     print()
     print(f"files changed: {changed_files}")

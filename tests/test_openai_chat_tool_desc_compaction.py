@@ -1,6 +1,6 @@
 """Tool-description compaction must run on chat-completions, not just Anthropic/Responses.
 
-``HEADROOM_TOOL_DESC_MAX_CHARS`` was wired into the Anthropic handler and the
+``HORIZON_TOOL_DESC_MAX_CHARS`` was wired into the Anthropic handler and the
 Responses (Codex) handler but never into chat-completions, so the env var was a
 silent no-op for every chat client — opencode, Cline, Aider, Roo, anything routed
 through LiteLLM. Tool descriptions live on the ``tools`` array, which the message
@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import pytest
 
-import headroom.proxy.tool_schema_compaction as tsc
-from headroom.proxy.tool_schema_compaction import compact_tool_descriptions, tool_desc_max_chars
+import horizon.proxy.tool_schema_compaction as tsc
+from horizon.proxy.tool_schema_compaction import compact_tool_descriptions, tool_desc_max_chars
 
 _LONG_DESC = "Reads a file from disk and returns the full text content as a string, with numbers."
 
@@ -64,7 +64,7 @@ def _responses_tools() -> list[dict]:
 
 def test_compacts_the_nested_chat_completions_tool_shape(monkeypatch):
     """The shape the chat handler passes — the one that was never being compacted."""
-    monkeypatch.setenv("HEADROOM_TOOL_DESC_MAX_CHARS", "30")
+    monkeypatch.setenv("HORIZON_TOOL_DESC_MAX_CHARS", "30")
 
     payload, modified, before, after = compact_tool_descriptions(
         {"tools": _chat_tools()}, tool_desc_max_chars()
@@ -79,7 +79,7 @@ def test_compacts_the_nested_chat_completions_tool_shape(monkeypatch):
 
 def test_both_wire_shapes_are_handled(monkeypatch):
     """One helper serves both handlers, so chat needed wiring — not a new codec."""
-    monkeypatch.setenv("HEADROOM_TOOL_DESC_MAX_CHARS", "30")
+    monkeypatch.setenv("HORIZON_TOOL_DESC_MAX_CHARS", "30")
     max_chars = tool_desc_max_chars()
 
     _, chat_modified, chat_before, chat_after = compact_tool_descriptions(
@@ -117,10 +117,10 @@ def test_chat_handler_calls_the_desc_pass(monkeypatch):
     """
     import inspect
 
-    from headroom.proxy.handlers import openai as openai_handler
+    from horizon.proxy.handlers import openai as openai_handler
 
     source = inspect.getsource(openai_handler)
     assert "openai:chat:tool_desc_compaction" in source
     # The Anthropic and Responses handlers already had their own labels; make sure
-    # the chat one is distinct so `headroom perf --by-transform` can attribute it.
+    # the chat one is distinct so `horizon perf --by-transform` can attribute it.
     assert "openai:responses:tool_desc_compaction" in source

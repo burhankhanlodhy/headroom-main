@@ -1,6 +1,6 @@
 """Regression tests for lossless Bash handling in CodeAwareCompressor."""
 
-from headroom.transforms.code_compressor import (
+from horizon.transforms.code_compressor import (
     CodeAwareCompressor,
     CodeCompressorConfig,
     CodeLanguage,

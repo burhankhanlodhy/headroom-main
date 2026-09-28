@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from headroom.cli import wrap as wrap_cli
-from headroom.mcp_registry import build_serena_spec
-from headroom.mcp_registry.base import RegisterResult, RegisterStatus, ServerSpec
-from headroom.mcp_registry.ledger import headroom_installed_matching, record_install
+from horizon.cli import wrap as wrap_cli
+from horizon.mcp_registry import build_serena_spec
+from horizon.mcp_registry.base import RegisterResult, RegisterStatus, ServerSpec
+from horizon.mcp_registry.ledger import horizon_installed_matching, record_install
 
 
 class _Registrar:
@@ -45,7 +45,7 @@ def test_automatic_wrap_migrates_owned_drift_and_recurs_to_noop(
 ):
     _quiet(monkeypatch)
     monkeypatch.setattr(
-        "headroom.mcp_registry.ledger.ledger_path", lambda: tmp_path / "ledger.json"
+        "horizon.mcp_registry.ledger.ledger_path", lambda: tmp_path / "ledger.json"
     )
     stale = ServerSpec("serena", "uvx", ("--from", "old"))
     record_install("claude", stale)
@@ -53,7 +53,7 @@ def test_automatic_wrap_migrates_owned_drift_and_recurs_to_noop(
     wrap_cli._setup_serena_mcp(registrar, context="claude-code", verbose=True)
     assert registrar.current == build_serena_spec("claude-code")
     assert registrar.force_calls == [False, True]
-    assert headroom_installed_matching("claude", registrar.current)
+    assert horizon_installed_matching("claude", registrar.current)
     capsys.readouterr()
     wrap_cli._setup_serena_mcp(registrar, context="claude-code", verbose=True)
     assert registrar.force_calls == [False, True, False]
@@ -62,7 +62,7 @@ def test_automatic_wrap_migrates_owned_drift_and_recurs_to_noop(
 def test_automatic_wrap_owned_drift_suggests_rerun_wrap(monkeypatch, tmp_path: Path, capsys):
     _quiet(monkeypatch)
     monkeypatch.setattr(
-        "headroom.mcp_registry.ledger.ledger_path", lambda: tmp_path / "ledger.json"
+        "horizon.mcp_registry.ledger.ledger_path", lambda: tmp_path / "ledger.json"
     )
     stale = ServerSpec("serena", "uvx", ("--from", "old"))
     record_install("claude", stale)
@@ -79,14 +79,14 @@ def test_automatic_wrap_owned_drift_suggests_rerun_wrap(monkeypatch, tmp_path: P
     )
 
     output = capsys.readouterr().out
-    assert "run headroom wrap again" in output
+    assert "run horizon wrap again" in output
     assert "mcp reconcile --adopt" not in output
 
 
 def test_automatic_wrap_preserves_user_managed_warning(monkeypatch, tmp_path: Path, capsys):
     _quiet(monkeypatch)
     monkeypatch.setattr(
-        "headroom.mcp_registry.ledger.ledger_path", lambda: tmp_path / "ledger.json"
+        "horizon.mcp_registry.ledger.ledger_path", lambda: tmp_path / "ledger.json"
     )
     user = ServerSpec("serena", "uvx", ("--from", "user"))
     registrar = _Registrar(user)
@@ -100,20 +100,20 @@ def test_automatic_wrap_recovers_from_malformed_ledger(monkeypatch, tmp_path: Pa
     _quiet(monkeypatch)
     ledger = tmp_path / "ledger.json"
     ledger.write_text("not json")
-    monkeypatch.setattr("headroom.mcp_registry.ledger.ledger_path", lambda: ledger)
+    monkeypatch.setattr("horizon.mcp_registry.ledger.ledger_path", lambda: ledger)
     registrar = _Registrar(None)
 
     wrap_cli._setup_serena_mcp(registrar, context="claude-code", verbose=True)
 
     current = registrar.get_server("serena")
     assert current == build_serena_spec("claude-code")
-    assert headroom_installed_matching("claude", current)
+    assert horizon_installed_matching("claude", current)
 
 
 def test_non_claude_wrap_keeps_usable_remediation_hint(monkeypatch, tmp_path: Path, capsys):
     _quiet(monkeypatch)
     monkeypatch.setattr(
-        "headroom.mcp_registry.ledger.ledger_path", lambda: tmp_path / "ledger.json"
+        "horizon.mcp_registry.ledger.ledger_path", lambda: tmp_path / "ledger.json"
     )
     registrar = _Registrar(ServerSpec("serena", "uvx", ("--from", "user")), name="codex")
 

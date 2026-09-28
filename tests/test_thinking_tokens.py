@@ -8,8 +8,8 @@ happened" and corrupting every average computed over mixed traffic.
 
 from __future__ import annotations
 
-from headroom.proxy.outcome import RequestOutcome
-from headroom.proxy.thinking_tokens import (
+from horizon.proxy.outcome import RequestOutcome
+from horizon.proxy.thinking_tokens import (
     ThinkingTokens,
     anthropic_thinking_text,
     extract_from_usage,
@@ -136,7 +136,7 @@ class TestVisibleSplit:
         assert ThinkingTokens().visible_from(900) is None
 
     def test_inferred_overshoot_clamps_at_zero(self):
-        """An inferred count is on Headroom's tokenizer scale while
+        """An inferred count is on Horizon's tokenizer scale while
         output_tokens is on the provider's; they can disagree on a short
         response and the difference must not go negative."""
         assert ThinkingTokens(tokens=120, inferred=True).visible_from(100) == 0
@@ -189,7 +189,7 @@ class TestHandlerWiring:
     """
 
     def test_helper_returns_an_inferred_count_for_thinking_blocks(self):
-        from headroom.proxy.handlers.anthropic import _thinking_tokens_for
+        from horizon.proxy.handlers.anthropic import _thinking_tokens_for
 
         payload = {
             "content": [
@@ -203,7 +203,7 @@ class TestHandlerWiring:
         assert result.inferred is True
 
     def test_helper_reports_a_real_zero_when_nothing_was_thought(self):
-        from headroom.proxy.handlers.anthropic import _thinking_tokens_for
+        from horizon.proxy.handlers.anthropic import _thinking_tokens_for
 
         result = _thinking_tokens_for({"content": [{"type": "text", "text": "hi"}]})
         assert result.tokens == 0
@@ -213,12 +213,12 @@ class TestHandlerWiring:
         """AnthropicTokenCounter loads a tiktoken encoding in __init__, so
         constructing one per request would put a vocab load in the response
         path."""
-        from headroom.proxy.handlers.anthropic import _thinking_estimator
+        from horizon.proxy.handlers.anthropic import _thinking_estimator
 
         assert _thinking_estimator() is _thinking_estimator()
 
     def test_helper_never_raises_on_junk(self):
-        from headroom.proxy.handlers.anthropic import _thinking_tokens_for
+        from horizon.proxy.handlers.anthropic import _thinking_tokens_for
 
         for junk in (None, "string", 42, [], {"content": "not a list"}):
             assert _thinking_tokens_for(junk).tokens is None or True

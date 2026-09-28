@@ -79,11 +79,11 @@ def _has_search_call(response: dict[str, Any]) -> bool:
 # --------------------------------------------------------------------------- #
 
 
-def test_one_redrive_round_end_to_end(headroom_client, fake_provider, make_gateway) -> None:
+def test_one_redrive_round_end_to_end(horizon_client, fake_provider, make_gateway) -> None:
     """L-CLIENT, L-PROVIDER, L-ROUNDS, L-CLEAN together."""
     hook = redrive_hook_ext.register()
     _search_then_answer(fake_provider)
-    baseline = count_loop_tasks(headroom_client)
+    baseline = count_loop_tasks(horizon_client)
     gateway = make_gateway(can_redrive=True, can_relay_response=True)
 
     result = gateway.turn(_chat_body(), "loop-1")
@@ -124,7 +124,7 @@ def test_one_redrive_round_end_to_end(headroom_client, fake_provider, make_gatew
     assert done is not None
     assert done["rounds"] == 1
     # The hook hands back the latest provider response object itself (no
-    # replacement). After a re-drive Headroom still returns that response, with
+    # replacement). After a re-drive Horizon still returns that response, with
     # usage summed over both provider calls, so the client never sees the last
     # round's usage alone.
     assert done["response"] is not None
@@ -143,12 +143,12 @@ def test_one_redrive_round_end_to_end(headroom_client, fake_provider, make_gatew
     assert hook.rounds_driven == 1
     assert hook.queries == ["create issue"]
     # L-CLEAN
-    assert registry_of(headroom_client).get(result.turn_id) is None
-    assert count_loop_tasks(headroom_client) <= baseline
+    assert registry_of(horizon_client).get(result.turn_id) is None
+    assert count_loop_tasks(horizon_client) <= baseline
 
 
 def test_no_search_call_means_done_with_null_response(
-    headroom_client, fake_provider, make_gateway
+    horizon_client, fake_provider, make_gateway
 ) -> None:
     """L-CLIENT: the hook armed but the model answered directly -> ``done`` with
     ``response: null`` and the gateway forwards what it already has."""
@@ -163,10 +163,10 @@ def test_no_search_call_means_done_with_null_response(
     assert done["response"] is None
     assert done["rounds"] == 0
     assert result.final_response["id"] == "chatcmpl-direct"
-    assert registry_of(headroom_client).get(result.turn_id) is None
+    assert registry_of(horizon_client).get(result.turn_id) is None
 
 
-def test_two_rounds(headroom_client, fake_provider, make_gateway) -> None:
+def test_two_rounds(horizon_client, fake_provider, make_gateway) -> None:
     """L-ROUNDS: two searches, three provider calls, ``rounds == 2``, and the
     tools block accumulates (sorted) across rounds."""
     redrive_hook_ext.register()
@@ -196,7 +196,7 @@ def test_two_rounds(headroom_client, fake_provider, make_gateway) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_hook_max_rounds_caps_the_loop(headroom_client, fake_provider, make_gateway) -> None:
+def test_hook_max_rounds_caps_the_loop(horizon_client, fake_provider, make_gateway) -> None:
     """L-ROUNDS: the hook's own cap stops the loop; the client gets the last
     provider answer (still a search call - visible rather than silently wrong)."""
     redrive_hook_ext.register(max_rounds=2)
@@ -209,17 +209,17 @@ def test_hook_max_rounds_caps_the_loop(headroom_client, fake_provider, make_gate
     assert len(fake_provider.calls) == 3  # 1 + max_rounds
     assert result.done is not None
     assert result.done["rounds"] == 2
-    assert registry_of(headroom_client).get(result.turn_id) is None
+    assert registry_of(horizon_client).get(result.turn_id) is None
 
 
 def test_registry_max_redrives_env_caps_the_loop(
-    make_headroom_client, monkeypatch, fake_provider, provider_client
+    make_horizon_client, monkeypatch, fake_provider, provider_client
 ) -> None:
-    """L-ROUNDS: ``HEADROOM_GATEWAY_MAX_REDRIVES`` bounds a hook that would spin."""
+    """L-ROUNDS: ``HORIZON_GATEWAY_MAX_REDRIVES`` bounds a hook that would spin."""
     from tests.gateway.fake_gateway import FakeGateway
 
-    monkeypatch.setenv("HEADROOM_GATEWAY_MAX_REDRIVES", "2")
-    client = make_headroom_client()
+    monkeypatch.setenv("HORIZON_GATEWAY_MAX_REDRIVES", "2")
+    client = make_horizon_client()
     redrive_hook_ext.register(max_rounds=50)
     fake_provider.script(
         [openai_tool_call_response(SEARCH, {"query": "again"}, call_id=f"s{i}") for i in range(10)]
@@ -246,10 +246,10 @@ def test_registry_max_redrives_env_caps_the_loop(
 # --------------------------------------------------------------------------- #
 
 
-def test_wrong_turn_id_is_404(headroom_client, fake_provider) -> None:
+def test_wrong_turn_id_is_404(horizon_client, fake_provider) -> None:
     """L-GUARDS"""
     redrive_hook_ext.register()
-    resp = headroom_client.post(
+    resp = horizon_client.post(
         "/v1/compress/response",
         json={"turn_id": "f" * 32, "response": openai_text_response("x")},
     )
@@ -257,43 +257,43 @@ def test_wrong_turn_id_is_404(headroom_client, fake_provider) -> None:
     assert resp.json()["error"]["type"] == "unknown_turn"
 
 
-def test_missing_response_on_redrive_turn_is_400(headroom_client) -> None:
+def test_missing_response_on_redrive_turn_is_400(horizon_client) -> None:
     """L-GUARDS: a turn that carries ``redrive`` cannot complete without the
     provider response; the turn stays registered for a corrected relay."""
     redrive_hook_ext.register()
-    data = headroom_client.post(
+    data = horizon_client.post(
         "/v1/compress",
         json={**_chat_body(), "gateway": {"can_redrive": True}, "config": {"session_id": "guard"}},
     ).json()
     assert data["obligations"] == ["redrive"]
-    resp = headroom_client.post(
+    resp = horizon_client.post(
         "/v1/compress/response", json={"turn_id": data["turn_id"], "usage": openai_usage(1, 1)}
     )
     assert resp.status_code == 400, resp.text
     assert resp.json()["error"]["type"] == "missing_response"
-    assert registry_of(headroom_client).get(data["turn_id"]) is not None
+    assert registry_of(horizon_client).get(data["turn_id"]) is not None
 
 
-def test_failed_call_closes_a_redrive_turn_without_a_response(headroom_client) -> None:
+def test_failed_call_closes_a_redrive_turn_without_a_response(horizon_client) -> None:
     """L-GUARDS: a provider failure has nothing to re-drive. A gateway that
     only knows the status (LiteLLM's failure hooks see an exception, not a
     body) must still be able to close the turn and leave a ledger row."""
     redrive_hook_ext.register()
-    data = headroom_client.post(
+    data = horizon_client.post(
         "/v1/compress",
         json={**_chat_body(), "gateway": {"can_redrive": True}, "config": {"session_id": "fail"}},
     ).json()
     assert data["obligations"] == ["redrive"]
-    resp = headroom_client.post(
+    resp = horizon_client.post(
         "/v1/compress/response", json={"turn_id": data["turn_id"], "round": 0, "status": 529}
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["action"] == "done"
     assert resp.json()["response"] is None
-    assert registry_of(headroom_client).get(data["turn_id"]) is None
+    assert registry_of(horizon_client).get(data["turn_id"]) is None
 
 
-def test_non_200_provider_status_skips_hooks(headroom_client, fake_provider, make_gateway) -> None:
+def test_non_200_provider_status_skips_hooks(horizon_client, fake_provider, make_gateway) -> None:
     """L-GUARDS: a provider error is relayed, not re-driven; the turn completes."""
     from tests.gateway.fake_provider import ScriptedResponse
 
@@ -305,7 +305,7 @@ def test_non_200_provider_status_skips_hooks(headroom_client, fake_provider, mak
     assert result.done is not None
     assert result.done["response"] is None
     assert hook.response_calls == 0
-    assert registry_of(headroom_client).get(result.turn_id) is None
+    assert registry_of(horizon_client).get(result.turn_id) is None
 
 
 # --------------------------------------------------------------------------- #
@@ -313,7 +313,7 @@ def test_non_200_provider_status_skips_hooks(headroom_client, fake_provider, mak
 # --------------------------------------------------------------------------- #
 
 
-def test_can_redrive_false_never_shrinks(headroom_client, fake_provider, make_gateway) -> None:
+def test_can_redrive_false_never_shrinks(horizon_client, fake_provider, make_gateway) -> None:
     """L-NOSHRINK"""
     hook = redrive_hook_ext.register()
     result = make_gateway(can_redrive=False, can_relay_response=True).turn(
@@ -328,7 +328,7 @@ def test_can_redrive_false_never_shrinks(headroom_client, fake_provider, make_ga
     assert hook.shrink_calls == 0
 
 
-def test_session_affinity_false_never_shrinks(headroom_client, fake_provider, make_gateway) -> None:
+def test_session_affinity_false_never_shrinks(horizon_client, fake_provider, make_gateway) -> None:
     """L-NOSHRINK: without affinity the response half may land on another replica."""
     hook = redrive_hook_ext.register()
     result = make_gateway(can_redrive=True, can_relay_response=True, session_affinity=False).turn(
@@ -340,7 +340,7 @@ def test_session_affinity_false_never_shrinks(headroom_client, fake_provider, ma
     assert hook.shrink_calls == 0
 
 
-def test_streaming_request_never_shrinks(headroom_client, fake_provider, make_gateway) -> None:
+def test_streaming_request_never_shrinks(horizon_client, fake_provider, make_gateway) -> None:
     """L-NOSHRINK: the plugin sets ``can_redrive=false`` for ``stream: true``; the
     stream reaches the client with its usage frame and is relayed."""
     hook = redrive_hook_ext.register()
@@ -364,7 +364,7 @@ def test_streaming_request_never_shrinks(headroom_client, fake_provider, make_ga
 # --------------------------------------------------------------------------- #
 
 
-def test_anthropic_shape_redrive(headroom_client, fake_provider, make_gateway) -> None:
+def test_anthropic_shape_redrive(horizon_client, fake_provider, make_gateway) -> None:
     """L-SHAPES: tool_use search -> tool_result reload -> final text."""
     hook = redrive_hook_ext.register()
     fake_provider.script(
@@ -405,16 +405,16 @@ def test_anthropic_shape_redrive(headroom_client, fake_provider, make_gateway) -
     }
     assert result.done["rounds"] == 1
     assert hook.rounds_driven == 1
-    assert registry_of(headroom_client).get(result.turn_id) is None
+    assert registry_of(horizon_client).get(result.turn_id) is None
 
 
 def test_stale_retry_replays_last_redrive_without_double_billing(
-    headroom_client, fake_provider, make_gateway
+    horizon_client, fake_provider, make_gateway
 ) -> None:
     """Invariant: the response half is idempotent on ``round``.
 
-    A gateway whose socket dropped after headroom answered ``redrive`` re-posts
-    round 0. Headroom must repeat the same ``redrive`` answer, not feed round
+    A gateway whose socket dropped after horizon answered ``redrive`` re-posts
+    round 0. Horizon must repeat the same ``redrive`` answer, not feed round
     0's response to the parked hook as the answer to the re-drive, and must not
     bill round 0's usage twice.
     """
@@ -427,14 +427,14 @@ def test_stale_retry_replays_last_redrive_without_double_billing(
         "search_tools", {"query": "deferred"}, usage={"prompt_tokens": 100, "completion_tokens": 5}
     )
     body = {"model": "gpt-4o", "messages": big_tool_history(), "tools": openai_tools()}
-    compress = headroom_client.post(
+    compress = horizon_client.post(
         "/v1/compress",
         json={**body, "gateway": {"can_redrive": True, "can_relay_response": True}},
     ).json()
     assert "redrive" in compress["obligations"]
     turn_id = compress["turn_id"]
 
-    first = headroom_client.post(
+    first = horizon_client.post(
         "/v1/compress/response",
         json={
             "turn_id": turn_id,
@@ -446,7 +446,7 @@ def test_stale_retry_replays_last_redrive_without_double_billing(
     assert first["action"] == "redrive" and first["round"] == 1
 
     # The retry of round 0 must replay, byte-for-byte, the answer above.
-    retry = headroom_client.post(
+    retry = horizon_client.post(
         "/v1/compress/response",
         json={
             "turn_id": turn_id,
@@ -458,7 +458,7 @@ def test_stale_retry_replays_last_redrive_without_double_billing(
     assert retry == first
 
     # A round from the future is refused; nothing is consumed.
-    future = headroom_client.post(
+    future = horizon_client.post(
         "/v1/compress/response",
         json={"turn_id": turn_id, "round": 2, "response": search_call},
     )
@@ -468,14 +468,14 @@ def test_stale_retry_replays_last_redrive_without_double_billing(
     final = openai_text_response(
         "final answer", usage={"prompt_tokens": 120, "completion_tokens": 7}
     )
-    done = headroom_client.post(
+    done = horizon_client.post(
         "/v1/compress/response",
         json={"turn_id": turn_id, "round": 1, "usage": final["usage"], "response": final},
     ).json()
     assert done["action"] == "done"
     assert done["rounds"] == 1
     # Round 0 billed once, round 1 once: 100+120 in, 5+7 out.
-    proxy = headroom_client.app.state.proxy
+    proxy = horizon_client.app.state.proxy
     assert proxy.gateway_turns.get(turn_id) is None
     # Also drive the whole thing through the FakeGateway once for the round plumbing.
     fake_provider.script([search_call, final])
@@ -487,7 +487,7 @@ def test_stale_retry_replays_last_redrive_without_double_billing(
 
 
 def test_billed_usage_is_written_in_the_responses_own_shape() -> None:
-    from headroom.proxy.gateway_turn import NormalizedUsage, _usage_in_shape
+    from horizon.proxy.gateway_turn import NormalizedUsage, _usage_in_shape
 
     billed = NormalizedUsage(input_tokens=720, output_tokens=14, cache_read=300, cache_write=50)
     anthropic = _usage_in_shape(

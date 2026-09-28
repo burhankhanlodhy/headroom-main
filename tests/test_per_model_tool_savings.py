@@ -28,8 +28,8 @@ Both surfaces had the same shape of bug and both are pinned here:
 
 from __future__ import annotations
 
-from headroom.perf.analyzer import PerfRecord, PerfReport, format_report
-from headroom.proxy.savings_tracker import SavingsTracker, _normalize_by_model
+from horizon.perf.analyzer import PerfRecord, PerfReport, format_report
+from horizon.proxy.savings_tracker import SavingsTracker, _normalize_by_model
 
 
 def _record(model: str, *, before: int, saved: int, tool_saved: int) -> PerfRecord:
@@ -45,7 +45,7 @@ def _record(model: str, *, before: int, saved: int, tool_saved: int) -> PerfReco
 
 
 # --------------------------------------------------------------------------- #
-# CLI report (`headroom perf`)
+# CLI report (`horizon perf`)
 # --------------------------------------------------------------------------- #
 def test_per_model_rows_reconcile_with_the_headline() -> None:
     """The reported symptom: rows that do not add up to the total above them."""
@@ -149,7 +149,7 @@ def test_state_written_before_this_field_existed_still_loads() -> None:
 # Dashboard "Per-Model Token Savings" table (`cost.py`)
 # --------------------------------------------------------------------------- #
 def test_cost_tracker_per_model_counts_both_layers() -> None:
-    from headroom.proxy.cost import CostTracker
+    from horizon.proxy.cost import CostTracker
 
     tracker = CostTracker()
     tracker.record_tokens("gpt-5-codex", 1_000, 9_000, tool_schema_saved=40_000)
@@ -165,7 +165,7 @@ def test_cost_tracker_per_model_counts_both_layers() -> None:
 
 def test_cost_tracker_shows_a_deferral_only_model_at_all() -> None:
     """Keying the loop off compression alone dropped such a model entirely."""
-    from headroom.proxy.cost import CostTracker
+    from horizon.proxy.cost import CostTracker
 
     tracker = CostTracker()
     tracker.record_tokens("tool-only", 0, 2_000, tool_schema_saved=18_000)
@@ -177,7 +177,7 @@ def test_cost_tracker_shows_a_deferral_only_model_at_all() -> None:
 
 
 def test_cost_tracker_totals_reconcile_with_the_rows() -> None:
-    from headroom.proxy.cost import CostTracker
+    from horizon.proxy.cost import CostTracker
 
     tracker = CostTracker()
     tracker.record_tokens("model-a", 1_000, 5_000, tool_schema_saved=40_000)
@@ -194,7 +194,7 @@ def test_cost_tracker_totals_reconcile_with_the_rows() -> None:
 
 def test_cost_tracker_default_call_is_unchanged() -> None:
     """Existing callers that pass no deferral keep the old numbers exactly."""
-    from headroom.proxy.cost import CostTracker
+    from horizon.proxy.cost import CostTracker
 
     tracker = CostTracker()
     tracker.record_tokens("claude-sonnet-4-6", 2_500, 7_500)
@@ -218,7 +218,7 @@ def test_metrics_forwards_deferral_to_the_tracker(tmp_path) -> None:
     """
     import asyncio
 
-    from headroom.proxy.prometheus_metrics import PrometheusMetrics
+    from horizon.proxy.prometheus_metrics import PrometheusMetrics
 
     tracker = SavingsTracker(path=str(tmp_path / "savings.json"))
     metrics = PrometheusMetrics(savings_tracker=tracker, stateless=True)

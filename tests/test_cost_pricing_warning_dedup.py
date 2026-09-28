@@ -13,7 +13,7 @@ import pytest
 
 @pytest.fixture
 def cost_tracker(monkeypatch: pytest.MonkeyPatch):
-    import headroom.proxy.cost as cost_mod
+    import horizon.proxy.cost as cost_mod
 
     # Reset the per-process dedup set so tests are order-independent.
     cost_mod._warned_pricing_models.clear()
@@ -28,7 +28,7 @@ def cost_tracker(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_pricing_failure_warns_once_per_model(cost_tracker, caplog):
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         for _ in range(5):
             assert cost_tracker.estimate_cost("glm-5.2", 100, 50) is None
 
@@ -39,7 +39,7 @@ def test_pricing_failure_warns_once_per_model(cost_tracker, caplog):
 
 
 def test_distinct_models_each_warn_once(cost_tracker, caplog):
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         cost_tracker.estimate_cost("glm-5.2", 10, 5)
         cost_tracker.estimate_cost("glm-5.2", 10, 5)
         cost_tracker.estimate_cost("mystery-model", 10, 5)
@@ -51,13 +51,13 @@ def test_distinct_models_each_warn_once(cost_tracker, caplog):
 
 
 def test_litellm_unavailable_warns_once_per_model(monkeypatch, caplog):
-    import headroom.proxy.cost as cost_mod
+    import horizon.proxy.cost as cost_mod
 
     cost_mod._warned_pricing_models.clear()
     monkeypatch.setattr(cost_mod, "_get_litellm_module", lambda: None)
     tracker = cost_mod.CostTracker()
 
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         for _ in range(3):
             assert tracker.estimate_cost("glm-5.2", 10, 5) is None
 

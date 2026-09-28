@@ -3,7 +3,7 @@ handler resolved the tokenizer and counted the conversation inline in the async
 handler. For HF-backed models (e.g. deepseek-*) first use triggers an unbounded
 network download, freezing the whole server (610s request, then /livez, /readyz
 and /health hang until kill). The fix routes resolution + counting through
-HeadroomProxy._count_tokens_offloaded (compression executor, bounded by
+HorizonProxy._count_tokens_offloaded (compression executor, bounded by
 COMPRESSION_TIMEOUT_SECONDS, fail-open to estimation) — shared by every provider
 handler (Anthropic, OpenAI, Gemini), since the OpenAI passthrough endpoints
 receive the same HF-backed models — and offloads the inline batch
@@ -17,24 +17,24 @@ import inspect
 import threading
 import time
 
-from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
-from headroom.proxy.handlers.batch import BatchHandlerMixin
-from headroom.proxy.handlers.gemini import GeminiHandlerMixin
-from headroom.proxy.handlers.openai import OpenAIHandlerMixin
-from headroom.proxy.server import (
+from horizon.proxy.handlers.anthropic import AnthropicHandlerMixin
+from horizon.proxy.handlers.batch import BatchHandlerMixin
+from horizon.proxy.handlers.gemini import GeminiHandlerMixin
+from horizon.proxy.handlers.openai import OpenAIHandlerMixin
+from horizon.proxy.server import (
     CompressionQuarantinedError,
     ProxyConfig,
     create_app,
 )
-from headroom.proxy.token_counting import (
+from horizon.proxy.token_counting import (
     _count_offloaded,
     count_texts_offloaded,
     count_tokens_offloaded,
 )
-from headroom.tokenizers import EstimatingTokenCounter
+from horizon.tokenizers import EstimatingTokenCounter
 
 
-def _make_proxy():  # noqa: ANN202 — returns the internal HeadroomProxy
+def _make_proxy():  # noqa: ANN202 — returns the internal HorizonProxy
     app = create_app(
         ProxyConfig(
             optimize=True,
@@ -107,12 +107,12 @@ async def test_count_tokens_offloaded_runs_on_worker_thread(monkeypatch) -> None
             seen["thread"] = threading.current_thread().name
             return super().count_messages(messages)
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda *a, **k: _SpyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda *a, **k: _SpyTokenizer())
 
     _, tokens = await proxy._count_tokens_offloaded("gpt-4", [{"role": "user", "content": "hi"}])
 
     assert tokens > 0
-    assert seen["thread"].startswith("headroom-compress")
+    assert seen["thread"].startswith("horizon-compress")
     assert seen["thread"] != loop_thread
 
 
@@ -133,7 +133,7 @@ async def test_count_tokens_offloaded_keeps_loop_responsive(monkeypatch) -> None
             time.sleep(0.3)
             return super().count_messages(messages)
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda *a, **k: _SlowTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda *a, **k: _SlowTokenizer())
 
     tick_task = asyncio.create_task(_ticker())
     try:
@@ -152,7 +152,7 @@ async def test_count_tokens_offloaded_fails_open(monkeypatch) -> None:  # noqa: 
     def _boom(*a, **k):  # noqa: ANN002, ANN003, ANN202
         raise RuntimeError("tokenizer backend exploded")
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", _boom)
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", _boom)
 
     tokenizer, tokens = await proxy._count_tokens_offloaded(
         "deepseek-chat", [{"role": "user", "content": "hello world"}]
@@ -221,12 +221,12 @@ async def test_count_texts_offloaded_runs_on_worker_thread(monkeypatch) -> None:
             seen["thread"] = threading.current_thread().name
             return super().count_text(text)
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", lambda *a, **k: _SpyTokenizer())
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", lambda *a, **k: _SpyTokenizer())
 
     _, tokens = await proxy._count_texts_offloaded("gemini-pro", ["hello", "world"])
 
     assert tokens > 0
-    assert seen["thread"].startswith("headroom-compress")
+    assert seen["thread"].startswith("horizon-compress")
     assert seen["thread"] != loop_thread
 
 
@@ -238,7 +238,7 @@ async def test_count_texts_offloaded_fails_open(monkeypatch) -> None:  # noqa: A
     def _boom(*a, **k):  # noqa: ANN002, ANN003, ANN202
         raise RuntimeError("tokenizer backend exploded")
 
-    monkeypatch.setattr("headroom.tokenizers.get_tokenizer", _boom)
+    monkeypatch.setattr("horizon.tokenizers.get_tokenizer", _boom)
 
     tokenizer, tokens = await proxy._count_texts_offloaded("deepseek-chat", ["hello", "world"])
 
@@ -272,7 +272,7 @@ async def test_count_texts_offloaded_sums_fragments(monkeypatch) -> None:  # noq
     count_text loop it replaced."""
     proxy = _make_proxy()
     monkeypatch.setattr(
-        "headroom.tokenizers.get_tokenizer", lambda *a, **k: EstimatingTokenCounter()
+        "horizon.tokenizers.get_tokenizer", lambda *a, **k: EstimatingTokenCounter()
     )
     fragments = ["hello", "world", "foo"]
 

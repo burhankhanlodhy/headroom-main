@@ -13,9 +13,9 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-import headroom.providers.codex.recovery as codex_recovery
-from headroom.cli.main import main
-from headroom.providers.codex.recovery import discover_dangling_homes, recover_codex_home
+import horizon.providers.codex.recovery as codex_recovery
+from horizon.cli.main import main
+from horizon.providers.codex.recovery import discover_dangling_homes, recover_codex_home
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits only")
@@ -101,15 +101,15 @@ def _write_thread_db(
 
 
 def test_discover_dangling_homes_only_returns_codex_homes(tmp_path: Path) -> None:
-    candidate = tmp_path / "headroom-codex-home-abc"
+    candidate = tmp_path / "horizon-codex-home-abc"
     candidate.mkdir()
     (candidate / "config.toml").write_text('model = "gpt-5"\n', encoding="utf-8")
-    (tmp_path / "headroom-codex-home-empty").mkdir()
+    (tmp_path / "horizon-codex-home-empty").mkdir()
     (tmp_path / "other").mkdir()
     outside = tmp_path / "outside"
     outside.mkdir()
     (outside / "history.jsonl").write_text("{}\n", encoding="utf-8")
-    (tmp_path / "headroom-codex-home-linked").symlink_to(outside, target_is_directory=True)
+    (tmp_path / "horizon-codex-home-linked").symlink_to(outside, target_is_directory=True)
 
     assert discover_dangling_homes(tmp_path) == [candidate]
 
@@ -117,8 +117,8 @@ def test_discover_dangling_homes_only_returns_codex_homes(tmp_path: Path) -> Non
 def test_discover_dangling_homes_uses_newest_state_not_directory_mtime(
     tmp_path: Path,
 ) -> None:
-    newest_state = tmp_path / "headroom-codex-home-newest-state"
-    newest_directory = tmp_path / "headroom-codex-home-newest-directory"
+    newest_state = tmp_path / "horizon-codex-home-newest-state"
+    newest_directory = tmp_path / "horizon-codex-home-newest-directory"
     newest_state.mkdir()
     newest_directory.mkdir()
     newest_state_file = newest_state / "history.jsonl"
@@ -139,8 +139,8 @@ def test_discover_dangling_homes_searches_tmpdir_and_python_temp_root(
 ) -> None:
     env_root = tmp_path / "env-tmp"
     python_root = tmp_path / "python-tmp"
-    env_candidate = env_root / "headroom-codex-home-env"
-    python_candidate = python_root / "headroom-codex-home-python"
+    env_candidate = env_root / "horizon-codex-home-env"
+    python_candidate = python_root / "horizon-codex-home-python"
     env_candidate.mkdir(parents=True)
     python_candidate.mkdir(parents=True)
     (env_candidate / "history.jsonl").write_text("{}\n", encoding="utf-8")
@@ -155,7 +155,7 @@ def test_discover_dangling_homes_searches_tmpdir_and_python_temp_root(
 
 def test_recovery_merges_files_config_and_sqlite_with_backups(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     (target / "config.toml").write_text(
@@ -195,7 +195,7 @@ def test_recovery_merges_files_config_and_sqlite_with_backups(tmp_path: Path) ->
 
 def test_recovery_relocates_thread_rollout_paths_to_durable_home(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     relative_rollout = Path("sessions/2026/07/14/rollout-2026-07-14T10-00-00-thread-1.jsonl")
@@ -220,10 +220,10 @@ def test_recovery_relocates_thread_rollout_paths_to_durable_home(tmp_path: Path)
 
 def test_recovery_ignores_unrelated_dangling_target_thread(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
-    unrelated_rollout = Path("/private/tmp/headroom-codex-home-deleted/sessions/unrelated.jsonl")
+    unrelated_rollout = Path("/private/tmp/horizon-codex-home-deleted/sessions/unrelated.jsonl")
     relative_rollout = Path("sessions/2026/07/14/rollout-recovered.jsonl")
     source_rollout = source / relative_rollout
     source_rollout.parent.mkdir(parents=True)
@@ -247,11 +247,11 @@ def test_recovery_ignores_unrelated_dangling_target_thread(tmp_path: Path) -> No
     }
 
 
-def test_recovery_restores_legacy_headroom_threads_to_active_provider(
+def test_recovery_restores_legacy_horizon_threads_to_active_provider(
     tmp_path: Path,
 ) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     (target / "config.toml").write_text(
@@ -261,8 +261,8 @@ def test_recovery_restores_legacy_headroom_threads_to_active_provider(
         encoding="utf-8",
     )
     (source / "config.toml").write_text(
-        'model_provider = "headroom"\n'
-        "[model_providers.headroom]\n"
+        'model_provider = "horizon"\n'
+        "[model_providers.horizon]\n"
         'base_url = "http://127.0.0.1:8787/v1"\n',
         encoding="utf-8",
     )
@@ -275,7 +275,7 @@ def test_recovery_restores_legacy_headroom_threads_to_active_provider(
                 "type": "session_meta",
                 "payload": {
                     "id": "thread-1",
-                    "model_provider": "headroom",
+                    "model_provider": "horizon",
                 },
             }
         )
@@ -285,7 +285,7 @@ def test_recovery_restores_legacy_headroom_threads_to_active_provider(
     _write_thread_db(target / "state_5.sqlite", [])
     _write_thread_db(
         source / "state_5.sqlite",
-        [("thread-1", str(source_rollout), "headroom")],
+        [("thread-1", str(source_rollout), "horizon")],
     )
 
     recover_codex_home(source=source, target=target)
@@ -302,7 +302,7 @@ def test_recovery_repairs_legacy_provider_after_a_previous_broken_recovery(
     tmp_path: Path,
 ) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     (target / "config.toml").write_text(
@@ -312,8 +312,8 @@ def test_recovery_repairs_legacy_provider_after_a_previous_broken_recovery(
         encoding="utf-8",
     )
     (source / "config.toml").write_text(
-        'model_provider = "headroom"\n'
-        "[model_providers.headroom]\n"
+        'model_provider = "horizon"\n'
+        "[model_providers.horizon]\n"
         'base_url = "http://127.0.0.1:8787/v1"\n',
         encoding="utf-8",
     )
@@ -325,7 +325,7 @@ def test_recovery_repairs_legacy_provider_after_a_previous_broken_recovery(
     session_meta = json.dumps(
         {
             "type": "session_meta",
-            "payload": {"id": "thread-1", "model_provider": "headroom"},
+            "payload": {"id": "thread-1", "model_provider": "horizon"},
         }
     )
     source_rollout.write_text(session_meta + "\n", encoding="utf-8")
@@ -335,8 +335,8 @@ def test_recovery_repairs_legacy_provider_after_a_previous_broken_recovery(
     os.utime(target_rollout, ns=(2, 2))
     target_db = target / "state_5.sqlite"
     source_db = source / "state_5.sqlite"
-    _write_thread_db(target_db, [("thread-1", str(target_rollout), "headroom")])
-    _write_thread_db(source_db, [("thread-1", str(source_rollout), "headroom")])
+    _write_thread_db(target_db, [("thread-1", str(target_rollout), "horizon")])
+    _write_thread_db(source_db, [("thread-1", str(source_rollout), "horizon")])
     os.utime(source_db, ns=(1, 1))
     os.utime(target_db, ns=(2, 2))
 
@@ -352,15 +352,15 @@ def test_recovery_repairs_legacy_provider_after_a_previous_broken_recovery(
     assert target_rollout.read_text(encoding="utf-8").splitlines()[1] == response_item
 
 
-def test_recovery_preserves_nonlocal_provider_named_headroom(tmp_path: Path) -> None:
+def test_recovery_preserves_nonlocal_provider_named_horizon(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-remote"
+    source = tmp_path / "horizon-codex-home-remote"
     target.mkdir()
     source.mkdir()
     (target / "config.toml").write_text('model = "gpt-5"\n', encoding="utf-8")
     (source / "config.toml").write_text(
-        'model_provider = "headroom"\n'
-        "[model_providers.headroom]\n"
+        'model_provider = "horizon"\n'
+        "[model_providers.horizon]\n"
         'base_url = "https://gateway.example/v1"\n',
         encoding="utf-8",
     )
@@ -371,7 +371,7 @@ def test_recovery_preserves_nonlocal_provider_named_headroom(tmp_path: Path) -> 
         json.dumps(
             {
                 "type": "session_meta",
-                "payload": {"id": "thread-1", "model_provider": "headroom"},
+                "payload": {"id": "thread-1", "model_provider": "horizon"},
             }
         )
         + "\n",
@@ -380,22 +380,22 @@ def test_recovery_preserves_nonlocal_provider_named_headroom(tmp_path: Path) -> 
     _write_thread_db(target / "state_5.sqlite", [])
     _write_thread_db(
         source / "state_5.sqlite",
-        [("thread-1", str(source_rollout), "headroom")],
+        [("thread-1", str(source_rollout), "horizon")],
     )
 
     recover_codex_home(source=source, target=target)
 
     recovered_meta = json.loads((target / relative_rollout).read_text(encoding="utf-8"))
-    assert recovered_meta["payload"]["model_provider"] == "headroom"
+    assert recovered_meta["payload"]["model_provider"] == "horizon"
     with sqlite3.connect(target / "state_5.sqlite") as connection:
         assert connection.execute(
             "SELECT model_provider FROM threads WHERE id = 'thread-1'"
-        ).fetchone() == ("headroom",)
+        ).fetchone() == ("horizon",)
 
 
 def test_recovery_rolls_back_when_sqlite_schema_differs(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     original = 'model = "target"\n'
@@ -426,7 +426,7 @@ def test_recovery_rollback_does_not_delete_live_target_recursively(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     (target / "config.toml").write_text('model = "target"\n', encoding="utf-8")
@@ -444,14 +444,14 @@ def test_recovery_rollback_does_not_delete_live_target_recursively(
         recover_codex_home(source=source, target=target)
 
     assert (target / "config.toml").read_text(encoding="utf-8") == 'model = "target"\n'
-    failed_targets = list((tmp_path / ".headroom-codex-recovery").glob("*/target-failed"))
+    failed_targets = list((tmp_path / ".horizon-codex-recovery").glob("*/target-failed"))
     assert len(failed_targets) == 1
 
 
 def test_recover_codex_cli_previews_then_merges(tmp_path: Path) -> None:
     home = tmp_path / "home"
     target = home / ".codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir(parents=True)
     source.mkdir()
     (source / "history.jsonl").write_text('{"session_id":"new"}\n', encoding="utf-8")
@@ -475,7 +475,7 @@ def test_recover_codex_cli_audits_history_without_treating_prompt_text_as_paths(
 ) -> None:
     target = tmp_path / "codex"
     target.mkdir()
-    deleted = Path("/private/tmp/headroom-codex-home-deleted")
+    deleted = Path("/private/tmp/horizon-codex-home-deleted")
     rollout = target / "sessions/2026/07/14/rollout-indexed.jsonl"
     rollout.parent.mkdir(parents=True)
     rollout.write_text('{"type":"session_meta"}\n', encoding="utf-8")
@@ -511,13 +511,13 @@ def test_recover_codex_cli_audits_history_without_treating_prompt_text_as_paths(
     assert "History-only records without a surviving rollout: 1" in result.output
     assert "orphaned" in result.output
     assert "codex resume --all" in result.output
-    assert "No recoverable Headroom Codex homes were found." in result.output
+    assert "No recoverable Horizon Codex homes were found." in result.output
 
 
 def test_recover_codex_cli_reuses_source_pinned_by_failed_recovery(tmp_path: Path) -> None:
     target = tmp_path / "codex"
     target.mkdir()
-    pinned = tmp_path / ".headroom-codex-recovery" / "interrupted-attempt" / "source-pinned"
+    pinned = tmp_path / ".horizon-codex-recovery" / "interrupted-attempt" / "source-pinned"
     pinned.mkdir(parents=True)
     (pinned / "history.jsonl").write_text(
         json.dumps({"session_id": "recovered", "text": "retained"}) + "\n",
@@ -527,7 +527,7 @@ def test_recover_codex_cli_reuses_source_pinned_by_failed_recovery(tmp_path: Pat
     pinned_rollout = pinned / relative_rollout
     pinned_rollout.parent.mkdir(parents=True)
     pinned_rollout.write_text('{"type":"session_meta"}\n', encoding="utf-8")
-    deleted_source = Path("/private/tmp/headroom-codex-home-deleted")
+    deleted_source = Path("/private/tmp/horizon-codex-home-deleted")
     _write_thread_db(
         pinned / "state_5.sqlite",
         [("retained", str(deleted_source / relative_rollout), "openai")],
@@ -551,7 +551,7 @@ def test_recover_codex_cli_reuses_source_pinned_by_failed_recovery(tmp_path: Pat
 
 def test_recover_codex_cli_decline_changes_nothing(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     target_history = target / "history.jsonl"
@@ -567,14 +567,14 @@ def test_recover_codex_cli_decline_changes_nothing(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     assert "Recovery cancelled. No Codex state was changed." in result.output
     assert target_history.read_text(encoding="utf-8") == '{"session_id":"target"}\n'
-    assert not (tmp_path / ".headroom-codex-recovery").exists()
+    assert not (tmp_path / ".horizon-codex-recovery").exists()
 
 
 def test_recover_codex_cli_reports_malformed_config_and_removes_new_target(
     tmp_path: Path,
 ) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     source.mkdir()
     (source / "config.toml").write_text("[invalid\n", encoding="utf-8")
 
@@ -590,7 +590,7 @@ def test_recover_codex_cli_reports_malformed_config_and_removes_new_target(
 
 def test_recovery_never_writes_through_target_symlinks(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     outside = tmp_path / "outside"
     target.mkdir()
     source.mkdir()
@@ -609,7 +609,7 @@ def test_recovery_never_writes_through_target_symlinks(tmp_path: Path) -> None:
 
 def test_recovery_rolls_back_when_sqlite_indexes_differ(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     target_db = target / "sqlite" / "state_5.sqlite"
@@ -634,7 +634,7 @@ def test_recovery_rolls_back_when_sqlite_indexes_differ(tmp_path: Path) -> None:
 
 def test_recovery_rolls_back_when_sqlx_checksums_differ(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     target_db = target / "sqlite" / "state_5.sqlite"
@@ -653,7 +653,7 @@ def test_recovery_rolls_back_when_sqlx_checksums_differ(tmp_path: Path) -> None:
 
 def test_recovery_rolls_back_when_source_sqlite_is_corrupt(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     original_config = 'model = "target"\n'
@@ -679,7 +679,7 @@ def test_recovery_rolls_back_when_source_sqlite_breaks_foreign_keys(
     tmp_path: Path,
 ) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     target_db = target / "sqlite" / "state_5.sqlite"
@@ -706,16 +706,16 @@ def test_recovery_rolls_back_when_source_sqlite_breaks_foreign_keys(
         assert connection.execute("SELECT id, parent_id FROM children").fetchall() == []
 
 
-def test_recovery_removes_legacy_headroom_routing_from_config(tmp_path: Path) -> None:
+def test_recovery_removes_legacy_horizon_routing_from_config(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     (target / "config.toml").write_text('model = "gpt-5"\n', encoding="utf-8")
     (source / "config.toml").write_text(
-        'model_provider = "headroom"\n'
+        'model_provider = "horizon"\n'
         'openai_base_url = "http://127.0.0.1:8787/v1"\n'
-        "[model_providers.headroom]\n"
+        "[model_providers.horizon]\n"
         'base_url = "http://127.0.0.1:8787/v1"\n'
         "[features]\nfrom_wrapped_session = true\n",
         encoding="utf-8",
@@ -724,19 +724,19 @@ def test_recovery_removes_legacy_headroom_routing_from_config(tmp_path: Path) ->
     recover_codex_home(source=source, target=target)
 
     config = (target / "config.toml").read_text(encoding="utf-8")
-    assert "headroom" not in config
+    assert "horizon" not in config
     assert "127.0.0.1:8787" not in config
     assert "from_wrapped_session = true" in config
 
 
-def test_recovery_preserves_user_defined_remote_headroom_provider(tmp_path: Path) -> None:
+def test_recovery_preserves_user_defined_remote_horizon_provider(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     (source / "config.toml").write_text(
-        'model_provider = "headroom"\n'
-        "[model_providers.headroom]\n"
+        'model_provider = "horizon"\n'
+        "[model_providers.horizon]\n"
         'base_url = "https://gateway.example/v1"\n',
         encoding="utf-8",
     )
@@ -744,8 +744,8 @@ def test_recovery_preserves_user_defined_remote_headroom_provider(tmp_path: Path
     recover_codex_home(source=source, target=target)
 
     config = (target / "config.toml").read_text(encoding="utf-8")
-    assert 'model_provider = "headroom"' in config
-    assert "[model_providers.headroom]" in config
+    assert 'model_provider = "horizon"' in config
+    assert "[model_providers.horizon]" in config
     assert 'base_url = "https://gateway.example/v1"' in config
 
 
@@ -753,7 +753,7 @@ def test_recovery_quarantines_malformed_jsonl_and_keeps_valid_records(
     tmp_path: Path,
 ) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     (target / "history.jsonl").write_text('{"session_id":"target"}\n', encoding="utf-8")
@@ -779,7 +779,7 @@ def test_recovery_keeps_newest_divergent_rollout_and_backs_up_both(
     tmp_path: Path,
 ) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     relative = Path("sessions/2026/07/14/rollout.jsonl")
     target_rollout = target / relative
     source_rollout = source / relative
@@ -809,7 +809,7 @@ def test_recovery_records_sockets_and_secures_both_backups(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir(mode=0o755)
     source.mkdir(mode=0o755)
     source_history = source / "history.jsonl"
@@ -841,7 +841,7 @@ def test_recovery_records_sockets_and_secures_both_backups(
 
 def test_recovery_never_propagates_source_deletions(tmp_path: Path) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target_rule = target / "rules" / "user.rules"
     target_rule.parent.mkdir(parents=True)
     source.mkdir()
@@ -864,7 +864,7 @@ def test_recovery_uses_newest_credentials_with_target_winning_ties(
     expected_token: str,
 ) -> None:
     target = tmp_path / "codex"
-    source = tmp_path / "headroom-codex-home-broken"
+    source = tmp_path / "horizon-codex-home-broken"
     target.mkdir()
     source.mkdir()
     target_auth = target / "auth.json"
@@ -883,8 +883,8 @@ def test_recover_codex_cli_retains_distinct_backups_for_multiple_sources(
     tmp_path: Path,
 ) -> None:
     target = tmp_path / "codex"
-    first = tmp_path / "headroom-codex-home-first"
-    second = tmp_path / "headroom-codex-home-second"
+    first = tmp_path / "horizon-codex-home-first"
+    second = tmp_path / "horizon-codex-home-second"
     first.mkdir()
     second.mkdir()
     (first / "history.jsonl").write_text('{"session_id":"first"}\n', encoding="utf-8")
@@ -907,7 +907,7 @@ def test_recover_codex_cli_retains_distinct_backups_for_multiple_sources(
 
     assert result.exit_code == 0, result.output
     assert result.output.count("Recovery complete") == 2
-    backup_root = tmp_path / ".headroom-codex-recovery"
+    backup_root = tmp_path / ".horizon-codex-recovery"
     assert len([path for path in backup_root.iterdir() if path.is_dir()]) == 2
     assert [
         json.loads(line)["session_id"]

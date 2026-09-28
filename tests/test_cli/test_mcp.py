@@ -13,13 +13,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli.main import main
-from headroom.cli.mcp import (
-    get_headroom_command,
+from horizon.cli.main import main
+from horizon.cli.mcp import (
+    get_horizon_command,
     load_mcp_config,
     save_mcp_config,
 )
-from headroom.mcp_registry.base import ServerSpec
+from horizon.mcp_registry.base import ServerSpec
 
 # Check if MCP SDK is available
 try:
@@ -42,8 +42,8 @@ def temp_claude_dir(tmp_path):
 def mock_claude_config_path(temp_claude_dir):
     """Patch the MCP config path to use temp directory."""
     config_path = temp_claude_dir / "mcp.json"
-    with patch("headroom.cli.mcp.MCP_CONFIG_PATH", config_path):
-        with patch("headroom.cli.mcp.CLAUDE_CONFIG_DIR", temp_claude_dir):
+    with patch("horizon.cli.mcp.MCP_CONFIG_PATH", config_path):
+        with patch("horizon.cli.mcp.CLAUDE_CONFIG_DIR", temp_claude_dir):
             yield config_path
 
 
@@ -67,12 +67,12 @@ class FakeRegistrar:
         return True
 
     def get_server(self, server_name: str) -> ServerSpec | None:
-        if self.configured and server_name == "headroom":
-            return ServerSpec(name="headroom", command="headroom", args=("mcp", "serve"))
+        if self.configured and server_name == "horizon":
+            return ServerSpec(name="horizon", command="horizon", args=("mcp", "serve"))
         return None
 
     def unregister_server(self, server_name: str) -> bool:
-        if self.configured and server_name == "headroom":
+        if self.configured and server_name == "horizon":
             self.configured = False
             self.removed.append(server_name)
             return True
@@ -82,9 +82,9 @@ class FakeRegistrar:
 class TestMCPConfigFunctions:
     """Test config file handling functions."""
 
-    def test_get_headroom_command_returns_list(self):
+    def test_get_horizon_command_returns_list(self):
         """Command should be a list suitable for subprocess."""
-        cmd = get_headroom_command()
+        cmd = get_horizon_command()
         assert isinstance(cmd, list)
         assert len(cmd) >= 1
         # Should end with mcp serve args
@@ -99,8 +99,8 @@ class TestMCPConfigFunctions:
         """Config can be saved and loaded back."""
         test_config = {
             "mcpServers": {
-                "headroom": {
-                    "command": "headroom",
+                "horizon": {
+                    "command": "horizon",
                     "args": ["mcp", "serve"],
                 }
             }
@@ -119,8 +119,8 @@ class TestMCPConfigFunctions:
         claude_dir = tmp_path / "new_dir" / ".claude"
         config_path = claude_dir / "mcp.json"
 
-        with patch("headroom.cli.mcp.MCP_CONFIG_PATH", config_path):
-            with patch("headroom.cli.mcp.CLAUDE_CONFIG_DIR", claude_dir):
+        with patch("horizon.cli.mcp.MCP_CONFIG_PATH", config_path):
+            with patch("horizon.cli.mcp.CLAUDE_CONFIG_DIR", claude_dir):
                 save_mcp_config({"mcpServers": {}})
 
         assert config_path.exists()
@@ -154,46 +154,46 @@ class TestMCPConfigFunctions:
 
 
 class TestMCPUninstallCommand:
-    """Test 'headroom mcp uninstall' command."""
+    """Test 'horizon mcp uninstall' command."""
 
-    def test_uninstall_removes_headroom(self, mock_mcp_available):
-        """Uninstall removes headroom through detected registrars."""
+    def test_uninstall_removes_horizon(self, mock_mcp_available):
+        """Uninstall removes horizon through detected registrars."""
         registrar = FakeRegistrar()
 
         runner = CliRunner()
-        with patch("headroom.mcp_registry.get_all_registrars", return_value=[registrar]):
+        with patch("horizon.mcp_registry.get_all_registrars", return_value=[registrar]):
             result = runner.invoke(main, ["mcp", "uninstall"])
 
         assert result.exit_code == 0
         assert "removed" in result.output.lower()
-        assert registrar.removed == ["headroom"]
+        assert registrar.removed == ["horizon"]
 
-    def test_uninstall_checks_only_headroom_servers(self):
-        """Uninstall only asks registrars to remove Headroom-owned servers."""
+    def test_uninstall_checks_only_horizon_servers(self):
+        """Uninstall only asks registrars to remove Horizon-owned servers."""
         registrar = FakeRegistrar()
 
         runner = CliRunner()
-        with patch("headroom.mcp_registry.get_all_registrars", return_value=[registrar]):
+        with patch("horizon.mcp_registry.get_all_registrars", return_value=[registrar]):
             result = runner.invoke(main, ["mcp", "uninstall"])
 
         assert result.exit_code == 0
-        assert registrar.removed == ["headroom"]
+        assert registrar.removed == ["horizon"]
 
     def test_uninstall_no_config_file(self, mock_claude_config_path):
         """Uninstall with no config file exits cleanly."""
         runner = CliRunner()
-        with patch("headroom.mcp_registry.get_all_registrars", return_value=[]):
+        with patch("horizon.mcp_registry.get_all_registrars", return_value=[]):
             result = runner.invoke(main, ["mcp", "uninstall"])
 
         assert result.exit_code == 0
         assert "nothing to uninstall" in result.output.lower()
 
     def test_uninstall_not_configured(self, mock_claude_config_path):
-        """Uninstall when headroom not in config exits cleanly."""
+        """Uninstall when horizon not in config exits cleanly."""
         registrar = FakeRegistrar(configured=False)
 
         runner = CliRunner()
-        with patch("headroom.mcp_registry.get_all_registrars", return_value=[registrar]):
+        with patch("horizon.mcp_registry.get_all_registrars", return_value=[registrar]):
             result = runner.invoke(main, ["mcp", "uninstall"])
 
         assert result.exit_code == 0
@@ -201,13 +201,13 @@ class TestMCPUninstallCommand:
 
 
 class TestMCPStatusCommand:
-    """Test 'headroom mcp status' command."""
+    """Test 'horizon mcp status' command."""
 
     def test_status_not_configured(self, mock_claude_config_path):
         """Status shows not configured when no config."""
         runner = CliRunner()
         registrar = FakeRegistrar(configured=False)
-        with patch("headroom.mcp_registry.get_all_registrars", return_value=[registrar]):
+        with patch("horizon.mcp_registry.get_all_registrars", return_value=[registrar]):
             result = runner.invoke(main, ["mcp", "status"])
 
         assert result.exit_code == 0
@@ -220,11 +220,11 @@ class TestMCPStatusCommand:
         )
 
     def test_status_configured(self, mock_claude_config_path, mock_mcp_available):
-        """Status reports configured when a registrar has headroom."""
+        """Status reports configured when a registrar has horizon."""
         registrar = FakeRegistrar(configured=True)
 
         runner = CliRunner()
-        with patch("headroom.mcp_registry.get_all_registrars", return_value=[registrar]):
+        with patch("horizon.mcp_registry.get_all_registrars", return_value=[registrar]):
             result = runner.invoke(main, ["mcp", "status"])
 
         assert result.exit_code == 0
@@ -232,7 +232,7 @@ class TestMCPStatusCommand:
 
 
 class TestMCPServeCommand:
-    """Test 'headroom mcp serve' command."""
+    """Test 'horizon mcp serve' command."""
 
     def test_serve_help(self):
         """Serve command shows help."""
@@ -255,7 +255,7 @@ class TestMCPServeCommand:
         fake_server.cleanup = AsyncMock()
 
         runner = CliRunner()
-        with patch("headroom.ccr.mcp_server.create_ccr_mcp_server", return_value=fake_server):
+        with patch("horizon.ccr.mcp_server.create_ccr_mcp_server", return_value=fake_server):
             result = runner.invoke(main, ["mcp", "serve"])
 
         assert result.exit_code == 0
@@ -271,7 +271,7 @@ class TestMCPServeCommand:
         fake_server.cleanup = AsyncMock()
 
         runner = CliRunner()
-        with patch("headroom.ccr.mcp_server.create_ccr_mcp_server", return_value=fake_server):
+        with patch("horizon.ccr.mcp_server.create_ccr_mcp_server", return_value=fake_server):
             result = runner.invoke(
                 main,
                 [
@@ -308,7 +308,7 @@ class TestMCPServerInitialization:
 
     def test_mcp_server_can_be_created(self):
         """MCP server can be instantiated."""
-        from headroom.ccr.mcp_server import create_ccr_mcp_server
+        from horizon.ccr.mcp_server import create_ccr_mcp_server
 
         server = create_ccr_mcp_server()
         assert server is not None
@@ -316,23 +316,23 @@ class TestMCPServerInitialization:
 
     def test_mcp_server_with_custom_url(self):
         """MCP server accepts custom proxy URL."""
-        from headroom.ccr.mcp_server import create_ccr_mcp_server
+        from horizon.ccr.mcp_server import create_ccr_mcp_server
 
         server = create_ccr_mcp_server(proxy_url="http://custom:9000")
         assert server.proxy_url == "http://custom:9000"
 
     def test_mcp_server_has_correct_tool_name(self):
-        """MCP server is configured for headroom_retrieve tool."""
-        from headroom.ccr.mcp_server import create_ccr_mcp_server
-        from headroom.ccr.tool_injection import CCR_TOOL_NAME
+        """MCP server is configured for horizon_retrieve tool."""
+        from horizon.ccr.mcp_server import create_ccr_mcp_server
+        from horizon.ccr.tool_injection import CCR_TOOL_NAME
 
         server = create_ccr_mcp_server()
 
         # Verify the server was created with correct configuration
         assert server.server is not None
-        assert server.server.name == "headroom"
-        # The tool name should be headroom_retrieve
-        assert CCR_TOOL_NAME == "headroom_retrieve"
+        assert server.server.name == "horizon"
+        # The tool name should be horizon_retrieve
+        assert CCR_TOOL_NAME == "horizon_retrieve"
 
 
 #
@@ -350,18 +350,18 @@ class TestMCPUninstallWithRegistrars:
         registrar = FakeRegistrar(configured=True)
 
         runner = CliRunner()
-        with patch("headroom.mcp_registry.get_all_registrars", return_value=[registrar]):
+        with patch("horizon.mcp_registry.get_all_registrars", return_value=[registrar]):
             result = runner.invoke(main, ["mcp", "uninstall"])
 
         assert result.exit_code == 0
         assert "Fake Agent" in result.output
-        assert registrar.removed == ["headroom"]
+        assert registrar.removed == ["horizon"]
 
     def test_uninstall_skips_unconfigured_registrar(self):
         registrar = FakeRegistrar(configured=False)
 
         runner = CliRunner()
-        with patch("headroom.mcp_registry.get_all_registrars", return_value=[registrar]):
+        with patch("horizon.mcp_registry.get_all_registrars", return_value=[registrar]):
             result = runner.invoke(main, ["mcp", "uninstall"])
 
         assert result.exit_code == 0

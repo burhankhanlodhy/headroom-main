@@ -241,7 +241,7 @@ def _build_env(home: Path, tmp_path: Path) -> dict[str, str]:
     # PATH scope (HKCU\Environment), which a HOME/USERPROFILE override does not
     # redirect. Keep the PATH update ephemeral (Process scope) so running these
     # tests never leaks the throwaway shim dir into the developer's real PATH.
-    env["HEADROOM_INSTALL_PATH_SCOPE"] = "Process"
+    env["HORIZON_INSTALL_PATH_SCOPE"] = "Process"
     return env
 
 
@@ -266,7 +266,7 @@ def _read_fake_docker_log(env: dict[str, str]) -> list[list[str]]:
 
 
 def _persistent_run_call(env: dict[str, str], profile: str) -> list[str]:
-    container_name = f"headroom-{profile}"
+    container_name = f"horizon-{profile}"
     return next(
         call
         for call in _read_fake_docker_log(env)
@@ -278,11 +278,11 @@ def _persistent_run_call(env: dict[str, str], profile: str) -> list[str]:
 
 def _persistent_container_env(env: dict[str, str], profile: str) -> dict[str, str]:
     state = json.loads(Path(env["FAKE_DOCKER_STATE"]).read_text(encoding="utf-8"))
-    return state["containers"][f"headroom-{profile}"]["env"]
+    return state["containers"][f"horizon-{profile}"]["env"]
 
 
 def _exercise_dashboard_gateway_overrides(wrapper_command: list[str], env: dict[str, str]) -> None:
-    trusted_cidrs = "HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS"
+    trusted_cidrs = "HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS"
 
     try:
         for profile, configured_value in (("configured", "10.20.0.0/16"), ("empty", "")):
@@ -298,7 +298,7 @@ def _exercise_dashboard_gateway_overrides(wrapper_command: list[str], env: dict[
                     "--port",
                     str(port),
                     "--image",
-                    "fake/headroom:test",
+                    "fake/horizon:test",
                 ],
                 env=env,
             )
@@ -326,7 +326,7 @@ def _exercise_dashboard_gateway_overrides(wrapper_command: list[str], env: dict[
                 "--port",
                 str(port),
                 "--image",
-                "fake/headroom:test",
+                "fake/horizon:test",
             ],
             env=env,
         )
@@ -397,7 +397,7 @@ def _assert_generated_proxy_argv(
     _assert_loopback_publication(call)
     entrypoint = call.index("--entrypoint")
     image = entrypoint + 2
-    assert call[entrypoint + 1] == "headroom"
+    assert call[entrypoint + 1] == "horizon"
     assert call[image + 1 : image + 6] == [
         "proxy",
         "--host",
@@ -413,7 +413,7 @@ def test_generated_wrappers_explicitly_override_image_host_for_container_access(
     bash_source = (REPO_ROOT / "scripts" / "install.sh").read_text(encoding="utf-8")
     powershell_source = (REPO_ROOT / "scripts" / "install.ps1").read_text(encoding="utf-8")
 
-    assert 'args+=("${HEADROOM_IMAGE}" --host 0.0.0.0 --port "${port}" "$@")' in bash_source
+    assert 'args+=("${HORIZON_IMAGE}" --host 0.0.0.0 --port "${port}" "$@")' in bash_source
     assert "dockerArgs.Add('0.0.0.0')" in powershell_source
 
 
@@ -425,14 +425,14 @@ def test_bash_native_installer_supports_persistent_docker_lifecycle(tmp_path: Pa
     home = tmp_path / "home"
     (home / ".local").mkdir(parents=True)
     env = _build_env(home, tmp_path)
-    env["HEADROOM_DOCKER_IMAGE"] = "headroom:test-image"
+    env["HORIZON_DOCKER_IMAGE"] = "horizon:test-image"
 
     try:
         _run(["bash", str(REPO_ROOT / "scripts" / "install.sh")], env=env, cwd=REPO_ROOT)
 
-        wrapper = home / ".local" / "bin" / "headroom"
+        wrapper = home / ".local" / "bin" / "horizon"
         assert wrapper.exists()
-        assert "HEADROOM_IMAGE_DEFAULT=headroom:test-image" in wrapper.read_text(encoding="utf-8")
+        assert "HORIZON_IMAGE_DEFAULT=horizon:test-image" in wrapper.read_text(encoding="utf-8")
 
         help_result = _run([str(wrapper), "install", "-?"], env=env)
         assert "persistent-docker preset only" in help_result.stdout
@@ -527,20 +527,20 @@ def test_bash_native_installer_supports_persistent_docker_lifecycle(tmp_path: Pa
                 "--memory",
                 "--no-telemetry",
                 "--image",
-                "fake/headroom:test",
+                "fake/horizon:test",
             ],
             env=env,
         )
 
-        manifest_path = home / ".headroom" / "deploy" / "smoke" / "manifest.json"
+        manifest_path = home / ".horizon" / "deploy" / "smoke" / "manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert manifest["preset"] == "persistent-docker"
         assert manifest["port"] == port
         assert manifest["memory_enabled"] is True
-        assert manifest["memory_db_path"] == "/tmp/headroom-home/.headroom/memory.db"
+        assert manifest["memory_db_path"] == "/tmp/horizon-home/.horizon/memory.db"
         assert manifest["telemetry_enabled"] is False
 
-        state_path = home / ".headroom" / "deploy" / "smoke" / "docker-native.env"
+        state_path = home / ".horizon" / "deploy" / "smoke" / "docker-native.env"
         state_text = state_path.read_text(encoding="utf-8")
         assert f"PORT={port!r}" in state_text
 
@@ -577,17 +577,17 @@ def test_bash_native_installer_supports_persistent_docker_lifecycle(tmp_path: Pa
             for call in docker_calls
             if call[:2] == ["run", "-d"]
             and "--name" in call
-            and call[call.index("--name") + 1] == "headroom-smoke"
+            and call[call.index("--name") + 1] == "horizon-smoke"
         )
         assert install_call[install_call.index("-p") + 1] == f"127.0.0.1:{port}:{port}"
-        assert "/tmp/headroom-home/.headroom/memory.db" in install_call
+        assert "/tmp/horizon-home/.horizon/memory.db" in install_call
         # Canonical filesystem contract env vars (issue #175) forwarded into
         # the container so the proxy resolves state/config to the bind mount.
-        assert "HEADROOM_WORKSPACE_DIR=/tmp/headroom-home/.headroom" in install_call
-        assert "HEADROOM_CONFIG_DIR=/tmp/headroom-home/.headroom/config" in install_call
-        assert "HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS=172.17.0.1/32" in install_call
+        assert "HORIZON_WORKSPACE_DIR=/tmp/horizon-home/.horizon" in install_call
+        assert "HORIZON_CONFIG_DIR=/tmp/horizon-home/.horizon/config" in install_call
+        assert "HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS=172.17.0.1/32" in install_call
         assert (
-            _persistent_container_env(env, "smoke")["HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS"]
+            _persistent_container_env(env, "smoke")["HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS"]
             == "172.17.0.1/32"
         )
 
@@ -636,17 +636,17 @@ def test_bash_native_wrapper_supports_opencode(tmp_path: Path) -> None:
     home = tmp_path / "home"
     (home / ".local").mkdir(parents=True)
     env = _build_env(home, tmp_path)
-    env["HEADROOM_DOCKER_IMAGE"] = "headroom:test-image"
+    env["HORIZON_DOCKER_IMAGE"] = "horizon:test-image"
     env["FAKE_OPENCODE_LOG"] = str(tmp_path / "opencode.log")
 
     try:
         _run(["bash", str(REPO_ROOT / "scripts" / "install.sh")], env=env, cwd=REPO_ROOT)
-        wrapper = home / ".local" / "bin" / "headroom"
+        wrapper = home / ".local" / "bin" / "horizon"
 
         config_file = home / ".config" / "opencode" / "opencode.json"
         config_file.parent.mkdir(parents=True)
         config_content = (
-            '{"provider":{"headroom":{"options":{"baseURL":"http://127.0.0.1:8787/v1"}}}}'
+            '{"provider":{"horizon":{"options":{"baseURL":"http://127.0.0.1:8787/v1"}}}}'
         )
         config_file.write_text(config_content, encoding="utf-8")
 
@@ -663,8 +663,8 @@ def test_bash_native_wrapper_supports_opencode(tmp_path: Path) -> None:
             for call in docker_calls
             if call[:2] == ["run", "--rm"] and "--prepare-only" in call and "opencode" in call
         )
-        assert f"{home}/.config/opencode:/tmp/headroom-home/.config/opencode" in prepare_call
-        assert f"{home}/.config:/tmp/headroom-home/.config" not in prepare_call
+        assert f"{home}/.config/opencode:/tmp/horizon-home/.config/opencode" in prepare_call
+        assert f"{home}/.config:/tmp/horizon-home/.config" not in prepare_call
 
         opencode_output = Path(env["FAKE_OPENCODE_LOG"]).read_text(encoding="utf-8")
         assert f"CONFIG={config_content}" in opencode_output
@@ -722,7 +722,7 @@ def test_powershell_installer_does_not_leak_into_user_path(tmp_path: Path) -> No
     ``Ensure-PathEntry`` persists to the 'User' scope, which a HOME/USERPROFILE
     override does not redirect, so running the installer against a throwaway home
     used to leak the temp shim dir into the developer's real PATH. ``_build_env``
-    now sets ``HEADROOM_INSTALL_PATH_SCOPE=Process`` to keep the update
+    now sets ``HORIZON_INSTALL_PATH_SCOPE=Process`` to keep the update
     ephemeral; the real User PATH must be unchanged across the run.
 
     The assertion reads ``HKCU\\Environment`` itself instead of counting the entries the .NET
@@ -736,7 +736,7 @@ def test_powershell_installer_does_not_leak_into_user_path(tmp_path: Path) -> No
     home = tmp_path / "home"
     (home / ".local").mkdir(parents=True)
     env = _build_env(home, tmp_path)
-    env["HEADROOM_DOCKER_IMAGE"] = "headroom:test-image"
+    env["HORIZON_DOCKER_IMAGE"] = "horizon:test-image"
 
     before = _read_user_path_entry()
     try:
@@ -780,7 +780,7 @@ def test_powershell_mcp_wrapper_keeps_stdin_attached_for_redirected_stdio(
     home = tmp_path / "home"
     (home / ".local").mkdir(parents=True)
     env = _build_env(home, tmp_path)
-    env["HEADROOM_DOCKER_IMAGE"] = "headroom:test-image"
+    env["HORIZON_DOCKER_IMAGE"] = "horizon:test-image"
 
     try:
         _run(
@@ -795,7 +795,7 @@ def test_powershell_mcp_wrapper_keeps_stdin_attached_for_redirected_stdio(
             env=env,
             cwd=REPO_ROOT,
         )
-        wrapper = home / ".local" / "bin" / "headroom.ps1"
+        wrapper = home / ".local" / "bin" / "horizon.ps1"
         result = subprocess.run(
             [
                 powershell,
@@ -822,7 +822,7 @@ def test_powershell_mcp_wrapper_keeps_stdin_attached_for_redirected_stdio(
 
 
 # AST-extract Ensure-PathEntry from install.ps1 and invoke it in isolation under
-# a given HEADROOM_INSTALL_PATH_SCOPE, so the scope allow-list is exercised
+# a given HORIZON_INSTALL_PATH_SCOPE, so the scope allow-list is exercised
 # without running the whole installer. Parsing via the PowerShell AST (not a
 # regex) keeps this pinned to the real function body. Only 'Process' (ephemeral)
 # and the throwing paths are driven — never 'User', which would mutate the real
@@ -839,9 +839,9 @@ $fn = $ast.FindAll({
 }, $true) | Select-Object -First 1
 if (-not $fn) { Write-Output 'NOFUNC'; exit 3 }
 Invoke-Expression $fn.Extent.Text
-$env:HEADROOM_INSTALL_PATH_SCOPE = $ScopeValue
+$env:HORIZON_INSTALL_PATH_SCOPE = $ScopeValue
 try {
-    Ensure-PathEntry -PathEntry 'C:\headroom-scope-test-marker'
+    Ensure-PathEntry -PathEntry 'C:\horizon-scope-test-marker'
     Write-Output 'OK'
 } catch {
     Write-Output ('ERR:' + $_.Exception.Message)
@@ -906,7 +906,7 @@ def test_powershell_native_installer_supports_persistent_docker_lifecycle(tmp_pa
     home = tmp_path / "home"
     (home / ".local").mkdir(parents=True)
     env = _build_env(home, tmp_path)
-    env["HEADROOM_DOCKER_IMAGE"] = "headroom:test-image"
+    env["HORIZON_DOCKER_IMAGE"] = "horizon:test-image"
 
     try:
         _run(
@@ -922,11 +922,11 @@ def test_powershell_native_installer_supports_persistent_docker_lifecycle(tmp_pa
             cwd=REPO_ROOT,
         )
 
-        wrapper = home / ".local" / "bin" / "headroom.ps1"
+        wrapper = home / ".local" / "bin" / "horizon.ps1"
         assert wrapper.exists()
-        assert "__HEADROOM_INSTALL_IMAGE__" not in wrapper.read_text(encoding="utf-8")
-        assert "headroom:test-image" in wrapper.read_text(encoding="utf-8")
-        cmd_wrapper = home / ".local" / "bin" / "headroom.cmd"
+        assert "__HORIZON_INSTALL_IMAGE__" not in wrapper.read_text(encoding="utf-8")
+        assert "horizon:test-image" in wrapper.read_text(encoding="utf-8")
+        cmd_wrapper = home / ".local" / "bin" / "horizon.cmd"
         assert cmd_wrapper.exists()
 
         help_result = _run(
@@ -1066,13 +1066,13 @@ def test_powershell_native_installer_supports_persistent_docker_lifecycle(tmp_pa
                 "--memory",
                 "--no-telemetry",
                 "--image",
-                "fake/headroom:test",
+                "fake/horizon:test",
             ],
             env=env,
         )
 
-        manifest_path = home / ".headroom" / "deploy" / "smoke" / "manifest.json"
-        state_path = home / ".headroom" / "deploy" / "smoke" / "docker-native.json"
+        manifest_path = home / ".horizon" / "deploy" / "smoke" / "manifest.json"
+        state_path = home / ".horizon" / "deploy" / "smoke" / "docker-native.json"
         manifest_bytes = manifest_path.read_bytes()
         state_bytes = state_path.read_bytes()
         assert not manifest_bytes.startswith(b"\xef\xbb\xbf")
@@ -1082,9 +1082,9 @@ def test_powershell_native_installer_supports_persistent_docker_lifecycle(tmp_pa
         assert manifest["preset"] == "persistent-docker"
         assert manifest["port"] == port
         assert manifest["memory_enabled"] is True
-        assert manifest["memory_db_path"] == "/tmp/headroom-home/.headroom/memory.db"
+        assert manifest["memory_db_path"] == "/tmp/horizon-home/.horizon/memory.db"
         assert manifest["telemetry_enabled"] is False
-        assert state["container_name"] == "headroom-smoke"
+        assert state["container_name"] == "horizon-smoke"
 
         docker_calls = _read_fake_docker_log(env)
         help_call = next(
@@ -1132,16 +1132,16 @@ def test_powershell_native_installer_supports_persistent_docker_lifecycle(tmp_pa
             for call in docker_calls
             if call[:2] == ["run", "-d"]
             and "--name" in call
-            and call[call.index("--name") + 1] == "headroom-smoke"
+            and call[call.index("--name") + 1] == "horizon-smoke"
         )
         assert install_call[install_call.index("-p") + 1] == f"127.0.0.1:{port}:{port}"
-        assert "/tmp/headroom-home/.headroom/memory.db" in install_call
+        assert "/tmp/horizon-home/.horizon/memory.db" in install_call
         # Canonical filesystem contract env vars (issue #175).
-        assert "HEADROOM_WORKSPACE_DIR=/tmp/headroom-home/.headroom" in install_call
-        assert "HEADROOM_CONFIG_DIR=/tmp/headroom-home/.headroom/config" in install_call
-        assert "HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS=172.17.0.1/32" in install_call
+        assert "HORIZON_WORKSPACE_DIR=/tmp/horizon-home/.horizon" in install_call
+        assert "HORIZON_CONFIG_DIR=/tmp/horizon-home/.horizon/config" in install_call
+        assert "HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS=172.17.0.1/32" in install_call
         assert (
-            _persistent_container_env(env, "smoke")["HEADROOM_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS"]
+            _persistent_container_env(env, "smoke")["HORIZON_PROXY_TRUSTED_DASHBOARD_CLIENT_CIDRS"]
             == "172.17.0.1/32"
         )
 

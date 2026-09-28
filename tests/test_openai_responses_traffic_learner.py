@@ -6,12 +6,12 @@ from typing import Any
 import httpx
 from fastapi.testclient import TestClient
 
-from headroom.memory.traffic_learner import TrafficLearner
-from headroom.proxy.handlers.openai import (
+from horizon.memory.traffic_learner import TrafficLearner
+from horizon.proxy.handlers.openai import (
     OpenAIHandlerMixin,
     _responses_input_to_learner_messages,
 )
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.proxy.server import ProxyConfig, create_app
 
 
 class _CompletedResponseTransport(httpx.AsyncBaseTransport):

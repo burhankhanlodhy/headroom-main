@@ -1,4 +1,4 @@
-"""Concurrent `headroom wrap` sessions sharing one project's settings (#3205).
+"""Concurrent `horizon wrap` sessions sharing one project's settings (#3205).
 
 `wrap claude` writes ANTHROPIC_BASE_URL into `.claude/settings.local.json` and
 restores it on exit. Several sessions in one project run that read-modify-write
@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from headroom.cli import wrap as W
+from horizon.cli import wrap as W
 
 
 @pytest.fixture

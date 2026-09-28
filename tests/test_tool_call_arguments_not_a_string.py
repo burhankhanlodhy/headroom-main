@@ -20,11 +20,11 @@ import json
 
 import pytest
 
-from headroom.providers.anthropic import AnthropicProvider
-from headroom.providers.openai import OpenAITokenCounter
-from headroom.providers.openai_compatible import OpenAICompatibleTokenCounter
-from headroom.tokenizers.base import coerce_countable_text
-from headroom.tokenizers.tiktoken_counter import TiktokenCounter
+from horizon.providers.anthropic import AnthropicProvider
+from horizon.providers.openai import OpenAITokenCounter
+from horizon.providers.openai_compatible import OpenAICompatibleTokenCounter
+from horizon.tokenizers.base import coerce_countable_text
+from horizon.tokenizers.tiktoken_counter import TiktokenCounter
 
 
 def _counters():

@@ -1,14 +1,14 @@
-"""`headroom wrap` reduce-at-source: SAFE quiet-CLI env defaults for the launched
+"""`horizon wrap` reduce-at-source: SAFE quiet-CLI env defaults for the launched
 agent. They fill in only when the user hasn't set the value, augment (never
-clobber) PYTEST_ADDOPTS, and are fully opt-out via HEADROOM_WRAP_QUIET."""
+clobber) PYTEST_ADDOPTS, and are fully opt-out via HORIZON_WRAP_QUIET."""
 
 from __future__ import annotations
 
-from headroom.cli.wrap import _configure_quiet_cli_env, _quiet_cli_enabled
+from horizon.cli.wrap import _configure_quiet_cli_env, _quiet_cli_enabled
 
 
 def test_defaults_injected_into_empty_env(monkeypatch) -> None:
-    monkeypatch.delenv("HEADROOM_WRAP_QUIET", raising=False)
+    monkeypatch.delenv("HORIZON_WRAP_QUIET", raising=False)
     env: dict[str, str] = {}
     written = _configure_quiet_cli_env(env)
     assert env["GIT_PAGER"] == "cat"
@@ -22,7 +22,7 @@ def test_defaults_injected_into_empty_env(monkeypatch) -> None:
 
 
 def test_user_value_always_wins(monkeypatch) -> None:
-    monkeypatch.delenv("HEADROOM_WRAP_QUIET", raising=False)
+    monkeypatch.delenv("HORIZON_WRAP_QUIET", raising=False)
     env = {"GIT_PAGER": "less -R", "PIP_QUIET": "0"}
     written = _configure_quiet_cli_env(env)
     assert env["GIT_PAGER"] == "less -R"  # untouched
@@ -33,7 +33,7 @@ def test_user_value_always_wins(monkeypatch) -> None:
 
 
 def test_pytest_addopts_augmented_not_clobbered(monkeypatch) -> None:
-    monkeypatch.delenv("HEADROOM_WRAP_QUIET", raising=False)
+    monkeypatch.delenv("HORIZON_WRAP_QUIET", raising=False)
     env = {"PYTEST_ADDOPTS": "-p no:cacheprovider"}
     _configure_quiet_cli_env(env)
     assert env["PYTEST_ADDOPTS"] == "-p no:cacheprovider -q"  # preserved + augmented
@@ -46,7 +46,7 @@ def test_pytest_addopts_augmented_not_clobbered(monkeypatch) -> None:
 
 def test_opt_out_disables_injection(monkeypatch) -> None:
     for off in ("0", "false", "no", "OFF"):
-        monkeypatch.setenv("HEADROOM_WRAP_QUIET", off)
+        monkeypatch.setenv("HORIZON_WRAP_QUIET", off)
         assert _quiet_cli_enabled() is False
         env: dict[str, str] = {}
         assert _configure_quiet_cli_env(env) == []
@@ -54,7 +54,7 @@ def test_opt_out_disables_injection(monkeypatch) -> None:
 
 
 def test_enabled_by_default_and_on_truthy(monkeypatch) -> None:
-    monkeypatch.delenv("HEADROOM_WRAP_QUIET", raising=False)
+    monkeypatch.delenv("HORIZON_WRAP_QUIET", raising=False)
     assert _quiet_cli_enabled() is True
-    monkeypatch.setenv("HEADROOM_WRAP_QUIET", "1")
+    monkeypatch.setenv("HORIZON_WRAP_QUIET", "1")
     assert _quiet_cli_enabled() is True

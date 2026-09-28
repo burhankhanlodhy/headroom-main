@@ -15,7 +15,7 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 
 **Please DO NOT open a public GitHub issue for security vulnerabilities.**
 
-Instead, please email us at: **security@headroomlabs.ai**
+Instead, please email us at: **security@horizon.invalid**
 
 Include the following information:
 - Type of vulnerability (e.g., injection, data exposure, authentication bypass)
@@ -34,7 +34,7 @@ Include the following information:
 
 ### Security Best Practices for Users
 
-When using Headroom:
+When using Horizon:
 
 1. **API Keys**: Never commit API keys. Use environment variables.
 2. **Proxy Exposure**: Don't expose the proxy server to the public internet without authentication
@@ -44,8 +44,8 @@ When using Headroom:
 ### Scope
 
 The following are in scope for security reports:
-- Headroom Python package (`pip install headroom-ai`)
-- Headroom proxy server
+- Horizon Python package (`pip install horizon-ai`)
+- Horizon proxy server
 - Official integrations (LangChain, Agno, Strands, LiteLLM, Vercel AI SDK, Anthropic/OpenAI SDK wrappers, MCP)
 
 The following are out of scope:
@@ -55,20 +55,20 @@ The following are out of scope:
 
 ## Security Features
 
-Headroom includes several security features:
+Horizon includes several security features:
 
 - **No credential storage**: We never store or log API keys
 - **Passthrough mode**: Sensitive content passes through unchanged by default
 - **Input validation**: All inputs are validated before processing
 - **Safe defaults**: Security-conscious defaults out of the box
 
-Thank you for helping keep Headroom and its users safe!
+Thank you for helping keep Horizon and its users safe!
 
 ## Unpatched optional dependency advisories (reviewed 2026-09-10)
 
 The following public upstream advisories remain unresolved. They are included in
 `uv.lock` through optional extras; the presence of a package in that universal
-lockfile does not mean it is installed with every Headroom installation.
+lockfile does not mean it is installed with every Horizon installation.
 
 ### CrewAI / ChromaDB
 
@@ -86,7 +86,7 @@ and the latest published version, 1.5.9, are affected by:
 
 There is no published patched release. The upstream authorization fix
 [chroma-core/chroma#7602](https://github.com/chroma-core/chroma/pull/7602)
-is still open. Upgrading CrewAI alone also retains ChromaDB. Headroom's CrewAI
+is still open. Upgrading CrewAI alone also retains ChromaDB. Horizon's CrewAI
 integration wraps tools; it does not start a ChromaDB server or configure its
 authorization. Deployments that separately expose ChromaDB must not rely on its
 affected authorization for tenant isolation. Keep it inaccessible to untrusted

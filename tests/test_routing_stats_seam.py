@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.proxy.routing_stats import (
+from horizon.proxy.routing_stats import (
     clear_routing_stats_provider,
     get_routing_stats,
     set_routing_stats_provider,

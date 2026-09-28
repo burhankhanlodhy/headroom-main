@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from headroom.proxy.model_router import (
+from horizon.proxy.model_router import (
     ModelDecision,
     ModelRoute,
     ModelRouter,

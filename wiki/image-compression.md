@@ -1,6 +1,6 @@
 # Image Compression
 
-Headroom automatically compresses images in your LLM requests, reducing token usage by **40-90%** while maintaining answer accuracy.
+Horizon automatically compresses images in your LLM requests, reducing token usage by **40-90%** while maintaining answer accuracy.
 
 ## Overview
 
@@ -8,7 +8,7 @@ Vision models charge by the token, and images are expensive:
 - A 1024x1024 image costs ~765 tokens (OpenAI)
 - A 2048x2048 image costs ~2,900 tokens
 
-Headroom's image compression uses a **trained ML router** to analyze your query and automatically select the optimal compression technique:
+Horizon's image compression uses a **trained ML router** to analyze your query and automatically select the optimal compression technique:
 
 | Technique | Savings | When Used |
 |-----------|---------|-----------|
@@ -40,11 +40,11 @@ User uploads image + asks question
 
 ## Quick Start
 
-### With Headroom Proxy (Zero Code Changes)
+### With Horizon Proxy (Zero Code Changes)
 
 ```bash
 # Start the proxy
-headroom proxy --port 8787
+horizon proxy --port 8787
 
 # Connect your client
 ANTHROPIC_BASE_URL=http://localhost:8787 claude
@@ -52,13 +52,13 @@ ANTHROPIC_BASE_URL=http://localhost:8787 claude
 
 Images are automatically compressed based on your queries.
 
-### With HeadroomClient
+### With HorizonClient
 
 ```python
-from headroom import HeadroomClient, OpenAIProvider
+from horizon import HorizonClient, OpenAIProvider
 from openai import OpenAI
 
-client = HeadroomClient(original_client=OpenAI(), provider=OpenAIProvider())
+client = HorizonClient(original_client=OpenAI(), provider=OpenAIProvider())
 
 response = client.chat.completions.create(
     model="gpt-4o",
@@ -78,7 +78,7 @@ response = client.chat.completions.create(
 ### Direct API
 
 ```python
-from headroom.image import ImageCompressor
+from horizon.image import ImageCompressor
 
 compressor = ImageCompressor()
 
@@ -98,13 +98,13 @@ print(f"Technique: {compressor.last_result.technique.value}")
 # Image compression runs as part of the `image` built-in compressor and is
 # enabled by default. There is no dedicated --image-optimize toggle; select
 # compressors explicitly to disable it (flag is singular: --compressor):
-headroom proxy --compressor smart_crusher,kompress,code_aware,search,log,tabular,config,html
+horizon proxy --compressor smart_crusher,kompress,code_aware,search,log,tabular,config,html
 ```
 
 ### Programmatic Configuration
 
 ```python
-from headroom.image import ImageCompressor
+from horizon.image import ImageCompressor
 
 compressor = ImageCompressor(
     model_id="chopratejas/technique-router",  # HuggingFace model
@@ -234,7 +234,7 @@ import os
 
 os.environ["HF_HOME"] = "/path/to/cache"
 
-from headroom.image import ImageCompressor
+from horizon.image import ImageCompressor
 
 compressor = ImageCompressor()
 ```
@@ -251,7 +251,7 @@ compressor = ImageCompressor(device="cpu")
 
 ```bash
 # Proxy (flag is singular: --compressor)
-headroom proxy --compressor smart_crusher,kompress,code_aware,search,log,tabular,config,html
+horizon proxy --compressor smart_crusher,kompress,code_aware,search,log,tabular,config,html
 ```
 
 ```python

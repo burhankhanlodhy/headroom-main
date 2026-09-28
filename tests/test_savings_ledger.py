@@ -1,4 +1,4 @@
-"""Tests for the durable savings event ledger and the `headroom savings` CLI."""
+"""Tests for the durable savings event ledger and the `horizon savings` CLI."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from headroom import savings_ledger as L
+from horizon import savings_ledger as L
 from tests._pricing_models import anthropic_pricing_model
 
 MODEL = anthropic_pricing_model()
@@ -17,7 +17,7 @@ UTC = timezone.utc
 
 def _events_env(monkeypatch, tmp_path):
     path = tmp_path / "savings_events.jsonl"
-    monkeypatch.setenv("HEADROOM_SAVINGS_EVENTS_PATH", str(path))
+    monkeypatch.setenv("HORIZON_SAVINGS_EVENTS_PATH", str(path))
     return path
 
 
@@ -145,7 +145,7 @@ def test_new_input_basis_pairs_compression_only_with_new_input(monkeypatch, tmp_
 def test_savings_cli_prints_new_input_line_only_with_cache_data(monkeypatch, tmp_path):
     from click.testing import CliRunner
 
-    from headroom.cli.savings import savings
+    from horizon.cli.savings import savings
 
     _events_env(monkeypatch, tmp_path)
     L.record_savings_event(tokens_before=1000, tokens_after=500, model=None, client="mcp")
@@ -208,7 +208,7 @@ def test_cli_reset_deletes_ledger(monkeypatch, tmp_path):
     pytest.importorskip("click")
     from click.testing import CliRunner
 
-    from headroom.cli.savings import savings
+    from horizon.cli.savings import savings
 
     path = _events_env(monkeypatch, tmp_path)
     L.record_savings_event(tokens_before=1000, tokens_after=300, model=None, client="claude-code")
@@ -229,7 +229,7 @@ def test_cli_empty_state(monkeypatch, tmp_path):
     pytest.importorskip("click")
     from click.testing import CliRunner
 
-    from headroom.cli.savings import savings
+    from horizon.cli.savings import savings
 
     _events_env(monkeypatch, tmp_path)
     result = CliRunner().invoke(savings, [])
@@ -241,7 +241,7 @@ def test_cli_renders_sections_and_json(monkeypatch, tmp_path):
     pytest.importorskip("click")
     from click.testing import CliRunner
 
-    from headroom.cli.savings import savings
+    from horizon.cli.savings import savings
 
     _events_env(monkeypatch, tmp_path)
     L.record_savings_event(tokens_before=1000, tokens_after=300, model=None, client="claude-code")
@@ -270,12 +270,12 @@ def test_cli_renders_sections_and_json(monkeypatch, tmp_path):
 
 def test_mcp_compress_records_durable_event(monkeypatch, tmp_path):
     pytest.importorskip("mcp", reason="MCP SDK required")
-    from headroom.ccr import mcp_server
+    from horizon.ccr import mcp_server
 
     _events_env(monkeypatch, tmp_path)
-    monkeypatch.setenv("HEADROOM_MCP_CLIENT", "claude-code")
+    monkeypatch.setenv("HORIZON_MCP_CLIENT", "claude-code")
 
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
     server._record_savings({"original_tokens": 1000, "compressed_tokens": 250})
 
     report = L.aggregate_savings()
@@ -285,10 +285,10 @@ def test_mcp_compress_records_durable_event(monkeypatch, tmp_path):
 
 def test_mcp_record_savings_ignores_noop(monkeypatch, tmp_path):
     pytest.importorskip("mcp", reason="MCP SDK required")
-    from headroom.ccr import mcp_server
+    from horizon.ccr import mcp_server
 
     _events_env(monkeypatch, tmp_path)
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
     server._record_savings({"original_tokens": 500, "compressed_tokens": 500})
     assert L.aggregate_savings().lifetime["calls"] == 0
 
@@ -304,12 +304,12 @@ def test_proxy_record_request_appends_ledger_event(tmp_path, monkeypatch):
 
     from fastapi.testclient import TestClient
 
-    from headroom.proxy.server import ProxyConfig, create_app
+    from horizon.proxy.server import ProxyConfig, create_app
 
-    monkeypatch.setenv("HEADROOM_SAVINGS_PATH", str(tmp_path / "proxy_savings.json"))
-    monkeypatch.setenv("HEADROOM_SAVINGS_EVENTS_PATH", str(tmp_path / "savings_events.jsonl"))
+    monkeypatch.setenv("HORIZON_SAVINGS_PATH", str(tmp_path / "proxy_savings.json"))
+    monkeypatch.setenv("HORIZON_SAVINGS_EVENTS_PATH", str(tmp_path / "savings_events.jsonl"))
     monkeypatch.setattr(
-        "headroom.proxy.server.CostTracker._get_cache_prices",
+        "horizon.proxy.server.CostTracker._get_cache_prices",
         # (cache_read, cache_write_5m, cache_write_1h, uncached). **kwargs so
         # the stub keeps standing in as the real signature grows -- it takes a
         # keyword-only `long_context` tier selector.
@@ -361,7 +361,7 @@ def test_cli_days_flag_capped_at_30(monkeypatch, tmp_path, bad_days):
     pytest.importorskip("click")
     from click.testing import CliRunner
 
-    from headroom.cli.savings import savings
+    from horizon.cli.savings import savings
 
     _events_env(monkeypatch, tmp_path)
     result = CliRunner().invoke(savings, ["--days", bad_days])
@@ -378,7 +378,7 @@ def test_compaction_backs_off_when_nothing_can_be_dropped(tmp_path, monkeypatch)
     request. The back-off is per-process and purely a work-saver: retention is
     enforced on read regardless.
     """
-    import headroom.savings_ledger as sl
+    import horizon.savings_ledger as sl
 
     path = tmp_path / "events.jsonl"
     # Tiny thresholds so a handful of in-retention events trips compaction.
@@ -405,7 +405,7 @@ def test_compaction_still_drops_out_of_retention_events(tmp_path, monkeypatch):
     import json
     from datetime import timedelta
 
-    import headroom.savings_ledger as sl
+    import horizon.savings_ledger as sl
 
     path = tmp_path / "events.jsonl"
     stale = (sl._utc_now() - timedelta(days=sl.MAX_RETENTION_DAYS + 5)).isoformat()
@@ -451,7 +451,7 @@ def test_v1_events_still_aggregate_alongside_v2(tmp_path):
     """
     import json
 
-    import headroom.savings_ledger as sl
+    import horizon.savings_ledger as sl
 
     path = tmp_path / "events.jsonl"
     with path.open("w", encoding="utf-8") as fh:

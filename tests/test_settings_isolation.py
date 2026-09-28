@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from headroom import settings_store
+from horizon import settings_store
 
 
 @pytest.mark.parametrize("target_ratio", [0.4, 0.6])
 def test_settings_reads_and_writes_are_isolated(monkeypatch, tmp_path, target_ratio):
     developer_home = tmp_path / "developer-home"
-    developer_settings = developer_home / ".headroom" / "settings.json"
+    developer_settings = developer_home / ".horizon" / "settings.json"
     developer_settings.parent.mkdir(parents=True)
     original = '{"target_ratio": 0.9}\n'
     developer_settings.write_text(original, encoding="utf-8")

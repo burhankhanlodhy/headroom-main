@@ -1,7 +1,7 @@
 """The gateway body never carries more cache_control blocks than Anthropic accepts.
 
 A LiteLLM benchmark run saw ``A maximum of 4 blocks with cache_control may be
-provided. Found 5.`` on a turn whose only Headroom work was tool-result
+provided. Found 5.`` on a turn whose only Horizon work was tool-result
 compression and tool schema compaction. The client (Claude Code) never sends
 more than four, so the fifth was added on the way through. Whatever the path,
 the last stop before the body leaves must hold the budget.
@@ -12,8 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from headroom.proxy.helpers import count_cache_breakpoints, enforce_cache_breakpoint_budget
-from headroom.proxy.turn_hooks import register_turn_hook
+from horizon.proxy.helpers import count_cache_breakpoints, enforce_cache_breakpoint_budget
+from horizon.proxy.turn_hooks import register_turn_hook
 from tests.gateway.conftest import compress
 
 CC = {"type": "ephemeral"}
@@ -90,7 +90,7 @@ class _MarkerLeakHook:
         return None
 
 
-def test_gateway_body_is_held_to_four_markers(headroom_client) -> None:
+def test_gateway_body_is_held_to_four_markers(horizon_client) -> None:
     register_turn_hook(_MarkerLeakHook())
     body = {
         "model": "claude-sonnet-4-5",
@@ -98,7 +98,7 @@ def test_gateway_body_is_held_to_four_markers(headroom_client) -> None:
         "messages": _messages({4, 5}),
         "gateway": {"can_redrive": False, "can_relay_response": False},
     }
-    resp = compress(headroom_client, body)
+    resp = compress(horizon_client, body)
     assert resp.status_code == 200, resp.text
     data = resp.json()
     out = data["body"]

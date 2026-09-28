@@ -1,14 +1,14 @@
 # API Reference
 
-## HeadroomClient
+## HorizonClient
 
-The main entry point for Headroom SDK.
+The main entry point for Horizon SDK.
 
 ```python
-from headroom import HeadroomClient
+from horizon import HorizonClient
 from openai import OpenAI
 
-client = HeadroomClient(
+client = HorizonClient(
     original_client=OpenAI(),
     default_mode="optimize",
 )
@@ -26,7 +26,7 @@ client = HeadroomClient(
 | `cache_optimizer` | `BaseCacheOptimizer` | `None` (auto-detect) | Custom cache optimizer |
 | `enable_cache_optimizer` | `bool` | `True` | Enable provider-specific cache optimization |
 | `enable_semantic_cache` | `bool` | `False` | Enable query-level semantic caching |
-| `config` | `HeadroomConfig` | `None` | Full config object; set `config.smart_crusher` / `config.cache_aligner` here to override compression/cache-alignment settings — there is no separate `smart_crusher_config`/`cache_aligner_config` constructor kwarg |
+| `config` | `HorizonConfig` | `None` | Full config object; set `config.smart_crusher` / `config.cache_aligner` here to override compression/cache-alignment settings — there is no separate `smart_crusher_config`/`cache_aligner_config` constructor kwarg |
 
 ### Methods
 
@@ -38,7 +38,7 @@ Create a chat completion with optional optimization.
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[...],
-    headroom_mode="optimize",  # Override default mode
+    horizon_mode="optimize",  # Override default mode
 )
 ```
 
@@ -46,8 +46,8 @@ response = client.chat.completions.create(
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `headroom_mode` | `str` | Override mode for this request |
-| `headroom_query` | `str` | Query for relevance scoring |
+| `horizon_mode` | `str` | Override mode for this request |
+| `horizon_query` | `str` | Query for relevance scoring |
 
 #### `chat.completions.simulate(**kwargs)`
 
@@ -73,7 +73,7 @@ print(f"Savings: {plan.savings_percent:.1f}%")
 ### SmartCrusherConfig
 
 ```python
-from headroom import SmartCrusherConfig
+from horizon import SmartCrusherConfig
 
 config = SmartCrusherConfig(
     min_tokens_to_crush=200,
@@ -89,7 +89,7 @@ config = SmartCrusherConfig(
 ### CacheAlignerConfig
 
 ```python
-from headroom import CacheAlignerConfig
+from horizon import CacheAlignerConfig
 
 config = CacheAlignerConfig(
     extract_dates=True,
@@ -101,7 +101,7 @@ config = CacheAlignerConfig(
 ### RelevanceScorerConfig
 
 ```python
-from headroom import RelevanceScorerConfig
+from horizon import RelevanceScorerConfig
 
 config = RelevanceScorerConfig(
     scorer_type="bm25",  # "bm25", "embedding", or "hybrid"
@@ -168,7 +168,7 @@ class WasteSignals:
 ### OpenAIProvider
 
 ```python
-from headroom import OpenAIProvider
+from horizon import OpenAIProvider
 
 provider = OpenAIProvider()
 
@@ -190,7 +190,7 @@ cost = provider.estimate_cost(
 ### AnthropicProvider
 
 ```python
-from headroom import AnthropicProvider
+from horizon import AnthropicProvider
 from anthropic import Anthropic
 
 provider = AnthropicProvider(client=Anthropic())
@@ -208,7 +208,7 @@ tokens = counter.count_messages(messages)  # Accurate count via API
 Fast keyword-based scoring (zero dependencies).
 
 ```python
-from headroom import BM25Scorer
+from horizon import BM25Scorer
 
 scorer = BM25Scorer()
 scores = scorer.score_items(
@@ -222,7 +222,7 @@ scores = scorer.score_items(
 Semantic similarity scoring (requires `sentence-transformers`).
 
 ```python
-from headroom import EmbeddingScorer, embedding_available
+from horizon import EmbeddingScorer, embedding_available
 
 if embedding_available():
     scorer = EmbeddingScorer(model="all-MiniLM-L6-v2")
@@ -234,7 +234,7 @@ if embedding_available():
 Combines BM25 and embeddings.
 
 ```python
-from headroom import HybridScorer
+from horizon import HybridScorer
 
 scorer = HybridScorer(alpha=0.5)  # 50% BM25, 50% embedding
 scores = scorer.score_items(items, query)
@@ -245,7 +245,7 @@ scores = scorer.score_items(items, query)
 Factory function to create scorers.
 
 ```python
-from headroom import create_scorer
+from horizon import create_scorer
 
 # Auto-select best available scorer
 scorer = create_scorer()
@@ -261,7 +261,7 @@ scorer = create_scorer(scorer_type="hybrid", alpha=0.7)
 ### SmartCrusher
 
 ```python
-from headroom import SmartCrusher
+from horizon import SmartCrusher
 
 crusher = SmartCrusher()
 result = crusher.crush(
@@ -273,7 +273,7 @@ result = crusher.crush(
 ### CacheAligner
 
 ```python
-from headroom import CacheAligner
+from horizon import CacheAligner
 
 aligner = CacheAligner()
 result = aligner.align(messages)
@@ -282,12 +282,12 @@ result = aligner.align(messages)
 > **Context management** is handled automatically inside the pipeline
 > (live-zone-only compression). The position-based `RollingWindow` and
 > score-based `IntelligentContextManager` / `MessageScorer` APIs have been
-> removed and are no longer part of Headroom.
+> removed and are no longer part of Horizon.
 
 ### TransformPipeline
 
 ```python
-from headroom import TransformPipeline
+from horizon import TransformPipeline
 
 pipeline = TransformPipeline(
     [
@@ -306,7 +306,7 @@ result = pipeline.transform(messages)
 ### Tokenizer
 
 ```python
-from headroom import Tokenizer, count_tokens_text, count_tokens_messages
+from horizon import Tokenizer, count_tokens_text, count_tokens_messages
 
 # Quick counting
 tokens = count_tokens_text("Hello, world!", model="gpt-4o")
@@ -322,10 +322,10 @@ tokens = tokenizer.count_messages(messages)
 Generate HTML/Markdown reports from stored metrics.
 
 ```python
-from headroom import generate_report
+from horizon import generate_report
 
 report = generate_report(
-    store_url="sqlite:///headroom.db",
+    store_url="sqlite:///horizon.db",
     format="html",
     period="day",
 )
@@ -337,4 +337,4 @@ report = generate_report(
 
 For the TypeScript SDK API reference, see [TypeScript SDK](typescript-sdk.md).
 
-The TypeScript SDK provides `compress()`, `HeadroomClient`, and framework adapters for Vercel AI SDK, OpenAI, and Anthropic.
+The TypeScript SDK provides `compress()`, `HorizonClient`, and framework adapters for Vercel AI SDK, OpenAI, and Anthropic.

@@ -11,10 +11,10 @@ import json
 
 import pytest
 
-from headroom.providers.anthropic import AnthropicProvider
-from headroom.tokenizers.base import TokenCountCache
-from headroom.tokenizers.estimator import EstimatingTokenCounter
-from headroom.tokenizers.tiktoken_counter import TiktokenCounter
+from horizon.providers.anthropic import AnthropicProvider
+from horizon.tokenizers.base import TokenCountCache
+from horizon.tokenizers.estimator import EstimatingTokenCounter
+from horizon.tokenizers.tiktoken_counter import TiktokenCounter
 
 BODIES = [
     "word " * 500,

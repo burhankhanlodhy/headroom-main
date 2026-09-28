@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from headroom.config import RequestMetrics
-from headroom.storage.sqlite import SQLiteStorage
+from horizon.config import RequestMetrics
+from horizon.storage.sqlite import SQLiteStorage
 
 
 class TestSQLiteStorageInit:

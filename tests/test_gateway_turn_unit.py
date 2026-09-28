@@ -1,4 +1,4 @@
-"""Unit tests for ``headroom.proxy.gateway_turn`` internals — no HTTP.
+"""Unit tests for ``horizon.proxy.gateway_turn`` internals — no HTTP.
 
 Three things have to hold or the two-half contract is unsafe:
 
@@ -19,8 +19,8 @@ from typing import Any
 
 import pytest
 
-from headroom.proxy import gateway_turn as gt
-from headroom.proxy.gateway_turn import (
+from horizon.proxy import gateway_turn as gt
+from horizon.proxy.gateway_turn import (
     GatewayCapabilities,
     GatewayRequestError,
     NormalizedUsage,
@@ -32,8 +32,8 @@ from headroom.proxy.gateway_turn import (
     normalize_usage,
     parse_gateway_block,
 )
-from headroom.proxy.outcome import RequestOutcome
-from headroom.proxy.turn_hooks import TurnContext, clear_turn_hooks, register_turn_hook
+from horizon.proxy.outcome import RequestOutcome
+from horizon.proxy.turn_hooks import TurnContext, clear_turn_hooks, register_turn_hook
 
 
 @pytest.fixture(autouse=True)
@@ -345,11 +345,11 @@ def test_registry_on_expire_exceptions_are_swallowed() -> None:
 
 
 def test_registry_env_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HEADROOM_GATEWAY_TURN_TTL_SECONDS", "7.5")
-    monkeypatch.setenv("HEADROOM_GATEWAY_MAX_PENDING_TURNS", "3")
+    monkeypatch.setenv("HORIZON_GATEWAY_TURN_TTL_SECONDS", "7.5")
+    monkeypatch.setenv("HORIZON_GATEWAY_MAX_PENDING_TURNS", "3")
     reg = PendingTurnRegistry()
     assert reg.ttl_seconds == 7.5 and reg.max_entries == 3
-    monkeypatch.setenv("HEADROOM_GATEWAY_TURN_TTL_SECONDS", "garbage")
+    monkeypatch.setenv("HORIZON_GATEWAY_TURN_TTL_SECONDS", "garbage")
     assert PendingTurnRegistry().ttl_seconds == gt.DEFAULT_TURN_TTL_SECONDS
 
 
@@ -671,18 +671,18 @@ def test_arm_ccr_redrive_gates_and_injects_once() -> None:
 
     assert gt.arm_ccr_redrive(r, provider="openai", caps=caps, mode="ccr", ccr_hashes=["a"])
     names = [t["function"]["name"] for t in r.tools]
-    assert names == ["get", "headroom_retrieve"]
+    assert names == ["get", "horizon_retrieve"]
     assert r.ctx is not None and r.ctx.tools is r.tools  # live tools for the re-drive
     assert r.transforms == ["ccr_tool_injected"]
     # Already present: no duplicate, no second transform marker.
     assert gt.arm_ccr_redrive(r, provider="openai", caps=caps, mode="ccr", ccr_hashes=["a"])
-    assert [t["function"]["name"] for t in r.tools] == ["get", "headroom_retrieve"]
+    assert [t["function"]["name"] for t in r.tools] == ["get", "horizon_retrieve"]
     assert r.transforms == ["ccr_tool_injected"]
 
     # No tools at all: the CCR tool becomes the whole list, Anthropic shape.
     r2 = _transform_result(tools=None)
     assert gt.arm_ccr_redrive(r2, provider="anthropic", caps=caps, mode="ccr", ccr_hashes=["a"])
-    from headroom.ccr.tool_injection import create_ccr_tool_definition
+    from horizon.ccr.tool_injection import create_ccr_tool_definition
 
     assert r2.tools == [create_ccr_tool_definition("anthropic")]
 
@@ -720,7 +720,7 @@ def test_response_runner_drives_ccr_then_hooks_through_one_suspension() -> None:
     async def scenario() -> None:
         base = await _baseline()
         register_turn_hook(_Observer())
-        tools = [{"type": "function", "function": {"name": "headroom_retrieve"}}]
+        tools = [{"type": "function", "function": {"name": "horizon_retrieve"}}]
         turn = _turn("t", 0.0, 10)
         turn.ctx = _ctx(tools=tools)
         turn.obligations = ["redrive"]

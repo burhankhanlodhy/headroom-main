@@ -1,4 +1,4 @@
-"""Tests for `headroom doctor`."""
+"""Tests for `horizon doctor`."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from dataclasses import dataclass
 import pytest
 from click.testing import CliRunner
 
-import headroom.cli.doctor as doctor_mod
-from headroom.cli.doctor import (
+import horizon.cli.doctor as doctor_mod
+from horizon.cli.doctor import (
     FAIL,
     PASS,
     SKIP,
@@ -26,11 +26,11 @@ from headroom.cli.doctor import (
     check_shell_env,
     check_version_drift,
 )
-from headroom.cli.main import main
-from headroom.providers.claude.runtime import remote_control_gate_message
+from horizon.cli.main import main
+from horizon.providers.claude.runtime import remote_control_gate_message
 
 LIVEZ_OK = {
-    "service": "headroom-proxy",
+    "service": "horizon-proxy",
     "status": "healthy",
     "alive": True,
     "version": "0.26.0",
@@ -82,7 +82,7 @@ class TestProxyLiveness:
     def test_down_is_fail_with_hint(self):
         result = check_proxy_liveness(None, "http://127.0.0.1:8787")
         assert result.status == FAIL
-        assert "headroom proxy" in (result.hint or "")
+        assert "horizon proxy" in (result.hint or "")
 
     def test_up_mentions_version_and_uptime(self):
         result = check_proxy_liveness(LIVEZ_OK, "http://127.0.0.1:8787")
@@ -175,7 +175,7 @@ class TestClaudeRouting:
         assert result.status == WARN
         assert "8788" in result.summary
 
-    def test_non_headroom_url_warns(self, tmp_path):
+    def test_non_horizon_url_warns(self, tmp_path):
         path = tmp_path / "settings.json"
         path.write_text(
             json.dumps({"env": {"ANTHROPIC_BASE_URL": "https://gateway.corp.example/v1"}}),
@@ -411,7 +411,7 @@ class TestClaudeRemoteControlGate:
 class TestClaudeRoutingScope:
     """Project-scoped routing must not read as "not routed" (#3205).
 
-    `headroom init claude` without --global writes
+    `horizon init claude` without --global writes
     `.claude/settings.local.json`. Reading only `~/.claude/settings.json`
     reported not-routed for sessions that were genuinely routed and actively
     compressing, which sent one team hand-checking `ps eww` on every session.
@@ -494,8 +494,8 @@ class TestCodexRouting:
     def test_marker_block_right_port_passes(self, tmp_path):
         path = tmp_path / "config.toml"
         path.write_text(
-            'model_provider = "headroom"\n'
-            "[model_providers.headroom]\n"
+            'model_provider = "horizon"\n'
+            "[model_providers.horizon]\n"
             'base_url = "http://127.0.0.1:8787/v1"\n',
             encoding="utf-8",
         )
@@ -525,13 +525,13 @@ class TestCodexRouting:
         assert result.status == WARN
         assert "9999" in result.summary
 
-    def test_active_provider_takes_precedence_over_headroom_block(self, tmp_path):
+    def test_active_provider_takes_precedence_over_horizon_block(self, tmp_path):
         path = tmp_path / "config.toml"
         path.write_text(
             'model_provider = "corp"\n'
             "[model_providers.corp]\n"
             'base_url = "https://gateway.corp.example/v1"\n'
-            "[model_providers.headroom]\n"
+            "[model_providers.horizon]\n"
             'base_url = "http://127.0.0.1:8787/v1"\n',
             encoding="utf-8",
         )
@@ -542,7 +542,7 @@ class TestCodexRouting:
     def test_port_mismatch_warns(self, tmp_path):
         path = tmp_path / "config.toml"
         path.write_text(
-            '[model_providers.headroom]\nbase_url = "http://127.0.0.1:9999/v1"\n',
+            '[model_providers.horizon]\nbase_url = "http://127.0.0.1:9999/v1"\n',
             encoding="utf-8",
         )
         result = check_codex_routing(path, 8787)
@@ -569,7 +569,7 @@ class TestCodexRouting:
     def _routed(tmp_path, *, requires_auth: bool):
         path = tmp_path / "config.toml"
         block = (
-            "[model_providers.headroom]\n"
+            "[model_providers.horizon]\n"
             'base_url = "http://127.0.0.1:8787/v1"\n'
             "supports_websockets = true\n"
         )
@@ -644,7 +644,7 @@ class TestShellEnv:
 
     def test_ollama_launch_url_names_the_collision(self):
         # `ollama launch claude` points Claude Code at Ollama's :11434, which
-        # outranks the persistent Headroom route (issue #2199). The diagnostic
+        # outranks the persistent Horizon route (issue #2199). The diagnostic
         # must name Ollama, not tell the user to re-probe port 11434.
         env = {"ANTHROPIC_BASE_URL": "http://127.0.0.1:11434"}
         result = check_shell_env(env, 8787)
@@ -725,7 +725,7 @@ class TestBudget:
         )
         assert result.status == PASS
         assert "62% of period spend ($1.2400)" in result.summary
-        assert "Headroom token estimates" in result.summary
+        assert "Horizon token estimates" in result.summary
 
     def test_all_measured_spend_adds_no_note(self):
         result = check_budget(
@@ -806,7 +806,7 @@ class TestDoctorCommand:
             "CLAUDE_CODE_USE_FOUNDRY",
             "CLAUDE_CODE_USE_VERTEX",
             "OPENAI_BASE_URL",
-            "HEADROOM_PORT",
+            "HORIZON_PORT",
         ):
             monkeypatch.delenv(var, raising=False)
         return tmp_path
@@ -860,7 +860,7 @@ class TestDoctorCommand:
             encoding="utf-8",
         )
         (isolated / "config.toml").write_text(
-            '[model_providers.headroom]\nbase_url = "http://127.0.0.1:8787/v1"\n',
+            '[model_providers.horizon]\nbase_url = "http://127.0.0.1:8787/v1"\n',
             encoding="utf-8",
         )
         result = runner.invoke(
@@ -896,19 +896,19 @@ class TestDoctorCommand:
             return None
 
         monkeypatch.setattr(doctor_mod, "probe_json", recording_probe)
-        runner.invoke(main, ["doctor"], env={"HEADROOM_PORT": "9999"})
+        runner.invoke(main, ["doctor"], env={"HORIZON_PORT": "9999"})
         assert "http://127.0.0.1:9999/livez" in seen
 
 
 class TestCostTrackerBudgetKeys:
     def test_stats_exposes_budget_config(self):
-        from headroom.proxy.cost import CostTracker
+        from horizon.proxy.cost import CostTracker
 
         stats = CostTracker(budget_limit_usd=5.0, budget_period="monthly").stats()
         assert stats["budget_limit_usd"] == 5.0
         assert stats["budget_period"] == "monthly"
 
     def test_stats_budget_none_when_unset(self):
-        from headroom.proxy.cost import CostTracker
+        from horizon.proxy.cost import CostTracker
 
         assert CostTracker().stats()["budget_limit_usd"] is None

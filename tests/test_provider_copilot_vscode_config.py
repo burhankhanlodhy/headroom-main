@@ -5,7 +5,7 @@ from pathlib import Path
 import click
 import pytest
 
-from headroom.providers.copilot.vscode import (
+from horizon.providers.copilot.vscode import (
     configure_vscode_proxy_settings,
     remove_vscode_proxy_settings,
     vscode_proxy_url,
@@ -96,10 +96,10 @@ def test_configure_refuses_duplicate_managed_markers(tmp_path: Path) -> None:
     path = tmp_path / "settings.json"
     original = (
         "{\n"
-        "// --- Headroom Copilot proxy ---\n"
-        "// --- end Headroom Copilot proxy ---\n"
-        "// --- Headroom Copilot proxy ---\n"
-        "// --- end Headroom Copilot proxy ---\n"
+        "// --- Horizon Copilot proxy ---\n"
+        "// --- end Horizon Copilot proxy ---\n"
+        "// --- Horizon Copilot proxy ---\n"
+        "// --- end Horizon Copilot proxy ---\n"
         "}\n"
     )
     path.write_text(original, encoding="utf-8")

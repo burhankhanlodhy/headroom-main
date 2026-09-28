@@ -1,9 +1,9 @@
-"""The Cost Saved card must report what Headroom itself saved.
+"""The Cost Saved card must report what Horizon itself saved.
 
 Before this, the card summed compression + tool deferral + the provider's
 prefix-cache discount into one "Cost Saved" number, so a session that removed
 1.4M tokens showed ~$25 saved — 85% of which was the provider's cache discount,
-paid with or without Headroom. These tests pin the split, the cache-aware
+paid with or without Horizon. These tests pin the split, the cache-aware
 valuation of removed tokens, and the inclusion of completion spend.
 """
 
@@ -34,7 +34,7 @@ MODEL = anthropic_pricing_model(
 def _prices(model: str = MODEL) -> tuple[float, float, float]:
     import litellm
 
-    from headroom.pricing.litellm_pricing import resolve_litellm_model
+    from horizon.pricing.litellm_pricing import resolve_litellm_model
 
     info = litellm.model_cost.get(resolve_litellm_model(model), {})
     uncached = info["input_cost_per_token"]
@@ -47,7 +47,7 @@ def _prices(model: str = MODEL) -> tuple[float, float, float]:
 
 def test_compressed_tokens_priced_at_the_rate_they_would_have_been_billed():
     """A cold turn's removed tokens would have been billed as cache writes."""
-    from headroom.proxy.server import CostTracker
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker()
     ct.record_tokens(
@@ -78,7 +78,7 @@ def test_warm_prefix_does_not_drag_the_live_delta_down_to_the_read_rate():
     billed as cache reads. Splitting them across the WHOLE request's mix valued
     a warm turn at ~a tenth of what the provider would have charged.
     """
-    from headroom.proxy.server import CostTracker
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker()
     ct.record_tokens(
@@ -104,7 +104,7 @@ def test_warm_prefix_does_not_drag_the_live_delta_down_to_the_read_rate():
 
 def test_fully_uncached_request_values_removed_tokens_at_list():
     """With no cache in play there is nothing to discount."""
-    from headroom.proxy.server import CostTracker
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker()
     ct.record_tokens(
@@ -119,11 +119,11 @@ def test_fully_uncached_request_values_removed_tokens_at_list():
 
 
 def test_completion_spend_is_reported_alongside_input_spend():
-    """`total_cost_usd` is the bill; `cost_with_headroom_usd` stays input-only."""
+    """`total_cost_usd` is the bill; `cost_with_horizon_usd` stays input-only."""
     import litellm
 
-    from headroom.pricing.litellm_pricing import resolve_litellm_model
-    from headroom.proxy.server import CostTracker
+    from horizon.pricing.litellm_pricing import resolve_litellm_model
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker()
     ct.record_tokens(
@@ -139,8 +139,8 @@ def test_completion_spend_is_reported_alongside_input_spend():
     expected_output = 20_000 * info["output_cost_per_token"]
 
     assert abs(stats["output_cost_usd"] - expected_output) < 1e-6
-    assert stats["cost_with_headroom_usd"] > 0
-    expected_total = stats["cost_with_headroom_usd"] + stats["output_cost_usd"]
+    assert stats["cost_with_horizon_usd"] > 0
+    expected_total = stats["cost_with_horizon_usd"] + stats["output_cost_usd"]
     assert abs(stats["total_cost_usd"] - expected_total) < 1e-6
 
 
@@ -148,8 +148,8 @@ def test_long_context_turn_is_priced_at_the_above_200k_rates():
     """Past 200k the catalog charges a second, higher tier for input and output."""
     import litellm
 
-    from headroom.pricing.litellm_pricing import resolve_litellm_model
-    from headroom.proxy.server import CostTracker
+    from horizon.pricing.litellm_pricing import resolve_litellm_model
+    from horizon.proxy.server import CostTracker
 
     info = litellm.model_cost.get(resolve_litellm_model(MODEL), {})
     long_input = info["input_cost_per_token_above_200k_tokens"]
@@ -174,7 +174,7 @@ def test_long_context_turn_is_priced_at_the_above_200k_rates():
 
 
 def _summary(cache_net_usd: float, cost_stats: dict) -> dict:
-    from headroom.proxy.cost import build_session_summary
+    from horizon.proxy.cost import build_session_summary
 
     proxy = SimpleNamespace(
         config=SimpleNamespace(mode="token"),
@@ -190,7 +190,7 @@ def test_provider_cache_discount_is_reported_beside_the_headline_not_inside_it()
     payload = _summary(
         23.62,
         {
-            "cost_with_headroom_usd": 7.88,
+            "cost_with_horizon_usd": 7.88,
             "output_cost_usd": 3.60,
             "total_cost_usd": 11.48,
             "savings_usd": 4.20,
@@ -204,27 +204,27 @@ def test_provider_cache_discount_is_reported_beside_the_headline_not_inside_it()
     assert cost["provider_cache_discount_usd"] == 23.62
     assert cost["breakdown"]["compression_savings_usd"] == 1.05
     assert cost["breakdown"]["compression_savings_list_usd"] == 4.2
-    # Spend is the whole bill, and the baseline is spend + what Headroom saved.
-    assert cost["with_headroom_usd"] == 11.48
-    assert cost["with_headroom_input_usd"] == 7.88
-    assert cost["with_headroom_output_usd"] == 3.6
-    assert cost["without_headroom_usd"] == 12.78
+    # Spend is the whole bill, and the baseline is spend + what Horizon saved.
+    assert cost["with_horizon_usd"] == 11.48
+    assert cost["with_horizon_input_usd"] == 7.88
+    assert cost["with_horizon_output_usd"] == 3.6
+    assert cost["without_horizon_usd"] == 12.78
 
 
 def test_summary_falls_back_to_list_pricing_when_cache_aware_is_absent():
     """An older tracker payload must still produce a coherent card."""
-    payload = _summary(1.0, {"cost_with_headroom_usd": 2.0, "savings_usd": 0.5})
+    payload = _summary(1.0, {"cost_with_horizon_usd": 2.0, "savings_usd": 0.5})
     cost = payload["cost"]
 
     assert cost["total_saved_usd"] == 0.5
-    assert cost["with_headroom_usd"] == 2.0
+    assert cost["with_horizon_usd"] == 2.0
 
 
 def test_prefix_cache_savings_use_the_model_catalog_rates():
     """Cache economics come from LiteLLM per model, not hardcoded ratios."""
-    from headroom.proxy.cost import build_prefix_cache_stats
-    from headroom.proxy.prometheus_metrics import PrometheusMetrics
-    from headroom.proxy.server import CostTracker
+    from horizon.proxy.cost import build_prefix_cache_stats
+    from horizon.proxy.prometheus_metrics import PrometheusMetrics
+    from horizon.proxy.server import CostTracker
 
     ct = CostTracker()
     ct.record_tokens(MODEL, tokens_saved=0, tokens_sent=1_000_000, uncached_tokens=1_000_000)
@@ -255,7 +255,7 @@ def test_prefix_cache_savings_use_the_model_catalog_rates():
 
 
 def test_dashboard_card_shows_the_cache_discount_separately():
-    from headroom.dashboard import get_dashboard_html
+    from horizon.dashboard import get_dashboard_html
 
     html = get_dashboard_html()
 

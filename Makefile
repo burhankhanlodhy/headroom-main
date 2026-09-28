@@ -31,7 +31,7 @@ bench:
 	$(CARGO) bench --workspace
 
 build-wheel:
-	$(MATURIN) build --release -m crates/headroom-py/Cargo.toml
+	$(MATURIN) build --release -m crates/horizon-py/Cargo.toml
 
 # Build + install + import-verify the extension in one shot. Run this any
 # time you suspect Python silently lost its Rust core.

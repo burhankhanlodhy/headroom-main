@@ -1,4 +1,4 @@
-"""Unit tests for the shared session-turn engine (headroom/proxy/session_engine).
+"""Unit tests for the shared session-turn engine (horizon/proxy/session_engine).
 
 The engine is the single cache-management brain for the proxy request paths
 and the sidecar /v1/compress path; these tests pin its two freeze policies
@@ -11,8 +11,8 @@ import json
 
 import pytest
 
-from headroom.cache.compression_cache import CompressionCache
-from headroom.proxy.session_engine import (
+from horizon.cache.compression_cache import CompressionCache
+from horizon.proxy.session_engine import (
     FREEZE_POLICY_CONFIRMED_CLAMP,
     FREEZE_POLICY_REPLAYABLE,
     finalize_turn,

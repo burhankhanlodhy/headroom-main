@@ -2,7 +2,7 @@
 
 import threading
 
-import headroom.transforms.kompress_compressor as kc
+import horizon.transforms.kompress_compressor as kc
 
 
 def test_validation_device_copy_holds_execution_slot(monkeypatch):

@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from headroom.proxy.models import ProxyConfig
-from headroom.proxy.server import create_app
-from headroom.rollout import resolve_rollout
+from horizon.proxy.models import ProxyConfig
+from horizon.proxy.server import create_app
+from horizon.rollout import resolve_rollout
 
 
 class FakeRequestLogger:
@@ -32,8 +32,8 @@ class FakeLogEntry(dict[str, object]):
 def test_stats_exposes_actual_running_rollout_snapshot() -> None:
     rollout = resolve_rollout(
         {
-            "HEADROOM_ROLLOUT_CHANNEL": "canary",
-            "HEADROOM_FEATURES": "tool_result_interceptors",
+            "HORIZON_ROLLOUT_CHANNEL": "canary",
+            "HORIZON_FEATURES": "tool_result_interceptors",
         }
     )
     app = create_app(
@@ -210,7 +210,7 @@ def test_stats_recent_requests_includes_token_incomplete_requests() -> None:
 
 
 def test_agent_usage_totals_use_proxy_only_savings(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HEADROOM_REQUIRE_RUST_CORE", "false")
+    monkeypatch.setenv("HORIZON_REQUIRE_RUST_CORE", "false")
     app = create_app(
         ProxyConfig(
             optimize=False,

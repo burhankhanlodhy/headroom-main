@@ -1,11 +1,11 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.headroomlabs-ai/headroom",
-  "description": "Headroom MCP server for compression, retrieval, and stats in MCP-compatible hosts.",
-  "title": "Headroom",
-  "websiteUrl": "https://headroomlabs-ai.github.io/headroom/",
+  "name": "io.github.your-org/horizon",
+  "description": "Horizon MCP server for compression, retrieval, and stats in MCP-compatible hosts.",
+  "title": "Horizon",
+  "websiteUrl": "https://your-org.github.io/horizon/",
   "repository": {
-    "url": "https://github.com/headroomlabs-ai/headroom",
+    "url": "https://github.com/your-org/horizon",
     "source": "github",
     "id": "1129940957"
   },
@@ -14,14 +14,14 @@
     {
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
-      "identifier": "headroom-ai",
+      "identifier": "horizon-ai",
       "version": "0.39.1",
       "runtimeHint": "uvx",
       "runtimeArguments": [
         {
           "type": "named",
           "name": "--from",
-          "value": "headroom-ai[mcp]"
+          "value": "horizon-ai[mcp]"
         }
       ],
       "transport": {
@@ -30,7 +30,7 @@
       "packageArguments": [
         {
           "type": "positional",
-          "value": "headroom"
+          "value": "horizon"
         },
         {
           "type": "positional",

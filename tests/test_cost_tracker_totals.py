@@ -11,7 +11,7 @@ import random
 
 import pytest
 
-from headroom.proxy.cost import CostTracker
+from horizon.proxy.cost import CostTracker
 
 
 def _tracker(seed: int, n_models: int, n_requests: int) -> CostTracker:

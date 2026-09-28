@@ -1,6 +1,6 @@
 """Cache-aware savings must hold for EVERY provider and every harness.
 
-Headroom sits in front of Anthropic, Bedrock, Vertex, OpenAI, Gemini, and
+Horizon sits in front of Anthropic, Bedrock, Vertex, OpenAI, Gemini, and
 arbitrary gateways, driven by Claude Code, Codex, Cursor, Copilot, Kiro and the
 MCP tool path. Those backends report their prompt-cache usage in genuinely
 different shapes, and the differences change the money:
@@ -38,7 +38,7 @@ apply_dotenv = autouse_apply_env(_env_overrides)
 
 importorskip_no_env_leak("litellm")
 
-from headroom.proxy.savings_tracker import estimate_request_savings_usd  # noqa: E402
+from horizon.proxy.savings_tracker import estimate_request_savings_usd  # noqa: E402
 
 # One warm turn per provider, in that provider's own reporting shape.
 WARM_TURNS = {
@@ -150,7 +150,7 @@ def test_a_provider_that_reports_no_cache_data_prices_at_list_and_says_so():
 
 
 def test_the_mcp_tool_path_still_records_without_any_cache_signal():
-    """``headroom mcp serve`` never learns the agent's model or its cache mix.
+    """``horizon mcp serve`` never learns the agent's model or its cache mix.
 
     It must keep writing ledger events at the blended fallback rate rather than
     failing or recording $0 — the path predates cache reporting entirely.
@@ -158,7 +158,7 @@ def test_the_mcp_tool_path_still_records_without_any_cache_signal():
     import tempfile
     from pathlib import Path
 
-    from headroom import savings_ledger
+    from horizon import savings_ledger
 
     path = Path(tempfile.mkdtemp()) / "events.jsonl"
     assert savings_ledger.record_savings_event(

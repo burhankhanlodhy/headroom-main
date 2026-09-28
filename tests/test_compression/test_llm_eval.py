@@ -18,8 +18,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from headroom.compression.detector import ContentType
-from headroom.compression.universal import (
+from horizon.compression.detector import ContentType
+from horizon.compression.universal import (
     UniversalCompressor,
     UniversalCompressorConfig,
 )

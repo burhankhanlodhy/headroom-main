@@ -21,9 +21,9 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from headroom.ccr.tool_injection import CCR_TOOL_NAME
-from headroom.proxy.server import ProxyConfig, create_app
-from headroom.proxy.turn_hooks import clear_turn_hooks, register_turn_hook
+from horizon.ccr.tool_injection import CCR_TOOL_NAME
+from horizon.proxy.server import ProxyConfig, create_app
+from horizon.proxy.turn_hooks import clear_turn_hooks, register_turn_hook
 
 _SEARCH_TOOL = {"type": "tool_search_tool_20250917", "name": "tool_search"}
 _GREP = {"name": "Grep", "description": "search files", "input_schema": {"type": "object"}}
@@ -213,7 +213,7 @@ def test_repair_leaves_resolvable_history_alone_when_the_hook_keeps_the_tool() -
 
 
 def test_ccr_repair_sees_the_tools_array_the_hook_left_behind() -> None:
-    """CCR repair also runs after a hook removes headroom_retrieve."""
+    """CCR repair also runs after a hook removes horizon_retrieve."""
     forwarded = _run(
         _DropToolHook(CCR_TOOL_NAME),
         messages=_CCR_POISONED_MESSAGES,

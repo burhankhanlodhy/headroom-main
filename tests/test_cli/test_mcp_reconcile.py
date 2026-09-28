@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli.main import main
-from headroom.mcp_registry import ClaudeRegistrar, build_serena_spec
-from headroom.mcp_registry.ledger import headroom_installed_matching
+from horizon.cli.main import main
+from horizon.mcp_registry import ClaudeRegistrar, build_serena_spec
+from horizon.mcp_registry.ledger import horizon_installed_matching
 
-FIXTURE = Path(__file__).parents[1] / "fixtures" / "headroom-issue-3054.json"
+FIXTURE = Path(__file__).parents[1] / "fixtures" / "horizon-issue-3054.json"
 
 
 def _setup(monkeypatch, tmp_path: Path):
@@ -33,9 +33,9 @@ def _setup(monkeypatch, tmp_path: Path):
         )
     )
     registrar = ClaudeRegistrar(claude_cli=None, home_dir=tmp_path)
-    monkeypatch.setattr("headroom.mcp_registry.ClaudeRegistrar", lambda: registrar)
+    monkeypatch.setattr("horizon.mcp_registry.ClaudeRegistrar", lambda: registrar)
     ledger = tmp_path / "ledger.json"
-    monkeypatch.setattr("headroom.mcp_registry.ledger.ledger_path", lambda: ledger)
+    monkeypatch.setattr("horizon.mcp_registry.ledger.ledger_path", lambda: ledger)
     return config, ledger
 
 
@@ -118,7 +118,7 @@ def test_reconcile_rejects_absent_claude(monkeypatch, tmp_path: Path):
     _, _ = _setup(monkeypatch, tmp_path)
     registrar = ClaudeRegistrar(claude_cli=None, home_dir=tmp_path)
     monkeypatch.setattr(registrar, "detect", lambda: False)
-    monkeypatch.setattr("headroom.mcp_registry.ClaudeRegistrar", lambda: registrar)
+    monkeypatch.setattr("horizon.mcp_registry.ClaudeRegistrar", lambda: registrar)
 
     result = CliRunner().invoke(main, ["mcp", "reconcile", "--adopt"])
 
@@ -153,9 +153,9 @@ def test_adopt_rejects_malformed_modern_before_touching_valid_legacy(monkeypatch
         )
     )
     registrar = ClaudeRegistrar(claude_cli=None, home_dir=tmp_path)
-    monkeypatch.setattr("headroom.mcp_registry.ClaudeRegistrar", lambda: registrar)
+    monkeypatch.setattr("horizon.mcp_registry.ClaudeRegistrar", lambda: registrar)
     ledger = tmp_path / "ledger.json"
-    monkeypatch.setattr("headroom.mcp_registry.ledger.ledger_path", lambda: ledger)
+    monkeypatch.setattr("horizon.mcp_registry.ledger.ledger_path", lambda: ledger)
     before = (modern.read_bytes(), legacy.read_bytes())
 
     result = CliRunner().invoke(main, ["mcp", "reconcile", "--adopt"])
@@ -199,7 +199,7 @@ def test_unreadable_ledger_blocks_adopt_without_partial_mutation(monkeypatch, tm
     assert (config.read_bytes(), ledger.read_bytes()) == before
 
 
-@pytest.mark.parametrize("state", ["absent", "matching", "user-drift", "headroom-drift"])
+@pytest.mark.parametrize("state", ["absent", "matching", "user-drift", "horizon-drift"])
 @pytest.mark.parametrize("adopt", [False, True])
 def test_reconcile_state_matrix(monkeypatch, tmp_path: Path, state: str, adopt: bool):
     config, ledger = _setup(monkeypatch, tmp_path)
@@ -215,11 +215,11 @@ def test_reconcile_state_matrix(monkeypatch, tmp_path: Path, state: str, adopt: 
         }
     elif state == "user-drift":
         data["mcpServers"]["serena"]["args"] = ["--from", "user-managed"]
-    elif state == "headroom-drift":
-        from headroom.mcp_registry.ledger import record_install
+    elif state == "horizon-drift":
+        from horizon.mcp_registry.ledger import record_install
 
         stale = build_serena_spec("claude-code")
-        stale.args = ("--from", "headroom-installed-old")
+        stale.args = ("--from", "horizon-installed-old")
         owned_spec = stale
         data["mcpServers"]["serena"] = {
             "command": stale.command,
@@ -228,11 +228,11 @@ def test_reconcile_state_matrix(monkeypatch, tmp_path: Path, state: str, adopt: 
         record_install("claude", stale, path=ledger)
     config.write_text(json.dumps(data))
     if owned_spec is not None:
-        assert headroom_installed_matching("claude", owned_spec, path=ledger)
+        assert horizon_installed_matching("claude", owned_spec, path=ledger)
     result = CliRunner().invoke(main, ["mcp", "reconcile"] + (["--adopt"] if adopt else []))
     assert result.exit_code == 0, result.output
     observed = json.loads(config.read_text())["mcpServers"].get("serena")
-    ownership = observed is not None and headroom_installed_matching(
+    ownership = observed is not None and horizon_installed_matching(
         "claude",
         build_serena_spec("claude-code") if observed["args"] == list(recommended.args) else None,
         path=ledger,
@@ -243,10 +243,10 @@ def test_reconcile_state_matrix(monkeypatch, tmp_path: Path, state: str, adopt: 
             "args": list(recommended.args),
         }
         assert ownership
-        assert "Adopted Headroom" in result.output
-    elif state == "headroom-drift":
-        assert observed["args"] == ["--from", "headroom-installed-old"]
-        assert headroom_installed_matching("claude", owned_spec, path=ledger)
+        assert "Adopted Horizon" in result.output
+    elif state == "horizon-drift":
+        assert observed["args"] == ["--from", "horizon-installed-old"]
+        assert horizon_installed_matching("claude", owned_spec, path=ledger)
         assert ownership is False
         assert "observed: present" in result.output
     else:
@@ -268,13 +268,13 @@ def test_ordinary_install_does_not_adopt_serena(monkeypatch, tmp_path: Path):
     before = config.read_bytes()
     monkeypatch.setitem(sys.modules, "mcp", object())
     registrar = ClaudeRegistrar(claude_cli=None, home_dir=tmp_path)
-    monkeypatch.setattr("headroom.mcp_registry.install.get_all_registrars", lambda: [registrar])
+    monkeypatch.setattr("horizon.mcp_registry.install.get_all_registrars", lambda: [registrar])
     result = CliRunner().invoke(main, ["mcp", "install", "--agent", "claude"])
     assert result.exit_code == 0, result.output
     after = json.loads(config.read_text())
     before_data = json.loads(before)
     assert after["mcpServers"]["serena"] == before_data["mcpServers"]["serena"]
-    assert after["mcpServers"]["headroom"]["args"] == ["mcp", "serve"]
+    assert after["mcpServers"]["horizon"]["args"] == ["mcp", "serve"]
     assert "mcp reconcile --adopt" not in result.output
 
 
@@ -283,7 +283,7 @@ def test_mcp_install_force_preserves_user_managed_serena(monkeypatch, tmp_path: 
     before = json.loads(config.read_text())["mcpServers"]["serena"]
     monkeypatch.setitem(sys.modules, "mcp", object())
     registrar = ClaudeRegistrar(claude_cli=None, home_dir=tmp_path)
-    monkeypatch.setattr("headroom.mcp_registry.install.get_all_registrars", lambda: [registrar])
+    monkeypatch.setattr("horizon.mcp_registry.install.get_all_registrars", lambda: [registrar])
 
     result = CliRunner().invoke(main, ["mcp", "install", "--agent", "claude", "--force"])
 
@@ -291,7 +291,7 @@ def test_mcp_install_force_preserves_user_managed_serena(monkeypatch, tmp_path: 
     assert json.loads(config.read_text())["mcpServers"]["serena"] == before
 
 
-PLUGIN_FIXTURE = Path(__file__).parents[1] / "fixtures" / "headroom-issue-3570.json"
+PLUGIN_FIXTURE = Path(__file__).parents[1] / "fixtures" / "horizon-issue-3570.json"
 
 
 def _install_plugin_serena(
@@ -303,7 +303,7 @@ def _install_plugin_serena(
     ``settings.json``; ``project`` switches to a ``--scope project`` install,
     whose record carries ``projectPath`` and whose flag lives in that
     project's ``.claude/settings.json``. Returns the files Claude Code owns so
-    tests can assert Headroom never touches them.
+    tests can assert Horizon never touches them.
     """
     fixture = json.loads(PLUGIN_FIXTURE.read_text())
     claude_dir = tmp_path / ".claude"

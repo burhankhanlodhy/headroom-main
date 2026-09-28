@@ -1,7 +1,7 @@
 """Endpoint resolution for bring-your-own Kompress deployments.
 
 The load-bearing test here is the first one: an operator with only
-``HEADROOM_KOMPRESS_ENDPOINT`` set must get the exact same request as before
+``HORIZON_KOMPRESS_ENDPOINT`` set must get the exact same request as before
 these knobs existed. Everything else is additive.
 """
 
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.transforms.kompress_remote import (
+from horizon.transforms.kompress_remote import (
     DEFAULT_ENDPOINT_PATH,
     RemoteKompressCompressor,
     parse_endpoint_headers,

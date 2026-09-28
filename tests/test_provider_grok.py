@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from headroom.providers.grok import PROXY_ENV_KEY, build_launch_env, proxy_base_url
-from headroom.providers.grok.install import build_install_env
+from horizon.providers.grok import PROXY_ENV_KEY, build_launch_env, proxy_base_url
+from horizon.providers.grok.install import build_install_env
 
 
-def test_grok_proxy_base_url_uses_local_headroom_proxy() -> None:
+def test_grok_proxy_base_url_uses_local_horizon_proxy() -> None:
     assert proxy_base_url(8787) == "http://127.0.0.1:8787/v1"
 
 

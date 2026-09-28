@@ -1,4 +1,4 @@
-"""Turn-hook registry + runners (headroom/proxy/turn_hooks.py).
+"""Turn-hook registry + runners (horizon/proxy/turn_hooks.py).
 
 The hook surface is opt-in: with nothing registered the runners must be exact
 no-ops (the property the proxy relies on to stay byte-identical for everyone who
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.proxy.turn_hooks import (
+from horizon.proxy.turn_hooks import (
     TurnContext,
     clear_turn_hooks,
     register_turn_hook,
@@ -123,7 +123,7 @@ def test_request_runner_attributes_savings_with_handler_counters():
 
     run_request_hooks(ctx)
 
-    from headroom.proxy.savings_attribution import from_tags
+    from horizon.proxy.savings_attribution import from_tags
 
     assert from_tags(tags) == [
         {

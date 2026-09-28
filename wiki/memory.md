@@ -14,9 +14,9 @@ This is *temporal compression* - instead of carrying 10,000 tokens of conversati
 
 ---
 
-## What Makes Headroom Memory Different?
+## What Makes Horizon Memory Different?
 
-| Feature | Headroom | Letta (MemGPT) | Mem0 |
+| Feature | Horizon | Letta (MemGPT) | Mem0 |
 |---------|----------|----------------|------|
 | **Cross-Agent Memory** | Any agent shares one DB via proxy | Per-agent only | Per-user, no cross-agent |
 | **Agent Provenance** | Tracks which agent saved/updated each memory | No | No |
@@ -39,12 +39,12 @@ The most powerful way to use memory: **any agent that routes through the proxy s
 
 ```bash
 # Start the proxy with memory enabled
-headroom proxy --memory
+horizon proxy --memory
 
 # Or use wrap (auto-starts proxy)
-headroom wrap claude --memory    # Claude Code with persistent memory
-headroom wrap codex --memory     # Codex with the SAME memory store
-headroom wrap aider --memory     # Aider shares it too
+horizon wrap claude --memory    # Claude Code with persistent memory
+horizon wrap codex --memory     # Codex with the SAME memory store
+horizon wrap aider --memory     # Aider shares it too
 ```
 
 ### How It Works
@@ -56,7 +56,7 @@ Claude Code                  Codex CLI                  Gemini CLI
                         │                                  │                            │
                         ▼                                  ▼                            ▼
                     ┌──────────────────────────────────────────────────────────────────┐
-                    │                    Headroom Proxy (--memory)                      │
+                    │                    Horizon Proxy (--memory)                      │
                     │                                                                   │
                     │  1. Search memory DB for relevant context                        │
                     │  2. Inject memories as system context (provider-native format)   │
@@ -68,26 +68,26 @@ Claude Code                  Codex CLI                  Gemini CLI
                     └──────────────────────┬───────────────────────────────────────────┘
                                            │
                                            ▼
-                               .headroom/memory.db
+                               .horizon/memory.db
                                (project-scoped SQLite)
 ```
 
 ### Project-Scoped Database
 
-Memory is stored per-project at `{cwd}/.headroom/memory.db`. Each
+Memory is stored per-project at `{cwd}/.horizon/memory.db`. Each
 project has its own memory — no cross-project contamination. Override
 with `--memory-db-path` for a custom location.
 
 > **Filesystem contract note.** Project-scoped memory paths resolve
 > relative to the current working directory and **do not** obey the
-> canonical `HEADROOM_WORKSPACE_DIR` env var. This preserves the
+> canonical `HORIZON_WORKSPACE_DIR` env var. This preserves the
 > project-memory isolation invariant. Users who want a single central
 > memory store should pass `--memory-db-path` explicitly. See the
 > [Filesystem Contract](filesystem-contract.md) for the rationale.
 
 ### User Identity
 
-User ID is auto-detected from `$USER` (your OS username). Override per-request with the `x-headroom-user-id` header. All memories are scoped to the user — multiple developers on the same project have separate memory stores.
+User ID is auto-detected from `$USER` (your OS username). Override per-request with the `x-horizon-user-id` header. All memories are scoped to the user — multiple developers on the same project have separate memory stores.
 
 ### Agent Provenance
 
@@ -115,7 +115,7 @@ When an agent updates a memory, the update is tracked:
 
 ### Intelligent Deduplication
 
-When the LLM calls `memory_save`, headroom:
+When the LLM calls `memory_save`, horizon:
 
 1. **Saves immediately** (zero latency)
 2. **Searches for similar existing memories** (cosine similarity)
@@ -131,7 +131,7 @@ When the LLM calls `memory_save`, headroom:
 }
 ```
 
-The LLM then decides whether to merge — using the user's own LLM, not a separate model. No extra cost to headroom.
+The LLM then decides whether to merge — using the user's own LLM, not a separate model. No extra cost to horizon.
 
 4. **Background auto-dedup**: If similarity >92%, the older duplicate is automatically removed (async, non-blocking).
 
@@ -152,7 +152,7 @@ Memory works with ALL providers routing through the proxy:
 
 ```python
 from openai import OpenAI
-from headroom import with_memory
+from horizon import with_memory
 
 # One line - that's it
 client = with_memory(OpenAI(), user_id="alice")
@@ -216,7 +216,7 @@ USER (broadest)
 
 ```python
 from openai import OpenAI
-from headroom import with_memory
+from horizon import with_memory
 
 # Session 1: Morning
 client1 = with_memory(
@@ -246,10 +246,10 @@ response = client2.chat.completions.create(
 
 ## Temporal Versioning (Supersession)
 
-Memories evolve over time. When facts change, Headroom creates a **supersession chain** preserving history:
+Memories evolve over time. When facts change, Horizon creates a **supersession chain** preserving history:
 
 ```python
-from headroom.memory import HierarchicalMemory, MemoryConfig
+from horizon.memory import HierarchicalMemory, MemoryConfig
 
 memory = await HierarchicalMemory.create()
 
@@ -355,13 +355,13 @@ For full control, use the `HierarchicalMemory` class directly:
 
 ```python
 import asyncio
-from headroom.memory import (
+from horizon.memory import (
     HierarchicalMemory,
     MemoryConfig,
     MemoryCategory,
     EmbedderBackend,
 )
-from headroom.memory.ports import MemoryFilter, VectorFilter
+from horizon.memory.ports import MemoryFilter, VectorFilter
 
 
 async def main():
@@ -428,7 +428,7 @@ asyncio.run(main())
 ### Embedder Backends
 
 ```python
-from headroom.memory import MemoryConfig, EmbedderBackend
+from horizon.memory import MemoryConfig, EmbedderBackend
 
 # Local embeddings (recommended - fast, free, private)
 config = MemoryConfig(
@@ -465,8 +465,8 @@ are prone to CPU-saturation timeouts.
 Enable it by installing the extra and setting the env var:
 
 ```bash
-pip install 'headroom-ai[pytorch-mps]'   # also works as [pytorch_mps]
-export HEADROOM_EMBEDDER_RUNTIME=pytorch_mps
+pip install 'horizon-ai[pytorch-mps]'   # also works as [pytorch_mps]
+export HORIZON_EMBEDDER_RUNTIME=pytorch_mps
 ```
 
 When set, the embedder runs via the torch sentence-transformers backend on the
@@ -517,7 +517,7 @@ client = with_memory(
 
 ### Protocol-Based Design
 
-Headroom Memory uses **Protocol interfaces** (ports) for all components, enabling easy swapping:
+Horizon Memory uses **Protocol interfaces** (ports) for all components, enabling easy swapping:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -564,9 +564,9 @@ Headroom Memory uses **Protocol interfaces** (ports) for all components, enablin
 
 ### vs Letta (MemGPT)
 
-**Letta** pioneered inline memory extraction. Headroom builds on this with:
+**Letta** pioneered inline memory extraction. Horizon builds on this with:
 
-| Aspect | Headroom | Letta |
+| Aspect | Horizon | Letta |
 |--------|----------|-------|
 | **Scoping** | 4-level hierarchy (user/session/agent/turn) | Flat per-agent |
 | **Temporal** | Full supersession chains with history | No versioning |
@@ -576,13 +576,13 @@ Headroom Memory uses **Protocol interfaces** (ports) for all components, enablin
 | **Extensibility** | Protocol-based adapters | Monolithic |
 
 **When to use Letta**: You want a full agent framework with built-in memory.
-**When to use Headroom**: You want memory as a layer on your existing stack.
+**When to use Horizon**: You want memory as a layer on your existing stack.
 
 ### vs Mem0
 
-**Mem0** provides a managed memory service. Headroom differs:
+**Mem0** provides a managed memory service. Horizon differs:
 
-| Aspect | Headroom | Mem0 |
+| Aspect | Horizon | Mem0 |
 |--------|----------|------|
 | **Deployment** | Embedded (no server) | Managed service or self-hosted |
 | **Scoping** | 4-level hierarchy | Flat per-user |
@@ -593,11 +593,11 @@ Headroom Memory uses **Protocol interfaces** (ports) for all components, enablin
 | **Privacy** | All local | Data leaves your infra |
 
 **When to use Mem0**: You want a managed service and don't mind external dependencies.
-**When to use Headroom**: You want embedded memory with no external services.
+**When to use Horizon**: You want embedded memory with no external services.
 
 ### Feature Matrix
 
-| Feature | Headroom | Letta | Mem0 |
+| Feature | Horizon | Letta | Mem0 |
 |---------|:--------:|:-----:|:----:|
 | Cross-agent sharing (proxy) | ✅ | ❌ | ❌ |
 | Agent provenance tracking | ✅ | ❌ | ❌ |
@@ -651,7 +651,7 @@ Memory works with any OpenAI-compatible client:
 
 ```python
 from openai import OpenAI
-from headroom import with_memory
+from horizon import with_memory
 
 # OpenAI
 client = with_memory(OpenAI(), user_id="alice")
@@ -677,7 +677,7 @@ client = with_memory(YourClient(), user_id="alice")
 
 ```python
 from openai import OpenAI
-from headroom import with_memory
+from horizon import with_memory
 
 client = with_memory(OpenAI(), user_id="developer_jane")
 

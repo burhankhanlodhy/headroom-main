@@ -11,8 +11,8 @@ rather than a comment.
 
 from typing import Any
 
-from headroom.proxy.helpers import inject_tool_search_deferral
-from headroom.transforms.read_maturation import relocate_cache_breakpoint
+from horizon.proxy.helpers import inject_tool_search_deferral
+from horizon.transforms.read_maturation import relocate_cache_breakpoint
 
 TTL_1H = {"type": "ephemeral", "ttl": "1h"}
 

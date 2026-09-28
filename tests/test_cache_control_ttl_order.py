@@ -8,7 +8,7 @@ Anthropic evaluates cache breakpoints in one global walk -- ``tools``, then
     400 messages.15.content.1.cache_control.ttl: a ttl='1h' cache_control block
     must not come after a ttl='5m' cache_control block.
 
-Headroom rewrites markers in several independent places, section by section,
+Horizon rewrites markers in several independent places, section by section,
 and until #2939 nothing checked the rule that spans them. The failure is a dead
 turn rather than a silent cost regression, so it needs tests that pin both
 repair directions and, just as importantly, pin that a legal request is passed
@@ -19,8 +19,8 @@ from typing import Any
 
 import pytest
 
-from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
-from headroom.proxy.helpers import (
+from horizon.proxy.handlers.anthropic import AnthropicHandlerMixin
+from horizon.proxy.helpers import (
     cache_control_ttl_lane,
     cache_control_ttl_lanes,
     enforce_cache_control_ttl_order,
@@ -115,7 +115,7 @@ def test_lanes_survey_covers_all_three_sections() -> None:
 def test_replayed_1h_is_stripped_when_client_asked_for_5m() -> None:
     # Claude Code's `/btw` forks the conversation as a "side question", which is
     # not on its 1h allowlist: the fork's tools/system breakpoints are bare 5m
-    # and it does not send the extended-cache-ttl beta header. Headroom's
+    # and it does not send the extended-cache-ttl beta header. Horizon's
     # overlay of the previous turn's forwarded bytes drags a 1h marker into
     # messages behind them, which is exactly the reported 400.
     tools = [{"name": "read", "cache_control": dict(BARE)}]
@@ -264,7 +264,7 @@ def test_legal_requests_are_returned_by_identity(markers: list[dict[str, Any]]) 
 
 
 def test_unknown_ttl_is_left_alone() -> None:
-    # Mirrors TtlOrderingWalk::observe in headroom-core: a TTL lane we don't
+    # Mirrors TtlOrderingWalk::observe in horizon-core: a TTL lane we don't
     # model takes no part in the rule and is never rewritten.
     messages = [_msg(_text("a", {"type": "ephemeral", "ttl": "24h"})), _msg(_text("b", dict(BARE)))]
     _, out, _, stats = enforce_cache_control_ttl_order(None, messages, None, client_uses_1h=False)
@@ -273,7 +273,7 @@ def test_unknown_ttl_is_left_alone() -> None:
 
 
 def test_kill_switch_disables_the_guard(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HEADROOM_CACHE_CONTROL_TTL_GUARD", "0")
+    monkeypatch.setenv("HORIZON_CACHE_CONTROL_TTL_GUARD", "0")
     tools = [{"name": "read", "cache_control": dict(BARE)}]
     messages = [_msg(_text("hi", dict(TTL_1H)))]
     _, out_messages, out_tools, stats = enforce_cache_control_ttl_order(

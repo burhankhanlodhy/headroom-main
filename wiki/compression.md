@@ -1,6 +1,6 @@
 # Universal Compression
 
-Headroom's Universal Compression module provides intelligent, automatic compression with ML-based content detection and structure preservation.
+Horizon's Universal Compression module provides intelligent, automatic compression with ML-based content detection and structure preservation.
 
 ## Overview
 
@@ -16,7 +16,7 @@ Universal Compression combines several techniques:
 ### One-Liner
 
 ```python
-from headroom.compression import compress
+from horizon.compression import compress
 
 result = compress(content)
 print(result.compressed)
@@ -26,7 +26,7 @@ print(f"Saved {result.savings_percentage:.0f}% tokens")
 ### With Configuration
 
 ```python
-from headroom.compression import UniversalCompressor, UniversalCompressorConfig
+from horizon.compression import UniversalCompressor, UniversalCompressorConfig
 
 config = UniversalCompressorConfig(
     compression_ratio_target=0.5,  # Keep 50% of content
@@ -75,7 +75,7 @@ Structure masks identify what to preserve:
 ### UniversalCompressorConfig
 
 ```python
-from headroom.compression import UniversalCompressorConfig
+from horizon.compression import UniversalCompressorConfig
 
 config = UniversalCompressorConfig(
     # Detection
@@ -83,7 +83,7 @@ config = UniversalCompressorConfig(
     # Compression
     # (Note: the legacy `use_llmlingua` flag was retired with the
     # LLMLingua-2 integration. The optional ML compressor is now Kompress,
-    # installed via `headroom-ai[ml]` and configured separately.)
+    # installed via `horizon-ai[ml]` and configured separately.)
     compression_ratio_target=0.3,  # Keep 30% of content (70% reduction)
     min_content_length=100,  # Skip content shorter than this
     # Structure preservation
@@ -115,7 +115,7 @@ config = UniversalCompressorConfig(
 Preserves JSON structure while compressing values:
 
 ```python
-from headroom.compression.handlers.json_handler import JSONStructureHandler
+from horizon.compression.handlers.json_handler import JSONStructureHandler
 
 handler = JSONStructureHandler(
     preserve_short_values=True,  # Keep values < 20 chars
@@ -149,7 +149,7 @@ handler = JSONStructureHandler(
 Preserves code structure using AST parsing (tree-sitter) or regex fallback:
 
 ```python
-from headroom.compression.handlers.code_handler import CodeStructureHandler
+from horizon.compression.handlers.code_handler import CodeStructureHandler
 
 handler = CodeStructureHandler(
     preserve_comments=False,  # Preserve comments as structural
@@ -210,7 +210,7 @@ def process_data(items: List[str]) -> Dict[str, int]:
 ## Compression Result
 
 ```python
-from headroom.compression import compress
+from horizon.compression import compress
 
 result = compress(content)
 
@@ -242,7 +242,7 @@ print(result.ccr_key)  # Key for retrieval (if CCR enabled)
 For multiple contents, batch compression is more efficient:
 
 ```python
-from headroom.compression import UniversalCompressor
+from horizon.compression import UniversalCompressor
 
 compressor = UniversalCompressor()
 
@@ -265,10 +265,10 @@ for result in results:
 Register custom handlers for specific content types:
 
 ```python
-from headroom.compression import UniversalCompressor
-from headroom.compression.detector import ContentType
-from headroom.compression.handlers.base import BaseStructureHandler, HandlerResult
-from headroom.compression.masks import StructureMask
+from horizon.compression import UniversalCompressor
+from horizon.compression.detector import ContentType
+from horizon.compression.handlers.base import BaseStructureHandler, HandlerResult
+from horizon.compression.masks import StructureMask
 
 
 class LogStructureHandler(BaseStructureHandler):
@@ -303,7 +303,7 @@ compressor.register_handler(ContentType.TEXT, LogStructureHandler())
 Universal Compression integrates with CCR (Compress-Cache-Retrieve) for reversible compression:
 
 ```python
-from headroom.compression import UniversalCompressor, UniversalCompressorConfig
+from horizon.compression import UniversalCompressor, UniversalCompressorConfig
 
 config = UniversalCompressorConfig(ccr_enabled=True)
 compressor = UniversalCompressor(config=config)
@@ -336,19 +336,19 @@ See [CCR Guide](ccr.md) for full CCR documentation.
 
 ```bash
 # Basic compression (fallback to simple compression)
-pip install headroom-ai
+pip install horizon-ai
 
 # With ML detection (recommended)
-pip install "headroom-ai[magika]"
+pip install "horizon-ai[magika]"
 
 # With LLMLingua compression
-pip install "headroom-ai[llmlingua]"
+pip install "horizon-ai[llmlingua]"
 
 # With AST-based code handling
-pip install "headroom-ai[code]"
+pip install "horizon-ai[code]"
 
 # Everything
-pip install "headroom-ai[all]"
+pip install "horizon-ai[all]"
 ```
 
 ---
@@ -356,7 +356,7 @@ pip install "headroom-ai[all]"
 ## Example: Full Pipeline
 
 ```python
-from headroom.compression import UniversalCompressor, UniversalCompressorConfig
+from horizon.compression import UniversalCompressor, UniversalCompressorConfig
 
 # Configure for aggressive compression
 config = UniversalCompressorConfig(

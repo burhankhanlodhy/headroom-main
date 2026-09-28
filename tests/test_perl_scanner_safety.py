@@ -2,15 +2,15 @@ from unittest.mock import patch
 
 import pytest
 
-import headroom.transforms.code_compressor as cc
-from headroom.transforms.code_compressor import (
+import horizon.transforms.code_compressor as cc
+from horizon.transforms.code_compressor import (
     CodeAwareCompressor,
     CodeCompressionResult,
     CodeCompressorConfig,
     CodeLanguage,
     unload_tree_sitter,
 )
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
 
 
 @pytest.fixture(autouse=True)

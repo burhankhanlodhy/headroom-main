@@ -27,7 +27,7 @@ import pytest
 def _helpers():
     """Resolve the helpers module at call time, not at import time.
 
-    Other suites swap ``headroom.proxy`` in and out of ``sys.modules`` for their
+    Other suites swap ``horizon.proxy`` in and out of ``sys.modules`` for their
     own isolation, which can leave two live copies of this module — and two
     distinct ``RequestBodyTooLarge`` classes, so a class captured at import time
     stops matching the one actually raised. Production never reimports this way,
@@ -37,7 +37,7 @@ def _helpers():
     """
     import importlib
 
-    return importlib.import_module("headroom.proxy.helpers")
+    return importlib.import_module("horizon.proxy.helpers")
 
 
 MB = 1024 * 1024
@@ -192,7 +192,7 @@ def test_bomb_never_materializes(make_bomb, call, small_cap: int) -> None:
         if not already_tracing:
             tracemalloc.stop()
 
-    # Generous headroom over the 1MB cap; the unbounded path would peak near
+    # Generous horizon over the 1MB cap; the unbounded path would peak near
     # the 64MB expansion (and higher still, with the copy decompress() makes).
     assert peak < 8 * MB, f"peak {peak / MB:.1f}MB suggests the bomb was materialized"
 

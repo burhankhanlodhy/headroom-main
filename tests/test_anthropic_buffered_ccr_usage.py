@@ -1,6 +1,6 @@
 """A buffered-CCR turn is a billed call and its usage must reach accounting.
 
-When a ``stream:true`` request carries the ``headroom_retrieve`` tool, the
+When a ``stream:true`` request carries the ``horizon_retrieve`` tool, the
 Anthropic handler rewrites it to ``stream:false`` upstream so it can resolve
 retrievals server-side, then re-synthesizes SSE for the client. That buffered
 response carries the same ``usage`` block any non-stream reply does, so the
@@ -25,8 +25,8 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.loopback_guard import require_loopback  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.loopback_guard import require_loopback  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 # Provider-reported usage for one warm turn: most of the prompt served from
 # cache, a slice newly written, a little uncached, and a real completion.
@@ -48,7 +48,7 @@ _RESPONSE = {
 }
 
 _RETRIEVE_TOOL = {
-    "name": "headroom_retrieve",
+    "name": "horizon_retrieve",
     "description": "Retrieve compressed content",
     "input_schema": {"type": "object", "properties": {"ref": {"type": "string"}}},
 }
@@ -80,11 +80,11 @@ def ccr_marker() -> str:
     """A marker this proxy actually owns, so retrieval could really fire.
 
     The buffered path is only taken when the outgoing body carries a redeemable
-    marker (#3071); ``headroom_retrieve`` has nothing to expand otherwise. The
+    marker (#3071); ``horizon_retrieve`` has nothing to expand otherwise. The
     buffered tests are about what happens *on* that path, so they have to earn it.
     """
-    from headroom.cache.backends import InMemoryBackend
-    from headroom.cache.compression_store import get_compression_store, reset_compression_store
+    from horizon.cache.backends import InMemoryBackend
+    from horizon.cache.compression_store import get_compression_store, reset_compression_store
 
     reset_compression_store()
     store = get_compression_store(backend=InMemoryBackend())
@@ -136,7 +136,7 @@ def test_non_stream_turn_records_provider_usage(monkeypatch) -> None:
 
 @respx.mock
 def test_buffered_ccr_turn_records_provider_usage(monkeypatch, ccr_marker: str) -> None:
-    """A stream:true + headroom_retrieve turn must book the same usage block."""
+    """A stream:true + horizon_retrieve turn must book the same usage block."""
     app, outcomes = _app_and_outcomes(monkeypatch)
     route = respx.post("https://api.anthropic.com/v1/messages").mock(
         return_value=httpx.Response(200, json=_RESPONSE)

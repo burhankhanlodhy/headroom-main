@@ -22,7 +22,7 @@ pricing tables (or on litellm being installed).
 
 from __future__ import annotations
 
-from headroom.proxy.cost import COST_BASIS_MEASURED, CostTracker
+from horizon.proxy.cost import COST_BASIS_MEASURED, CostTracker
 
 
 def _tracker_capturing_cost(**kwargs) -> tuple[CostTracker, dict]:

@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from headroom.memory.backends.direct_mem0 import DirectMem0Adapter, Mem0Config
+from horizon.memory.backends.direct_mem0 import DirectMem0Adapter, Mem0Config
 
 
 def _adapter() -> DirectMem0Adapter:

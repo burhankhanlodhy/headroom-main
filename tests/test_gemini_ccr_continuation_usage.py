@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from headroom.proxy.handlers.gemini import GeminiHandlerMixin
+from horizon.proxy.handlers.gemini import GeminiHandlerMixin
 
 
 class _FakeRequest:
@@ -38,7 +38,7 @@ class _CcrToolCallResponse:
     content = json.dumps(
         {
             "candidates": [
-                {"content": {"parts": [{"functionCall": {"name": "headroom_retrieve"}}]}}
+                {"content": {"parts": [{"functionCall": {"name": "horizon_retrieve"}}]}}
             ],
             "usageMetadata": {"promptTokenCount": 100, "candidatesTokenCount": 5},
         }
@@ -119,7 +119,7 @@ async def test_ccr_continuation_present_null_usage_does_not_502(
     async def payload(request):  # noqa: ANN001, ANN201
         return {"contents": [{"role": "user", "parts": [{"text": "hello"}]}]}
 
-    monkeypatch.setattr("headroom.proxy.helpers._read_request_json", payload)
+    monkeypatch.setattr("horizon.proxy.helpers._read_request_json", payload)
 
     handler = _Handler()
     response = await handler.handle_gemini_generate_content(_FakeRequest(), "gemini-pro")

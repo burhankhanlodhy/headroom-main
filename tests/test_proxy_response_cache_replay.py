@@ -31,16 +31,16 @@ httpx = pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.cache.backends import InMemoryBackend  # noqa: E402
-from headroom.cache.compression_store import (  # noqa: E402
+from horizon.cache.backends import InMemoryBackend  # noqa: E402
+from horizon.cache.compression_store import (  # noqa: E402
     get_compression_store,
     reset_compression_store,
 )
-from headroom.ccr.tool_injection import create_ccr_tool_definition  # noqa: E402
-from headroom.proxy.helpers import sanitize_forwarded_response_headers  # noqa: E402
-from headroom.proxy.models import CacheEntry  # noqa: E402
-from headroom.proxy.outcome import RequestOutcome, emit_request_outcome  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.ccr.tool_injection import create_ccr_tool_definition  # noqa: E402
+from horizon.proxy.helpers import sanitize_forwarded_response_headers  # noqa: E402
+from horizon.proxy.models import CacheEntry  # noqa: E402
+from horizon.proxy.outcome import RequestOutcome, emit_request_outcome  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 class _CapturingHandler(logging.Handler):
@@ -57,13 +57,13 @@ class _CapturingHandler(logging.Handler):
 
 @pytest.fixture
 def proxy_log_capture():
-    """Capture ``headroom.proxy`` records.
+    """Capture ``horizon.proxy`` records.
 
     ``_setup_file_logging`` sets ``propagate = False`` on this logger, so
     ``caplog`` (which hangs off the root) never sees them — the same reason
     ``tests/test_anthropic_stage_timings.py`` attaches its own handler.
     """
-    target = logging.getLogger("headroom.proxy")
+    target = logging.getLogger("horizon.proxy")
     handler = _CapturingHandler()
     previous_level = target.level
     target.addHandler(handler)
@@ -168,7 +168,7 @@ def _poisoned_entry() -> CacheEntry:
 
 def test_cache_hit_replays_a_body_the_client_can_actually_read(proxy_log_capture):
     """The replayed 200 must carry no stale framing and an intact JSON body."""
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(_cache_config())
         with TestClient(app) as client:
             proxy = client.app.state.proxy
@@ -251,7 +251,7 @@ def test_buffered_ccr_turn_does_not_write_the_response_cache():
     }
 
     # The buffered conversion needs a marker retrieval could actually expand;
-    # a resident `headroom_retrieve` alone keeps the request streaming (#3071).
+    # a resident `horizon_retrieve` alone keeps the request streaming (#3071).
     reset_compression_store()
     store = get_compression_store(backend=InMemoryBackend())
     marker = store.store(
@@ -260,7 +260,7 @@ def test_buffered_ccr_turn_does_not_write_the_response_cache():
         original_item_count=1,
     )
 
-    with patch("headroom.proxy.server.AnyLLMBackend"):
+    with patch("horizon.proxy.server.AnyLLMBackend"):
         app = create_app(_ccr_cache_config())
         with TestClient(app) as client:
             proxy = client.app.state.proxy
@@ -355,7 +355,7 @@ def test_perf_line_is_unchanged_for_an_ordinary_turn(proxy_log_capture):
 
 
 def test_perf_analyzer_reads_the_cached_field():
-    from headroom.perf.analyzer import _parse_kv
+    from horizon.perf.analyzer import _parse_kv
 
     parsed = _parse_kv("model=claude-sonnet-4-6 transforms=none client=claude cached=1")
     assert parsed["cached"] == "1"

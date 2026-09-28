@@ -6,8 +6,8 @@ from collections import OrderedDict
 
 import pytest
 
-from headroom.proxy.models import RateLimitState
-from headroom.proxy.rate_limiter import MAX_RATE_LIMITER_BUCKETS, TokenBucketRateLimiter
+from horizon.proxy.models import RateLimitState
+from horizon.proxy.rate_limiter import MAX_RATE_LIMITER_BUCKETS, TokenBucketRateLimiter
 
 
 class _NoIterationDict(dict[str, RateLimitState]):

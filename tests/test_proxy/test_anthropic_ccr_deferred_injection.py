@@ -9,9 +9,9 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from headroom.cache.compression_store import get_compression_store, reset_compression_store
-from headroom.proxy.helpers import _reset_session_ccr_tracker_for_test
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.cache.compression_store import get_compression_store, reset_compression_store
+from horizon.proxy.helpers import _reset_session_ccr_tracker_for_test
+from horizon.proxy.server import ProxyConfig, create_app
 
 _RAW_TRANSCRIPT = "\n".join(f"row {idx}: payload payload payload" for idx in range(80))
 
@@ -128,7 +128,7 @@ def _force_compression(monkeypatch) -> None:  # noqa: ANN001
     decision = SimpleNamespace(should_compress=True, passthrough_reason=None)
     decision.apply_to_tags = lambda tags: None
     monkeypatch.setattr(
-        "headroom.proxy.handlers.anthropic.CompressionDecision.decide",
+        "horizon.proxy.handlers.anthropic.CompressionDecision.decide",
         lambda **kwargs: decision,
     )
 
@@ -297,7 +297,7 @@ def test_unfrozen_prefix_keeps_reversible_ccr_path(monkeypatch) -> None:
         assert len(captured.get("compression_calls", [])) == 1
         forwarded = captured["body"]
         assert forwarded["messages"] == [marker_message]
-        assert any(tool.get("name") == "headroom_retrieve" for tool in forwarded["tools"])
+        assert any(tool.get("name") == "horizon_retrieve" for tool in forwarded["tools"])
 
 
 def test_token_mode_reclamp_keeps_reversible_ccr_path_when_effective_prefix_drops_to_zero(
@@ -374,7 +374,7 @@ def test_token_mode_reclamp_keeps_reversible_ccr_path_when_effective_prefix_drop
         assert len(captured.get("compression_calls", [])) == 1
         forwarded = captured["body"]
         assert forwarded["messages"] == [marker_message]
-        assert any(tool.get("name") == "headroom_retrieve" for tool in forwarded["tools"])
+        assert any(tool.get("name") == "horizon_retrieve" for tool in forwarded["tools"])
 
 
 def test_token_mode_compresses_frozen_prefix_turns_when_tool_is_not_already_present(
@@ -451,7 +451,7 @@ def test_token_mode_compresses_frozen_prefix_turns_when_tool_is_not_already_pres
         assert len(captured.get("compression_calls", [])) == 1
         forwarded = captured["body"]
         assert forwarded["messages"] == [marker_message]
-        assert any(tool.get("name") == "headroom_retrieve" for tool in forwarded["tools"])
+        assert any(tool.get("name") == "horizon_retrieve" for tool in forwarded["tools"])
 
 
 def test_existing_retrieve_tool_keeps_reversible_ccr_path_when_prefix_is_frozen(
@@ -511,7 +511,7 @@ def test_existing_retrieve_tool_keeps_reversible_ccr_path_when_prefix_is_frozen(
         proxy._retry_request = _fake_retry
 
         existing_tool = {
-            "name": "headroom_retrieve",
+            "name": "horizon_retrieve",
             "description": "Retrieve compressed content",
             "input_schema": {"type": "object", "properties": {}},
         }
@@ -530,7 +530,7 @@ def test_existing_retrieve_tool_keeps_reversible_ccr_path_when_prefix_is_frozen(
         assert len(captured.get("compression_calls", [])) == 1
         forwarded = captured["body"]
         assert forwarded["messages"] == [marker_message]
-        assert [tool["name"] for tool in forwarded["tools"]] == ["headroom_retrieve"]
+        assert [tool["name"] for tool in forwarded["tools"]] == ["horizon_retrieve"]
 
 
 def test_cache_mode_compresses_delta_but_replays_cached_prefix_when_markers_are_historical(
@@ -621,12 +621,12 @@ def test_cache_mode_compresses_delta_but_replays_cached_prefix_when_markers_are_
         forwarded = captured["body"]
         # The frozen prefix was cached COMPRESSED last turn, so it is replayed
         # byte-identical to keep the prompt cache warm. The replayed marker is
-        # still redeemable this turn, so `headroom_retrieve` MUST be present or
-        # Anthropic 400s "Tool reference 'headroom_retrieve' not found" (#2766);
+        # still redeemable this turn, so `horizon_retrieve` MUST be present or
+        # Anthropic 400s "Tool reference 'horizon_retrieve' not found" (#2766);
         # injecting it whenever a marker exists is itself cache-stable (toggling
         # is what busts the tools segment). Message prefix replayed AND tool present.
         assert forwarded["messages"] == previous_forwarded_messages
-        assert [tool["name"] for tool in forwarded["tools"]] == ["headroom_retrieve"]
+        assert [tool["name"] for tool in forwarded["tools"]] == ["horizon_retrieve"]
 
 
 def test_cache_mode_exact_prefix_replay_forwards_cached_compressed_prefix_and_injects_retrieve_tool(
@@ -714,11 +714,11 @@ def test_cache_mode_exact_prefix_replay_forwards_cached_compressed_prefix_and_in
         forwarded = captured["body"]
         # Single frozen message cached COMPRESSED last turn: replay it
         # byte-identical so the cache holds instead of busting on original bytes.
-        # The replayed marker is still redeemable, so `headroom_retrieve` must be
-        # present this turn or Anthropic 400s "Tool reference 'headroom_retrieve'
+        # The replayed marker is still redeemable, so `horizon_retrieve` must be
+        # present this turn or Anthropic 400s "Tool reference 'horizon_retrieve'
         # not found" (#2766). Message prefix replayed AND tool present.
         assert forwarded["messages"] == previous_forwarded_messages
-        assert [tool["name"] for tool in forwarded["tools"]] == ["headroom_retrieve"]
+        assert [tool["name"] for tool in forwarded["tools"]] == ["horizon_retrieve"]
 
 
 def test_token_mode_cached_messages_skip_cache_update_when_pipeline_result_is_unchanged(
@@ -808,8 +808,8 @@ def test_non_token_non_cache_mode_keeps_compression_and_injects_tool_for_new_mar
     captured: dict[str, object] = {}
     original_messages = [{"role": "user", "content": _RAW_TRANSCRIPT}]
     _force_compression(monkeypatch)
-    monkeypatch.setattr("headroom.proxy.modes.is_token_mode", lambda mode: False)
-    monkeypatch.setattr("headroom.proxy.modes.is_cache_mode", lambda mode: False)
+    monkeypatch.setattr("horizon.proxy.modes.is_token_mode", lambda mode: False)
+    monkeypatch.setattr("horizon.proxy.modes.is_cache_mode", lambda mode: False)
 
     with _make_proxy_client() as client:
         proxy = client.app.state.proxy
@@ -884,7 +884,7 @@ def test_non_token_non_cache_mode_keeps_compression_and_injects_tool_for_new_mar
         assert len(captured.get("compression_calls", [])) == 1
         forwarded = captured["body"]
         assert forwarded["messages"] == [marker_message]
-        assert [tool["name"] for tool in forwarded["tools"]] == ["headroom_retrieve"]
+        assert [tool["name"] for tool in forwarded["tools"]] == ["horizon_retrieve"]
 
 
 def test_non_token_non_cache_mode_keeps_reversible_path_and_records_waste_signals(
@@ -896,13 +896,13 @@ def test_non_token_non_cache_mode_keeps_reversible_path_and_records_waste_signal
         "content": "[100 items compressed to 10. Retrieve more: hash=abc123def456abc123def456]",
     }
     existing_tool = {
-        "name": "headroom_retrieve",
+        "name": "horizon_retrieve",
         "description": "Retrieve compressed content",
         "input_schema": {"type": "object", "properties": {}},
     }
     _force_compression(monkeypatch)
-    monkeypatch.setattr("headroom.proxy.modes.is_token_mode", lambda mode: False)
-    monkeypatch.setattr("headroom.proxy.modes.is_cache_mode", lambda mode: False)
+    monkeypatch.setattr("horizon.proxy.modes.is_token_mode", lambda mode: False)
+    monkeypatch.setattr("horizon.proxy.modes.is_cache_mode", lambda mode: False)
 
     with _make_proxy_client() as client:
         proxy = client.app.state.proxy
@@ -969,7 +969,7 @@ def test_non_token_non_cache_mode_keeps_reversible_path_and_records_waste_signal
         assert len(captured.get("compression_calls", [])) == 1
         forwarded = captured["body"]
         assert forwarded["messages"] == [marker_message]
-        assert [tool["name"] for tool in forwarded["tools"]] == ["headroom_retrieve"]
+        assert [tool["name"] for tool in forwarded["tools"]] == ["horizon_retrieve"]
 
 
 def test_cache_mode_existing_retrieve_tool_keeps_exact_prefix_replay(monkeypatch) -> None:
@@ -982,7 +982,7 @@ def test_cache_mode_existing_retrieve_tool_keeps_exact_prefix_replay(monkeypatch
         }
     ]
     existing_tool = {
-        "name": "headroom_retrieve",
+        "name": "horizon_retrieve",
         "description": "Retrieve compressed content",
         "input_schema": {"type": "object", "properties": {}},
     }
@@ -1052,7 +1052,7 @@ def test_cache_mode_existing_retrieve_tool_keeps_exact_prefix_replay(monkeypatch
         assert captured.get("compression_calls", []) == []
         forwarded = captured["body"]
         assert forwarded["messages"] == previous_forwarded_messages
-        assert [tool["name"] for tool in forwarded["tools"]] == ["headroom_retrieve"]
+        assert [tool["name"] for tool in forwarded["tools"]] == ["horizon_retrieve"]
 
 
 def test_cache_mode_existing_retrieve_tool_compresses_only_the_unfrozen_delta(
@@ -1070,7 +1070,7 @@ def test_cache_mode_existing_retrieve_tool_compresses_only_the_unfrozen_delta(
         }
     ]
     existing_tool = {
-        "name": "headroom_retrieve",
+        "name": "horizon_retrieve",
         "description": "Retrieve compressed content",
         "input_schema": {"type": "object", "properties": {}},
     }
@@ -1172,7 +1172,7 @@ def test_cache_mode_existing_retrieve_tool_compresses_only_the_unfrozen_delta(
                 ),
             },
         ]
-        assert [tool["name"] for tool in forwarded["tools"]] == ["headroom_retrieve"]
+        assert [tool["name"] for tool in forwarded["tools"]] == ["horizon_retrieve"]
 
 
 def test_non_token_non_cache_mode_preserves_original_messages_when_result_is_unchanged(
@@ -1181,13 +1181,13 @@ def test_non_token_non_cache_mode_preserves_original_messages_when_result_is_unc
     captured: dict[str, object] = {}
     original_messages = [{"role": "user", "content": _RAW_TRANSCRIPT}]
     existing_tool = {
-        "name": "headroom_retrieve",
+        "name": "horizon_retrieve",
         "description": "Retrieve compressed content",
         "input_schema": {"type": "object", "properties": {}},
     }
     _force_compression(monkeypatch)
-    monkeypatch.setattr("headroom.proxy.modes.is_token_mode", lambda mode: False)
-    monkeypatch.setattr("headroom.proxy.modes.is_cache_mode", lambda mode: False)
+    monkeypatch.setattr("horizon.proxy.modes.is_token_mode", lambda mode: False)
+    monkeypatch.setattr("horizon.proxy.modes.is_cache_mode", lambda mode: False)
 
     with _make_proxy_client() as client:
         proxy = client.app.state.proxy
@@ -1250,20 +1250,20 @@ def test_non_token_non_cache_mode_preserves_original_messages_when_result_is_unc
         assert len(captured.get("compression_calls", [])) == 1
         forwarded = captured["body"]
         assert forwarded["messages"] == original_messages
-        assert [tool["name"] for tool in forwarded["tools"]] == ["headroom_retrieve"]
+        assert [tool["name"] for tool in forwarded["tools"]] == ["horizon_retrieve"]
 
 
 def test_non_token_non_cache_mode_recovers_from_compression_errors(monkeypatch) -> None:
     captured: dict[str, object] = {}
     original_messages = [{"role": "user", "content": _RAW_TRANSCRIPT}]
     existing_tool = {
-        "name": "headroom_retrieve",
+        "name": "horizon_retrieve",
         "description": "Retrieve compressed content",
         "input_schema": {"type": "object", "properties": {}},
     }
     _force_compression(monkeypatch)
-    monkeypatch.setattr("headroom.proxy.modes.is_token_mode", lambda mode: False)
-    monkeypatch.setattr("headroom.proxy.modes.is_cache_mode", lambda mode: False)
+    monkeypatch.setattr("horizon.proxy.modes.is_token_mode", lambda mode: False)
+    monkeypatch.setattr("horizon.proxy.modes.is_cache_mode", lambda mode: False)
 
     with _make_proxy_client() as client:
         proxy = client.app.state.proxy
@@ -1315,14 +1315,14 @@ def test_non_token_non_cache_mode_recovers_from_compression_errors(monkeypatch) 
         assert response.status_code == 200
         forwarded = captured["body"]
         assert forwarded["messages"] == original_messages
-        assert [tool["name"] for tool in forwarded["tools"]] == ["headroom_retrieve"]
+        assert [tool["name"] for tool in forwarded["tools"]] == ["horizon_retrieve"]
 
 
 def test_cache_mode_without_stable_delta_keeps_original_messages(monkeypatch) -> None:
     captured: dict[str, object] = {}
     original_messages = [{"role": "user", "content": _RAW_TRANSCRIPT}]
     existing_tool = {
-        "name": "headroom_retrieve",
+        "name": "horizon_retrieve",
         "description": "Retrieve compressed content",
         "input_schema": {"type": "object", "properties": {}},
     }
@@ -1405,4 +1405,4 @@ def test_cache_mode_without_stable_delta_keeps_original_messages(monkeypatch) ->
         assert captured.get("compression_calls", []) == []
         forwarded = captured["body"]
         assert forwarded["messages"] == original_messages
-        assert [tool["name"] for tool in forwarded["tools"]] == ["headroom_retrieve"]
+        assert [tool["name"] for tool in forwarded["tools"]] == ["horizon_retrieve"]

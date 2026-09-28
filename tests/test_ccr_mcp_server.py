@@ -6,15 +6,15 @@ import json
 
 import pytest
 
-from headroom.cache import compression_store as compression_store_module
-from headroom.cache.compression_store import (
+from horizon.cache import compression_store as compression_store_module
+from horizon.cache.compression_store import (
     get_compression_store,
     reset_compression_store,
 )
-from headroom.tokenizers.estimator import EstimatingTokenCounter
+from horizon.tokenizers.estimator import EstimatingTokenCounter
 from tests._mcp_stub import import_module_with_mcp_stub
 
-mcp_server = import_module_with_mcp_stub("headroom.ccr.mcp_server")
+mcp_server = import_module_with_mcp_stub("horizon.ccr.mcp_server")
 
 
 def test_shared_stats_work_without_fcntl(monkeypatch, tmp_path) -> None:
@@ -52,7 +52,7 @@ def fresh_store():
 
 def test_mcp_uses_shared_singleton_store(fresh_store) -> None:
     """MCP's store is the global singleton, not a private instance."""
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
     assert server._get_local_store() is get_compression_store()
 
 
@@ -63,7 +63,7 @@ def test_mcp_retrieves_proxy_stored_content(fresh_store) -> None:
     original = '{"some": "original proxy-compressed content"}'
     hash_key = get_compression_store().store(original, '{"compressed": true}')
 
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
     result = asyncio.run(server._retrieve_content(hash_key))
 
     assert result.get("source") == "local"
@@ -75,7 +75,7 @@ def test_compress_savings_percent_tracks_token_counts(fresh_store) -> None:
     token counts — never the retained percentage. Regression for the inversion
     where ``(1 - compression_ratio)`` reported a no-op (0% saved) as 100%."""
     pytest.importorskip("mcp", reason="MCP SDK required")
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
 
     # Repetitive JSON array — the shape the engine actually compresses.
     content = json.dumps([{"id": i, "status": "ok", "kind": "run"} for i in range(40)])
@@ -108,13 +108,13 @@ def _compact_json(tmp_path):
 
 
 def test_read_tool_prices_files_in_tokens_not_words(fresh_store, tmp_path) -> None:
-    """``headroom_read`` caches a token estimate and stores it as the entry's
+    """``horizon_read`` caches a token estimate and stores it as the entry's
     ``original_tokens``. It used to be ``len(content.split())`` — a word count
     in a token field, which is 1 for a single-line JSON document that is
     thousands of tokens long."""
     path = _compact_json(tmp_path)
     content = path.read_text(encoding="utf-8")
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
 
     asyncio.run(server._handle_read({"file_path": str(path), "fresh": True}))
 
@@ -128,7 +128,7 @@ def test_read_tool_cache_note_reports_tokens(fresh_store, tmp_path) -> None:
     to re-read the file, so its ``~N tokens`` figure has to be a token count."""
     path = _compact_json(tmp_path)
     content = path.read_text(encoding="utf-8")
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
 
     asyncio.run(server._handle_read({"file_path": str(path)}))
     response = asyncio.run(server._handle_read({"file_path": str(path)}))
@@ -139,7 +139,7 @@ def test_read_tool_cache_note_reports_tokens(fresh_store, tmp_path) -> None:
 
 
 def test_mcp_compress_surfaces_unreachable_proxy(fresh_store) -> None:
-    server = mcp_server.HeadroomMCPServer(
+    server = mcp_server.HorizonMCPServer(
         proxy_url="http://127.0.0.1:9",
         check_proxy=True,
     )
@@ -153,7 +153,7 @@ def test_mcp_compress_surfaces_unreachable_proxy(fresh_store) -> None:
 
 
 def test_mcp_stats_surfaces_unreachable_proxy() -> None:
-    server = mcp_server.HeadroomMCPServer(
+    server = mcp_server.HorizonMCPServer(
         proxy_url="http://127.0.0.1:9",
         check_proxy=True,
     )
@@ -193,7 +193,7 @@ def test_mcp_proxy_probe_preserves_shared_proxy_client(monkeypatch: pytest.Monke
     shared_client = object()
     monkeypatch.setattr(mcp_server.httpx, "AsyncClient", ProbeClient)
 
-    server = mcp_server.HeadroomMCPServer(
+    server = mcp_server.HorizonMCPServer(
         proxy_url="http://127.0.0.1:8765",
         check_proxy=True,
     )
@@ -211,7 +211,7 @@ def test_mcp_proxy_probe_preserves_shared_proxy_client(monkeypatch: pytest.Monke
 
 
 def test_mcp_local_mode_still_works_without_proxy_checking(fresh_store) -> None:
-    server = mcp_server.HeadroomMCPServer(
+    server = mcp_server.HorizonMCPServer(
         proxy_url="http://127.0.0.1:9",
         check_proxy=False,
     )
@@ -229,7 +229,7 @@ def test_mcp_retrieve_returns_full_content(fresh_store) -> None:
     original = "the the the the the the the the the the\n" * 5
     hash_key = get_compression_store().store(original, "<<small>>")
 
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
     result = asyncio.run(server._retrieve_content(hash_key))
 
     assert "error" not in result
@@ -254,7 +254,7 @@ def test_mcp_retrieve_expired_hash_returns_terminal_guidance(
     hash_key = store.store("expired content", "<<small>>", ttl=1)
     current_time[0] = 1002.0
 
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
     result = asyncio.run(server._retrieve_content(hash_key))
 
     assert result["status"] == "expired"
@@ -296,7 +296,7 @@ def test_mcp_retrieve_hash_expiring_during_lookup_returns_terminal_guidance(
     monkeypatch.setattr(store, "get_entry_status", get_entry_status_then_expire)
     monkeypatch.setattr(store, "retrieve", original_retrieve)
 
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
     result = asyncio.run(server._retrieve_content(hash_key))
 
     assert result["status"] == "expired"
@@ -311,7 +311,7 @@ def test_mcp_retrieve_missing_local_hash_can_still_hit_proxy(
     fresh_store,
 ) -> None:
     monkeypatch.setattr(mcp_server, "HTTPX_AVAILABLE", True)
-    server = mcp_server.HeadroomMCPServer(check_proxy=True)
+    server = mcp_server.HorizonMCPServer(check_proxy=True)
 
     async def retrieve_via_proxy(hash_key: str) -> dict[str, object]:
         return {"hash": hash_key, "original_content": "from proxy"}
@@ -342,7 +342,7 @@ def test_mcp_retrieve_expired_local_hash_can_still_hit_proxy(
     hash_key = store.store("expired local content", "<<small>>", ttl=1)
     current_time[0] = 1002.0
 
-    server = mcp_server.HeadroomMCPServer(check_proxy=True)
+    server = mcp_server.HorizonMCPServer(check_proxy=True)
 
     async def retrieve_via_proxy(proxy_hash_key: str) -> dict[str, object]:
         return {"hash": proxy_hash_key, "original_content": "from proxy"}
@@ -358,7 +358,7 @@ def test_mcp_retrieve_expired_local_hash_can_still_hit_proxy(
 
 def test_mcp_retrieve_missing_hash_still_errors(fresh_store) -> None:
     """A never-stored hash must stay on the generic missing path, not expired guidance."""
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
     result = asyncio.run(server._retrieve_content("nonexistent_hash"))
     assert result.get("status") is None
     assert result["error"] == "Content not found. It may have expired or the hash may be incorrect."
@@ -377,13 +377,13 @@ def test_handle_stats_session_output_is_window_scoped() -> None:
             }
         }
 
-    server = mcp_server.HeadroomMCPServer(check_proxy=True)
+    server = mcp_server.HorizonMCPServer(check_proxy=True)
     server._fetch_full_proxy_stats = fetch_stats
     response = asyncio.run(server._handle_stats())
     text = response[0].kwargs["text"]
 
-    assert "Headroom Window-Scoped Session Summary" in text
-    assert "Headroom Session Summary" not in text
+    assert "Horizon Window-Scoped Session Summary" in text
+    assert "Horizon Session Summary" not in text
 
 
 def test_handle_stats_includes_lifetime_totals_from_persistent_savings() -> None:
@@ -401,7 +401,7 @@ def test_handle_stats_includes_lifetime_totals_from_persistent_savings() -> None
             },
         }
 
-    server = mcp_server.HeadroomMCPServer(check_proxy=True)
+    server = mcp_server.HorizonMCPServer(check_proxy=True)
     server._fetch_full_proxy_stats = fetch_stats
     response = asyncio.run(server._handle_stats())
     text = response[0].kwargs["text"]
@@ -424,12 +424,12 @@ def test_handle_stats_falls_back_gracefully_without_persistent_lifetime() -> Non
             "persistent_savings": {"lifetime": None},
         }
 
-    server = mcp_server.HeadroomMCPServer(check_proxy=True)
+    server = mcp_server.HorizonMCPServer(check_proxy=True)
     server._fetch_full_proxy_stats = fetch_stats
     response = asyncio.run(server._handle_stats())
     text = response[0].kwargs["text"]
 
-    assert "Headroom Window-Scoped Session Summary" in text
+    assert "Horizon Window-Scoped Session Summary" in text
     assert "Lifetime Savings:" not in text
 
 
@@ -446,7 +446,7 @@ def test_handle_stats_shows_zero_lifetime_totals_when_present() -> None:
             "persistent_savings": {"lifetime": {"tokens_saved": 0, "compression_savings_usd": 0.0}},
         }
 
-    server = mcp_server.HeadroomMCPServer(check_proxy=True)
+    server = mcp_server.HorizonMCPServer(check_proxy=True)
     server._fetch_full_proxy_stats = fetch_stats
     response = asyncio.run(server._handle_stats())
     text = response[0].kwargs["text"]
@@ -460,12 +460,12 @@ def test_handle_stats_shows_zero_lifetime_totals_when_present() -> None:
 # When the launching MCP client is SIGKILLed, stdin EOF may never arrive and the
 # SDK's blocking stdin reader wedges server.run() forever, orphaning this process
 # under init/launchd. run_stdio() runs a watchdog that detects the reparent and
-# forces shutdown. Refs headroomlabs-ai/headroom#2185 (secondary), #1761.
+# forces shutdown. Refs your-org/horizon#2185 (secondary), #1761.
 
 
 def test_parent_death_watchdog_fires_when_reparented(monkeypatch) -> None:
     """When ppid changes (client died), the watchdog resolves promptly."""
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
     calls = {"n": 0}
 
     def fake_getppid() -> int:
@@ -482,7 +482,7 @@ def test_parent_death_watchdog_fires_when_reparented(monkeypatch) -> None:
 
 def test_parent_death_watchdog_stays_quiet_with_live_parent(monkeypatch) -> None:
     """A stable ppid must never trip the watchdog."""
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
     monkeypatch.setattr(mcp_server.os, "getppid", lambda: 500)
 
     async def run() -> None:
@@ -495,7 +495,7 @@ def test_parent_death_watchdog_stays_quiet_with_live_parent(monkeypatch) -> None
 def test_run_stdio_reaps_process_on_parent_death(monkeypatch) -> None:
     """On reparent, run_stdio cleans up and calls os._exit(0) even though the
     (stubbed) server.run never returns — the orphan-reaper path."""
-    server = mcp_server.HeadroomMCPServer(check_proxy=False)
+    server = mcp_server.HorizonMCPServer(check_proxy=False)
 
     @contextlib.asynccontextmanager
     async def fake_stdio_server():

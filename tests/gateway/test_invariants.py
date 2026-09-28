@@ -53,7 +53,7 @@ _CAPS = list(itertools.product([False, True], repeat=3))  # can_redrive, can_rel
 @pytest.mark.parametrize("stream", [False, True])
 @pytest.mark.parametrize("can_redrive,can_relay,affinity", _CAPS)
 def test_no_shrink_without_reload(
-    headroom_client, hooks, stream, can_redrive, can_relay, affinity
+    horizon_client, hooks, stream, can_redrive, can_relay, affinity
 ) -> None:
     """Invariant 1: ``search_tools`` present in the provider body  <=>  ``"redrive"``
     in obligations; and without ``redrive`` the tools are exactly the input tools."""
@@ -69,9 +69,9 @@ def test_no_shrink_without_reload(
             "session_affinity": affinity,
         },
     )
-    # A real gateway clears can_redrive for streamed turns; headroom itself sees
-    # only the flag, so the property is stated on the flag headroom received.
-    data = compress(headroom_client, sent).json()
+    # A real gateway clears can_redrive for streamed turns; horizon itself sees
+    # only the flag, so the property is stated on the flag horizon received.
+    data = compress(horizon_client, sent).json()
     names = tool_names(data["body"]["tools"])
     shrunk = SEARCH in names
     assert shrunk == ("redrive" in data["obligations"])
@@ -120,7 +120,7 @@ def _three_turns(client, session_id: str, gateway: dict[str, Any]) -> list[dict[
 
 
 @pytest.mark.parametrize("hooks", ["none", "fold", "redrive", "fold+redrive"])
-def test_whole_body_byte_stable_across_three_turns(headroom_client, hooks) -> None:
+def test_whole_body_byte_stable_across_three_turns(horizon_client, hooks) -> None:
     """Invariant 2: every previously returned message, the compacted tools and the
     system prompt come back byte-for-byte on later turns."""
     if "fold" in hooks:
@@ -128,7 +128,7 @@ def test_whole_body_byte_stable_across_three_turns(headroom_client, hooks) -> No
     if "redrive" in hooks:
         redrive_hook_ext.register()
     gateway = {"can_redrive": "redrive" in hooks, "can_relay_response": False}
-    t1, t2, t3 = _three_turns(headroom_client, f"stable-{hooks}", gateway)
+    t1, t2, t3 = _three_turns(horizon_client, f"stable-{hooks}", gateway)
     # Something was actually compressed, otherwise stability is vacuous.
     assert t1["body"]["messages"][2]["content"] != big_tool_history()[2]["content"]
     for prev, nxt in ((t1, t2), (t2, t3)):
@@ -146,14 +146,14 @@ def test_whole_body_byte_stable_across_three_turns(headroom_client, hooks) -> No
         assert tool_names(t1["body"]["tools"]) == ["get_items", SEARCH]
 
 
-def test_tool_compaction_bytes_stable_across_sessions(headroom_client) -> None:
+def test_tool_compaction_bytes_stable_across_sessions(horizon_client) -> None:
     """Invariant 2 (cross-session): the compaction cache is keyed by tool bytes, so
     two sessions sending the same tools get the same bytes (shared provider cache)."""
     a = compress(
-        headroom_client, _body(tools=openai_tools(), config={"session_id": "tc-a"}, gateway={})
+        horizon_client, _body(tools=openai_tools(), config={"session_id": "tc-a"}, gateway={})
     ).json()
     b = compress(
-        headroom_client, _body(tools=openai_tools(), config={"session_id": "tc-b"}, gateway={})
+        horizon_client, _body(tools=openai_tools(), config={"session_id": "tc-b"}, gateway={})
     ).json()
     assert canonical(a["body"]["tools"]) == canonical(b["body"]["tools"])
 
@@ -164,10 +164,10 @@ def test_tool_compaction_bytes_stable_across_sessions(headroom_client) -> None:
 
 
 def test_fail_open_stateless_timeout_forwards_original_body(
-    headroom_client, fake_provider, make_gateway, monkeypatch
+    horizon_client, fake_provider, make_gateway, monkeypatch
 ) -> None:
     """Invariant 3: stateless timeout -> 200 + originals; the gateway forwards them."""
-    proxy = headroom_client.app.state.proxy
+    proxy = horizon_client.app.state.proxy
     monkeypatch.setattr(proxy, "_run_compression_in_executor", AsyncMock(side_effect=TimeoutError))
     fake_provider.script([openai_text_response("still answered")])
     body = _body(tools=openai_tools(), temperature=0.5)
@@ -181,17 +181,17 @@ def test_fail_open_stateless_timeout_forwards_original_body(
     assert sent["temperature"] == 0.5
     assert result.final_response["choices"][0]["message"]["content"] == "still answered"
     # The plugin relays whenever a turn_id came back (it does not read
-    # obligations for that decision); nothing was registered, so headroom
+    # obligations for that decision); nothing was registered, so horizon
     # answers 404 and the plugin's fire-and-forget relay drops it silently.
     assert all(x.status == 404 for x in result.response_half_calls)
 
 
 def test_fail_open_session_timeout_is_503_and_gateway_forwards_original(
-    headroom_client, fake_provider, make_gateway, monkeypatch
+    horizon_client, fake_provider, make_gateway, monkeypatch
 ) -> None:
     """Invariant 3: session mode cannot fail open with originals (replay desync),
-    so headroom answers 503 and the GATEWAY fails open."""
-    proxy = headroom_client.app.state.proxy
+    so horizon answers 503 and the GATEWAY fails open."""
+    proxy = horizon_client.app.state.proxy
     monkeypatch.setattr(proxy, "_run_compression_in_executor", AsyncMock(side_effect=TimeoutError))
     fake_provider.script([openai_text_response("still answered")])
     body = _body(tools=openai_tools())
@@ -204,10 +204,10 @@ def test_fail_open_session_timeout_is_503_and_gateway_forwards_original(
 
 
 def test_fail_open_pipeline_exception(
-    headroom_client, fake_provider, make_gateway, monkeypatch
+    horizon_client, fake_provider, make_gateway, monkeypatch
 ) -> None:
     """Invariant 3: a hard pipeline error is a 503 the gateway absorbs."""
-    proxy = headroom_client.app.state.proxy
+    proxy = horizon_client.app.state.proxy
     monkeypatch.setattr(
         proxy, "_run_compression_in_executor", AsyncMock(side_effect=RuntimeError("boom"))
     )
@@ -218,27 +218,27 @@ def test_fail_open_pipeline_exception(
     assert len(fake_provider.calls) == 1
 
 
-def test_fail_open_headroom_unreachable(fake_provider, provider_client) -> None:
-    """Invariant 3: headroom down -> the client still gets the provider's answer."""
+def test_fail_open_horizon_unreachable(fake_provider, provider_client) -> None:
+    """Invariant 3: horizon down -> the client still gets the provider's answer."""
     from tests.gateway.fake_gateway import FakeGateway
 
     class _Down:
         def post(self, *a: Any, **k: Any) -> Any:
             raise ConnectionError("connection refused")
 
-    fake_provider.script([openai_text_response("answered without headroom")])
+    fake_provider.script([openai_text_response("answered without horizon")])
     result = FakeGateway(_Down(), provider_client, can_redrive=True, can_relay_response=True).turn(
         _body(), "down"
     )
     assert result.path == "fail_open"
     assert result.compress_status is None
-    assert result.final_response["choices"][0]["message"]["content"] == "answered without headroom"
+    assert result.final_response["choices"][0]["message"]["content"] == "answered without horizon"
 
 
-def test_hook_exception_never_breaks_the_turn(headroom_client, fake_provider, make_gateway) -> None:
+def test_hook_exception_never_breaks_the_turn(horizon_client, fake_provider, make_gateway) -> None:
     """Invariant 3 (hooks): a hook that raises in ``on_request`` or ``on_response``
     is skipped; the turn completes and the client gets the provider's answer."""
-    from headroom.proxy.turn_hooks import register_turn_hook
+    from horizon.proxy.turn_hooks import register_turn_hook
 
     class _Broken:
         name = "broken"
@@ -262,7 +262,7 @@ def test_hook_exception_never_breaks_the_turn(headroom_client, fake_provider, ma
         assert result.done is not None and result.done["response"] is None
         from tests.gateway.conftest import registry_of
 
-        assert registry_of(headroom_client).get(result.turn_id) is None
+        assert registry_of(horizon_client).get(result.turn_id) is None
 
 
 # --------------------------------------------------------------------------- #
@@ -270,7 +270,7 @@ def test_hook_exception_never_breaks_the_turn(headroom_client, fake_provider, ma
 # --------------------------------------------------------------------------- #
 
 
-def test_cross_session_isolation(headroom_client) -> None:
+def test_cross_session_isolation(horizon_client) -> None:
     """Invariant 4: two sessions with identical content keep separate replay state
     and separate pending turns."""
     from tests.gateway.conftest import registry_of
@@ -278,16 +278,16 @@ def test_cross_session_isolation(headroom_client) -> None:
     history = big_tool_history()
     gw = {"can_relay_response": True}
     a1 = compress(
-        headroom_client, _body(history, config={"session_id": "iso-a"}, gateway=gw)
+        horizon_client, _body(history, config={"session_id": "iso-a"}, gateway=gw)
     ).json()
     b1 = compress(
-        headroom_client, _body(history, config={"session_id": "iso-b"}, gateway=gw)
+        horizon_client, _body(history, config={"session_id": "iso-b"}, gateway=gw)
     ).json()
     assert a1["turn_id"] != b1["turn_id"]
-    registry = registry_of(headroom_client)
+    registry = registry_of(horizon_client)
     assert registry.get(a1["turn_id"]) is not None and registry.get(b1["turn_id"]) is not None
     # Completing A's turn leaves B pending and untouched.
-    done_a = headroom_client.post(
+    done_a = horizon_client.post(
         "/v1/compress/response",
         json={"turn_id": a1["turn_id"], "usage": openai_usage(500, 5, 400)},
     )
@@ -295,7 +295,7 @@ def test_cross_session_isolation(headroom_client) -> None:
     assert registry.get(a1["turn_id"]) is None
     assert registry.get(b1["turn_id"]) is not None
     a2 = compress(
-        headroom_client,
+        horizon_client,
         _body(
             history + [{"role": "user", "content": "a next"}],
             config={"session_id": "iso-a"},
@@ -303,7 +303,7 @@ def test_cross_session_isolation(headroom_client) -> None:
         ),
     ).json()
     b2 = compress(
-        headroom_client,
+        horizon_client,
         _body(
             history + [{"role": "user", "content": "b next"}],
             config={"session_id": "iso-b"},
@@ -315,22 +315,22 @@ def test_cross_session_isolation(headroom_client) -> None:
     assert a2["body"]["messages"][-1]["content"] == "a next"
     assert b2["body"]["messages"][-1]["content"] == "b next"
     # B's tracker never saw A's usage.
-    store = headroom_client.app.state.proxy.session_tracker_store
+    store = horizon_client.app.state.proxy.session_tracker_store
     assert (
         store.peek("compress\x00iso-b").get_frozen_message_count()
         <= store.peek("compress\x00iso-a").get_frozen_message_count()
     )
 
 
-def test_cross_turn_isolation_same_session(headroom_client) -> None:
+def test_cross_turn_isolation_same_session(horizon_client) -> None:
     """Invariant 4: two pending turns of ONE session are distinct; completing the
     older one does not complete the newer one."""
     from tests.gateway.conftest import registry_of
 
     gw = {"can_relay_response": True}
-    t1 = compress(headroom_client, _body(config={"session_id": "iso-turns"}, gateway=gw)).json()
+    t1 = compress(horizon_client, _body(config={"session_id": "iso-turns"}, gateway=gw)).json()
     t2 = compress(
-        headroom_client,
+        horizon_client,
         _body(
             big_tool_history() + [{"role": "user", "content": "2"}],
             config={"session_id": "iso-turns"},
@@ -338,15 +338,15 @@ def test_cross_turn_isolation_same_session(headroom_client) -> None:
         ),
     ).json()
     assert t1["turn_id"] != t2["turn_id"]
-    registry = registry_of(headroom_client)
+    registry = registry_of(horizon_client)
     assert (
-        headroom_client.post("/v1/compress/response", json={"turn_id": t1["turn_id"]}).status_code
+        horizon_client.post("/v1/compress/response", json={"turn_id": t1["turn_id"]}).status_code
         == 200
     )
     assert registry.get(t1["turn_id"]) is None
     assert registry.get(t2["turn_id"]) is not None
     assert (
-        headroom_client.post("/v1/compress/response", json={"turn_id": t2["turn_id"]}).status_code
+        horizon_client.post("/v1/compress/response", json={"turn_id": t2["turn_id"]}).status_code
         == 200
     )
     assert registry.get(t2["turn_id"]) is None
@@ -357,7 +357,7 @@ def test_cross_turn_isolation_same_session(headroom_client) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_twenty_sessions_three_turns_concurrently(headroom_client) -> None:
+def test_twenty_sessions_three_turns_concurrently(horizon_client) -> None:
     """Invariant 5: distinct sessions in parallel are all 200 and each one's prefix
     is byte-stable; no pending turn leaks."""
     from tests.gateway.conftest import registry_of
@@ -373,7 +373,7 @@ def test_twenty_sessions_three_turns_concurrently(headroom_client) -> None:
             msgs = list(history)
             for turn in range(3):
                 resp = compress(
-                    headroom_client,
+                    horizon_client,
                     _body(msgs, tools=openai_tools(), config={"session_id": sid}, gateway=gw),
                 )
                 if resp.status_code != 200:
@@ -384,7 +384,7 @@ def test_twenty_sessions_three_turns_concurrently(headroom_client) -> None:
                 if prev is not None and canonical(got[: len(prev)]) != canonical(prev):
                     errors.append(f"{sid} turn {turn}: prefix drifted")
                 prev = got
-                done = headroom_client.post(
+                done = horizon_client.post(
                     "/v1/compress/response",
                     json={
                         "turn_id": data["turn_id"],
@@ -405,10 +405,10 @@ def test_twenty_sessions_three_turns_concurrently(headroom_client) -> None:
     with ThreadPoolExecutor(max_workers=20) as pool:
         list(pool.map(_session, range(20)))
     assert errors == []
-    assert len(registry_of(headroom_client)) == 0
+    assert len(registry_of(horizon_client)) == 0
 
 
-def test_same_session_parallel_turns_only_503_on_lock_busy(headroom_client) -> None:
+def test_same_session_parallel_turns_only_503_on_lock_busy(horizon_client) -> None:
     """Invariant 5: deliberate same-session parallelism may yield the lock-busy 503
     (``compression_timeout``) and nothing else above 4xx."""
     history = big_tool_history(400)
@@ -418,7 +418,7 @@ def test_same_session_parallel_turns_only_503_on_lock_busy(headroom_client) -> N
 
     def _turn(i: int) -> None:
         resp = compress(
-            headroom_client,
+            horizon_client,
             _body(
                 history + [{"role": "user", "content": f"p{i}"}],
                 config={"session_id": "conc-same"},
@@ -520,7 +520,7 @@ _VALID_USAGES: list[tuple[str, dict[str, Any], tuple[Any, Any, Any, Any], bool]]
 def test_normalize_usage_valid_shapes(case) -> None:
     """Invariant 6: valid shapes never raise, fields map as specified, and a cache
     signal is reported only when a cache field is present."""
-    from headroom.proxy.gateway_turn import normalize_usage
+    from horizon.proxy.gateway_turn import normalize_usage
 
     _, usage, expected, has_signal = case
     n = normalize_usage(usage)
@@ -543,7 +543,7 @@ def test_normalize_usage_valid_shapes(case) -> None:
 )
 def test_normalize_usage_rejects_bools_and_negatives(usage) -> None:
     """Invariant 6: bools and negatives are a ValueError (the handler maps to 400)."""
-    from headroom.proxy.gateway_turn import normalize_usage
+    from horizon.proxy.gateway_turn import normalize_usage
 
     with pytest.raises(ValueError):
         normalize_usage(usage)
@@ -554,7 +554,7 @@ def test_normalize_usage_rejects_non_integers(value) -> None:
     """Invariant 6: a counter that is not an integer (a string, a float, a nested
     object) is a ValueError - the same strictness ``/v1/usage`` applies - so a
     malformed relay is a visible 400 rather than a silently dropped signal."""
-    from headroom.proxy.gateway_turn import normalize_usage
+    from horizon.proxy.gateway_turn import normalize_usage
 
     with pytest.raises(ValueError):
         normalize_usage({"prompt_tokens": value})
@@ -562,7 +562,7 @@ def test_normalize_usage_rejects_non_integers(value) -> None:
 
 def test_normalize_usage_null_field_is_absent() -> None:
     """Invariant 6: JSON ``null`` means the provider omitted the counter."""
-    from headroom.proxy.gateway_turn import normalize_usage
+    from horizon.proxy.gateway_turn import normalize_usage
 
     n = normalize_usage({"prompt_tokens": None, "cached_tokens": None})
     assert n.input_tokens is None

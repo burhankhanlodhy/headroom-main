@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli.main import main
-from headroom.config import HeadroomConfig
-from headroom.rollout import (
+from horizon.cli.main import main
+from horizon.config import HorizonConfig
+from horizon.rollout import (
     FEATURES,
     FeatureDecisionReason,
     FeatureSpec,
@@ -21,7 +21,7 @@ from headroom.rollout import (
     registry_digest,
     resolve_rollout,
 )
-from headroom.transforms.pipeline import TransformPipeline
+from horizon.transforms.pipeline import TransformPipeline
 
 
 def test_default_stable_resolution_is_versioned_and_eligible() -> None:
@@ -35,7 +35,7 @@ def test_default_stable_resolution_is_versioned_and_eligible() -> None:
 
 @pytest.mark.parametrize("channel", ["beta", "canary", "dev"])
 def test_valid_rollout_channels(channel: str) -> None:
-    assert resolve_rollout({"HEADROOM_ROLLOUT_CHANNEL": channel}).channel.value == channel
+    assert resolve_rollout({"HORIZON_ROLLOUT_CHANNEL": channel}).channel.value == channel
 
 
 @pytest.mark.parametrize(
@@ -54,12 +54,12 @@ def test_channel_aliases(alias: str, expected: RolloutChannel) -> None:
 
 def test_strict_channel_configuration_rejects_unknown_input() -> None:
     with pytest.raises(RolloutConfigurationError, match="unknown rollout channel"):
-        resolve_rollout({"HEADROOM_ROLLOUT_CHANNEL": "stabel"}, strict=True)
+        resolve_rollout({"HORIZON_ROLLOUT_CHANNEL": "stabel"}, strict=True)
 
 
 def test_unknown_channel_fails_closed_with_diagnostic(caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.WARNING):
-        snapshot = resolve_rollout({"HEADROOM_ROLLOUT_CHANNEL": "stabel"})
+        snapshot = resolve_rollout({"HORIZON_ROLLOUT_CHANNEL": "stabel"})
 
     assert snapshot.channel is RolloutChannel.STABLE
     assert "unknown rollout channel 'stabel'; falling back to 'stable'" in caplog.text
@@ -71,8 +71,8 @@ def test_unknown_requested_and_disabled_features_fail_closed_and_warn(
     with caplog.at_level(logging.WARNING):
         snapshot = resolve_rollout(
             {
-                "HEADROOM_FEATURES": "typo_requested",
-                "HEADROOM_DISABLE_FEATURES": "typo_disabled",
+                "HORIZON_FEATURES": "typo_requested",
+                "HORIZON_DISABLE_FEATURES": "typo_disabled",
             }
         )
 
@@ -84,14 +84,14 @@ def test_unknown_requested_and_disabled_features_fail_closed_and_warn(
 
 def test_strict_configuration_rejects_unknown_input() -> None:
     with pytest.raises(RolloutConfigurationError, match="unknown rollout feature"):
-        resolve_rollout({"HEADROOM_FEATURES": "typo"}, strict=True)
+        resolve_rollout({"HORIZON_FEATURES": "typo"}, strict=True)
 
 
 def test_stable_blocks_explicit_canary_feature() -> None:
     snapshot = resolve_rollout(
         {
-            "HEADROOM_ROLLOUT_CHANNEL": "stable",
-            "HEADROOM_FEATURES": "tool-result-interceptors",
+            "HORIZON_ROLLOUT_CHANNEL": "stable",
+            "HORIZON_FEATURES": "tool-result-interceptors",
         }
     )
     decision = snapshot.decision("tool_result_interceptors")
@@ -103,8 +103,8 @@ def test_stable_blocks_explicit_canary_feature() -> None:
 def test_canary_allows_explicit_request() -> None:
     snapshot = resolve_rollout(
         {
-            "HEADROOM_ROLLOUT_CHANNEL": "canary",
-            "HEADROOM_FEATURES": "tool_result_interceptors",
+            "HORIZON_ROLLOUT_CHANNEL": "canary",
+            "HORIZON_FEATURES": "tool_result_interceptors",
         }
     )
 
@@ -112,7 +112,7 @@ def test_canary_allows_explicit_request() -> None:
 
 
 def test_non_default_feature_remains_off_when_not_requested() -> None:
-    decision = resolve_rollout({"HEADROOM_ROLLOUT_CHANNEL": "dev"}).decision(
+    decision = resolve_rollout({"HORIZON_ROLLOUT_CHANNEL": "dev"}).decision(
         "tool_result_interceptors"
     )
     assert decision.enabled is False
@@ -121,10 +121,10 @@ def test_non_default_feature_remains_off_when_not_requested() -> None:
 
 def test_legacy_alias_obeys_channel_and_has_distinct_reason() -> None:
     stable = resolve_rollout(
-        {"HEADROOM_ROLLOUT_CHANNEL": "stable", "HEADROOM_INTERCEPT_ENABLED": "1"}
+        {"HORIZON_ROLLOUT_CHANNEL": "stable", "HORIZON_INTERCEPT_ENABLED": "1"}
     )
     canary = resolve_rollout(
-        {"HEADROOM_ROLLOUT_CHANNEL": "canary", "HEADROOM_INTERCEPT_ENABLED": "1"}
+        {"HORIZON_ROLLOUT_CHANNEL": "canary", "HORIZON_INTERCEPT_ENABLED": "1"}
     )
 
     assert (
@@ -134,15 +134,15 @@ def test_legacy_alias_obeys_channel_and_has_distinct_reason() -> None:
     assert canary.decision("tool_result_interceptors").reason is FeatureDecisionReason.LEGACY_ALIAS
 
 
-@pytest.mark.parametrize("request_source", ["HEADROOM_FEATURES", "HEADROOM_INTERCEPT_ENABLED"])
+@pytest.mark.parametrize("request_source", ["HORIZON_FEATURES", "HORIZON_INTERCEPT_ENABLED"])
 def test_disable_beats_explicit_and_legacy_request(request_source: str) -> None:
     snapshot = resolve_rollout(
         {
-            "HEADROOM_ROLLOUT_CHANNEL": "canary",
+            "HORIZON_ROLLOUT_CHANNEL": "canary",
             request_source: "tool_result_interceptors"
             if request_source.endswith("FEATURES")
             else "1",
-            "HEADROOM_DISABLE_FEATURES": "tool_result_interceptors",
+            "HORIZON_DISABLE_FEATURES": "tool_result_interceptors",
         }
     )
     decision = snapshot.decision("tool_result_interceptors")
@@ -154,9 +154,9 @@ def test_disable_beats_explicit_and_legacy_request(request_source: str) -> None:
 def test_unsafe_override_crosses_channel_and_poisons_qualification() -> None:
     snapshot = resolve_rollout(
         {
-            "HEADROOM_ROLLOUT_CHANNEL": "stable",
-            "HEADROOM_FEATURES": "tool_result_interceptors",
-            "HEADROOM_UNSAFE_ALLOW_UNSTABLE_FEATURES": "1",
+            "HORIZON_ROLLOUT_CHANNEL": "stable",
+            "HORIZON_FEATURES": "tool_result_interceptors",
+            "HORIZON_UNSAFE_ALLOW_UNSTABLE_FEATURES": "1",
         }
     )
     payload = snapshot.to_dict()
@@ -172,28 +172,28 @@ def test_unsafe_override_crosses_channel_and_poisons_qualification() -> None:
 def test_disable_still_beats_unsafe_override() -> None:
     snapshot = resolve_rollout(
         {
-            "HEADROOM_FEATURES": "tool_result_interceptors",
-            "HEADROOM_DISABLE_FEATURES": "tool_result_interceptors",
-            "HEADROOM_UNSAFE_ALLOW_UNSTABLE_FEATURES": "1",
+            "HORIZON_FEATURES": "tool_result_interceptors",
+            "HORIZON_DISABLE_FEATURES": "tool_result_interceptors",
+            "HORIZON_UNSAFE_ALLOW_UNSTABLE_FEATURES": "1",
         }
     )
     assert snapshot.decision("tool_result_interceptors").reason is FeatureDecisionReason.DISABLED
 
 
 def test_live_legacy_reresolution_preserves_channel_and_named_kill_switch() -> None:
-    eligible = resolve_rollout({"HEADROOM_ROLLOUT_CHANNEL": "beta"})
-    enabled = eligible.with_legacy_env({"HEADROOM_OUTPUT_SHAPER": "1"})
-    disabled_again = enabled.with_legacy_env({"HEADROOM_OUTPUT_SHAPER": "0"})
+    eligible = resolve_rollout({"HORIZON_ROLLOUT_CHANNEL": "beta"})
+    enabled = eligible.with_legacy_env({"HORIZON_OUTPUT_SHAPER": "1"})
+    disabled_again = enabled.with_legacy_env({"HORIZON_OUTPUT_SHAPER": "0"})
     killed = resolve_rollout(
         {
-            "HEADROOM_ROLLOUT_CHANNEL": "beta",
-            "HEADROOM_DISABLE_FEATURES": "proxy_output_shaper",
+            "HORIZON_ROLLOUT_CHANNEL": "beta",
+            "HORIZON_DISABLE_FEATURES": "proxy_output_shaper",
         }
-    ).with_legacy_env({"HEADROOM_OUTPUT_SHAPER": "1"})
+    ).with_legacy_env({"HORIZON_OUTPUT_SHAPER": "1"})
     # ``proxy_output_shaper`` is STABLE and default-on, so it can no longer
     # show a legacy alias being refused by the channel gate. ``read_maturation``
     # is still BETA, so it carries that half of the assertion.
-    blocked = resolve_rollout({}).with_legacy_env({"HEADROOM_READ_MATURATION": "1"})
+    blocked = resolve_rollout({}).with_legacy_env({"HORIZON_READ_MATURATION": "1"})
 
     assert enabled.decision("proxy_output_shaper").reason is FeatureDecisionReason.LEGACY_ALIAS
     assert disabled_again.decision("proxy_output_shaper").reason is FeatureDecisionReason.DISABLED
@@ -210,8 +210,8 @@ def test_empty_programmatic_feature_names_are_ignored() -> None:
 
 
 def test_multi_worker_config_round_trip_preserves_typed_rollout(monkeypatch) -> None:
-    from headroom.proxy.models import ProxyConfig
-    from headroom.proxy.server import (
+    from horizon.proxy.models import ProxyConfig
+    from horizon.proxy.server import (
         _MULTI_WORKER_CONFIG_ENV,
         _proxy_config_from_env,
         _proxy_config_payload,
@@ -219,9 +219,9 @@ def test_multi_worker_config_round_trip_preserves_typed_rollout(monkeypatch) -> 
 
     rollout = resolve_rollout(
         {
-            "HEADROOM_ROLLOUT_CHANNEL": "beta",
-            "HEADROOM_OUTPUT_SHAPER": "1",
-            "HEADROOM_DISABLE_FEATURES": "read_maturation",
+            "HORIZON_ROLLOUT_CHANNEL": "beta",
+            "HORIZON_OUTPUT_SHAPER": "1",
+            "HORIZON_DISABLE_FEATURES": "read_maturation",
         }
     )
     original = ProxyConfig(rollout=rollout, worker_processes=2)
@@ -237,7 +237,7 @@ def test_multi_worker_config_round_trip_preserves_typed_rollout(monkeypatch) -> 
 
 
 def test_documented_proxy_json_without_internal_snapshot_is_preserved(monkeypatch) -> None:
-    from headroom.proxy.server import _MULTI_WORKER_CONFIG_ENV, _proxy_config_from_env
+    from horizon.proxy.server import _MULTI_WORKER_CONFIG_ENV, _proxy_config_from_env
 
     monkeypatch.setenv(
         _MULTI_WORKER_CONFIG_ENV,
@@ -261,8 +261,8 @@ def test_documented_proxy_json_without_internal_snapshot_is_preserved(monkeypatc
 
 
 def test_internal_proxy_json_still_rejects_tampered_rollout_snapshot(monkeypatch) -> None:
-    from headroom.proxy.models import ProxyConfig
-    from headroom.proxy.server import (
+    from horizon.proxy.models import ProxyConfig
+    from horizon.proxy.server import (
         _MULTI_WORKER_CONFIG_ENV,
         _proxy_config_from_env,
         _proxy_config_payload,
@@ -271,7 +271,7 @@ def test_internal_proxy_json_still_rejects_tampered_rollout_snapshot(monkeypatch
     payload = _proxy_config_payload(ProxyConfig(port=39099))
     payload["_rollout_snapshot"]["snapshot_digest"] = "sha256:tampered"  # type: ignore[index]
     monkeypatch.setenv(_MULTI_WORKER_CONFIG_ENV, json.dumps(payload))
-    monkeypatch.setenv("HEADROOM_PORT", "39100")
+    monkeypatch.setenv("HORIZON_PORT", "39100")
 
     restored = _proxy_config_from_env()
 
@@ -281,10 +281,10 @@ def test_internal_proxy_json_still_rejects_tampered_rollout_snapshot(monkeypatch
 
 @pytest.mark.parametrize("raw_config", ["null", "[]", '"not-an-object"'])
 def test_non_object_proxy_json_falls_back_without_crashing(monkeypatch, raw_config: str) -> None:
-    from headroom.proxy.server import _MULTI_WORKER_CONFIG_ENV, _proxy_config_from_env
+    from horizon.proxy.server import _MULTI_WORKER_CONFIG_ENV, _proxy_config_from_env
 
     monkeypatch.setenv(_MULTI_WORKER_CONFIG_ENV, raw_config)
-    monkeypatch.setenv("HEADROOM_PORT", "39100")
+    monkeypatch.setenv("HORIZON_PORT", "39100")
 
     restored = _proxy_config_from_env()
 
@@ -321,9 +321,9 @@ def test_worker_rollout_handoff_rejects_non_object_state() -> None:
 def test_snapshot_query_and_compatibility_helpers() -> None:
     snapshot = current_rollout(
         {
-            "HEADROOM_ROLLOUT_CHANNEL": "canary",
-            "HEADROOM_FEATURES": "tool_result_interceptors",
-            "HEADROOM_DISABLE_FEATURES": "read_maturation",
+            "HORIZON_ROLLOUT_CHANNEL": "canary",
+            "HORIZON_FEATURES": "tool_result_interceptors",
+            "HORIZON_DISABLE_FEATURES": "read_maturation",
         }
     )
 
@@ -333,7 +333,7 @@ def test_snapshot_query_and_compatibility_helpers() -> None:
     assert feature_enabled(
         "tool_result_interceptors",
         explicit=True,
-        environ={"HEADROOM_ROLLOUT_CHANNEL": "canary"},
+        environ={"HORIZON_ROLLOUT_CHANNEL": "canary"},
     )
     assert not feature_enabled("tool_result_interceptors", environ={})
     with pytest.raises(KeyError, match="missing"):
@@ -341,8 +341,8 @@ def test_snapshot_query_and_compatibility_helpers() -> None:
 
 
 def test_registry_and_snapshot_digests_are_deterministic_and_policy_sensitive() -> None:
-    first = resolve_rollout({"HEADROOM_ROLLOUT_CHANNEL": "canary"})
-    second = resolve_rollout({"HEADROOM_ROLLOUT_CHANNEL": "canary"})
+    first = resolve_rollout({"HORIZON_ROLLOUT_CHANNEL": "canary"})
+    second = resolve_rollout({"HORIZON_ROLLOUT_CHANNEL": "canary"})
     equivalent = dict(reversed(list(FEATURES.items())))
     changed = dict(FEATURES)
     changed["tool_result_interceptors"] = FeatureSpec(
@@ -360,12 +360,12 @@ def test_registry_and_snapshot_digests_are_deterministic_and_policy_sensitive() 
 def test_pipeline_uses_config_snapshot_after_environment_mutation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("HEADROOM_ROLLOUT_CHANNEL", raising=False)
-    monkeypatch.delenv("HEADROOM_FEATURES", raising=False)
-    config = HeadroomConfig()
+    monkeypatch.delenv("HORIZON_ROLLOUT_CHANNEL", raising=False)
+    monkeypatch.delenv("HORIZON_FEATURES", raising=False)
+    config = HorizonConfig()
     original_digest = config.rollout.snapshot_digest if config.rollout else None
-    monkeypatch.setenv("HEADROOM_ROLLOUT_CHANNEL", "canary")
-    monkeypatch.setenv("HEADROOM_FEATURES", "tool_result_interceptors")
+    monkeypatch.setenv("HORIZON_ROLLOUT_CHANNEL", "canary")
+    monkeypatch.setenv("HORIZON_FEATURES", "tool_result_interceptors")
 
     pipeline = TransformPipeline(config)
 
@@ -441,12 +441,12 @@ def test_proxy_cli_fails_loudly_when_explicit_feature_is_channel_blocked(
     result = CliRunner().invoke(
         main,
         ["proxy", option],
-        env={"HEADROOM_ROLLOUT_CHANNEL": "stable"},
+        env={"HORIZON_ROLLOUT_CHANNEL": "stable"},
     )
 
     assert result.exit_code == 1
     assert message in result.output
-    assert f"HEADROOM_ROLLOUT_CHANNEL={required_channel}" in result.output
+    assert f"HORIZON_ROLLOUT_CHANNEL={required_channel}" in result.output
 
 
 def test_shared_python_rust_policy_vectors() -> None:
@@ -454,13 +454,13 @@ def test_shared_python_rust_policy_vectors() -> None:
         (Path(__file__).parent / "fixtures" / "rollout_policy_vectors.json").read_text()
     )
     for vector in vectors:
-        env = {"HEADROOM_ROLLOUT_CHANNEL": vector["channel"]}
+        env = {"HORIZON_ROLLOUT_CHANNEL": vector["channel"]}
         if vector["requested"]:
-            env["HEADROOM_FEATURES"] = "tool_result_interceptors"
+            env["HORIZON_FEATURES"] = "tool_result_interceptors"
         if vector["disabled"]:
-            env["HEADROOM_DISABLE_FEATURES"] = "tool_result_interceptors"
+            env["HORIZON_DISABLE_FEATURES"] = "tool_result_interceptors"
         if vector["unsafe"]:
-            env["HEADROOM_UNSAFE_ALLOW_UNSTABLE_FEATURES"] = "1"
+            env["HORIZON_UNSAFE_ALLOW_UNSTABLE_FEATURES"] = "1"
         decision = resolve_rollout(env).decision("tool_result_interceptors")
         assert decision.enabled is vector["enabled"]
         assert decision.reason.value == vector["decision"]

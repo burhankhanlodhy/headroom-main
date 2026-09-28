@@ -15,7 +15,7 @@ any query whose top-k included one poisoned row. The proxy's memory handler
 swallows the exception and returns no memories, so recall went quietly dark
 rather than failing loudly.
 
-See https://github.com/headroomlabs-ai/headroom/issues/2947.
+See https://github.com/your-org/horizon/issues/2947.
 """
 
 from __future__ import annotations
@@ -27,10 +27,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from headroom.memory.adapters.hnsw import IndexedMemoryMetadata
-from headroom.memory.adapters.sqlite_vector import VectorMetadata
-from headroom.memory.backends.local import LocalBackend
-from headroom.memory.models import Memory, normalize_entity_refs
+from horizon.memory.adapters.hnsw import IndexedMemoryMetadata
+from horizon.memory.adapters.sqlite_vector import VectorMetadata
+from horizon.memory.backends.local import LocalBackend
+from horizon.memory.models import Memory, normalize_entity_refs
 
 # The malformed shape that started all of this: the extracted_entities format
 # passed into a field that expects plain names.

@@ -10,14 +10,14 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 def test_anthropic_request_over_tpm_is_rejected_before_upstream(monkeypatch) -> None:
     # The first request finds a full bucket and is admitted even though it is
     # larger than the whole bucket (otherwise it could never pass); it is
     # charged in full, so the second one is refused before upstream.
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,
@@ -94,7 +94,7 @@ def test_anthropic_request_over_tpm_is_rejected_before_upstream(monkeypatch) -> 
 def test_other_handlers_reject_request_over_tpm_before_upstream(
     monkeypatch, path, headers, body
 ) -> None:
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,

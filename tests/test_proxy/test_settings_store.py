@@ -1,4 +1,4 @@
-"""Tests for the file-backed HEADROOM_* settings store (Phase 1).
+"""Tests for the file-backed HORIZON_* settings store (Phase 1).
 
 Covers: JSON round-trip with coercion, unknown-key drop, fail-open load on a
 corrupt file, atomic save, setdefault precedence (explicit export wins), the
@@ -11,15 +11,15 @@ from dataclasses import replace
 
 import pytest
 
-from headroom import paths, settings_store
+from horizon import paths, settings_store
 
 
 @pytest.fixture
 def workspace(tmp_path, monkeypatch):
     """Point the workspace dir (and thus settings.json) at an isolated tmp dir."""
-    monkeypatch.setenv(paths.HEADROOM_WORKSPACE_DIR_ENV, str(tmp_path))
+    monkeypatch.setenv(paths.HORIZON_WORKSPACE_DIR_ENV, str(tmp_path))
     # Ensure no per-resource override leaks in from the ambient environment.
-    monkeypatch.delenv(settings_store.paths.HEADROOM_SETTINGS_PATH_ENV, raising=False)
+    monkeypatch.delenv(settings_store.paths.HORIZON_SETTINGS_PATH_ENV, raising=False)
     return tmp_path
 
 
@@ -64,33 +64,33 @@ class TestRoundTrip:
 
 class TestValidation:
     def test_validate_accepts_env_aliases(self, workspace):
-        assert settings_store.validate({"HEADROOM_LOSSLESS": True, "HEADROOM_RPM": "30"}) == {
+        assert settings_store.validate({"HORIZON_LOSSLESS": True, "HORIZON_RPM": "30"}) == {
             "lossless": True,
             "rpm": 30,
         }
 
     def test_save_accepts_env_alias_and_persists_short_key(self, workspace):
-        settings_store.save({"HEADROOM_LOSSLESS": True})
+        settings_store.save({"HORIZON_LOSSLESS": True})
 
         assert settings_store.load() == {"lossless": True}
 
     def test_env_alias_clear_removes_short_key(self, workspace):
         settings_store.save({"lossless": True})
 
-        settings_store.save({"HEADROOM_LOSSLESS": None})
+        settings_store.save({"HORIZON_LOSSLESS": None})
 
         assert settings_store.load() == {}
 
     def test_conflicting_env_alias_and_short_key_rejected(self, workspace):
         with pytest.raises(settings_store.SettingsValidationError) as exc:
-            settings_store.validate({"HEADROOM_LOSSLESS": True, "lossless": False})
+            settings_store.validate({"HORIZON_LOSSLESS": True, "lossless": False})
 
         assert exc.value.unknown_keys == []
         assert "lossless" in exc.value.field_errors
-        assert "HEADROOM_LOSSLESS" in exc.value.field_errors["lossless"]
+        assert "HORIZON_LOSSLESS" in exc.value.field_errors["lossless"]
 
     def test_same_env_alias_and_short_key_value_is_accepted(self, workspace):
-        assert settings_store.validate({"HEADROOM_LOSSLESS": True, "lossless": True}) == {
+        assert settings_store.validate({"HORIZON_LOSSLESS": True, "lossless": True}) == {
             "lossless": True
         }
 
@@ -148,19 +148,19 @@ class TestApplyToEnviron:
     def test_setdefault_fills_unset_env(self, workspace, monkeypatch):
         _clear_env(monkeypatch)
         settings_store.apply_to_environ({"port": 9898, "disable_kompress": True})
-        assert os.environ["HEADROOM_PORT"] == "9898"
-        assert os.environ["HEADROOM_DISABLE_KOMPRESS"] == "1"
+        assert os.environ["HORIZON_PORT"] == "9898"
+        assert os.environ["HORIZON_DISABLE_KOMPRESS"] == "1"
 
     def test_explicit_export_wins(self, workspace, monkeypatch):
         _clear_env(monkeypatch)
-        monkeypatch.setenv("HEADROOM_PORT", "7777")
+        monkeypatch.setenv("HORIZON_PORT", "7777")
         settings_store.apply_to_environ({"port": 9898})
-        assert os.environ["HEADROOM_PORT"] == "7777"
+        assert os.environ["HORIZON_PORT"] == "7777"
 
     def test_bool_false_serializes_to_zero(self, workspace, monkeypatch):
         _clear_env(monkeypatch)
         settings_store.apply_to_environ({"code_aware_enabled": False})
-        assert os.environ["HEADROOM_CODE_AWARE_ENABLED"] == "0"
+        assert os.environ["HORIZON_CODE_AWARE_ENABLED"] == "0"
 
 
 class TestEffectiveValues:
@@ -172,7 +172,7 @@ class TestEffectiveValues:
         settings_store.save({"savings_profile": "balanced"})
         assert settings_store.effective_values()["savings_profile"] == "balanced"
         # env overrides file
-        monkeypatch.setenv("HEADROOM_SAVINGS_PROFILE", "general")
+        monkeypatch.setenv("HORIZON_SAVINGS_PROFILE", "general")
         assert settings_store.effective_values()["savings_profile"] == "general"
 
 
@@ -250,7 +250,7 @@ class TestSecretMasking:
     def test_anthropic_extra_headers_invalid_json_raises(self, workspace, monkeypatch):
         """Invalid JSON in anthropic_extra_headers field raises SettingsValidationError."""
         _clear_env(monkeypatch)
-        from headroom.settings_store import SettingsValidationError
+        from horizon.settings_store import SettingsValidationError
 
         with pytest.raises(SettingsValidationError) as exc_info:
             settings_store.save({"anthropic_extra_headers": "not json"})
@@ -259,7 +259,7 @@ class TestSecretMasking:
     def test_anthropic_extra_headers_non_string_values_raises(self, workspace, monkeypatch):
         """Header-map JSON with non-string values raises SettingsValidationError."""
         _clear_env(monkeypatch)
-        from headroom.settings_store import SettingsValidationError
+        from horizon.settings_store import SettingsValidationError
 
         with pytest.raises(SettingsValidationError) as exc_info:
             settings_store.save({"anthropic_extra_headers": '{"header": 123}'})
@@ -268,7 +268,7 @@ class TestSecretMasking:
     def test_anthropic_extra_headers_non_object_raises(self, workspace, monkeypatch):
         """Header-map with non-object JSON raises SettingsValidationError."""
         _clear_env(monkeypatch)
-        from headroom.settings_store import SettingsValidationError
+        from horizon.settings_store import SettingsValidationError
 
         with pytest.raises(SettingsValidationError) as exc_info:
             settings_store.save({"anthropic_extra_headers": '["header", "value"]'})
@@ -309,23 +309,23 @@ class TestRegistryDriftAgainstClick:
 
     Introspects the ``proxy`` Click command's own parameter objects (not a
     regex over the source) so a future contributor who adds a new
-    ``@click.option(..., envvar="HEADROOM_...")`` to cli/proxy.py without
+    ``@click.option(..., envvar="HORIZON_...")`` to cli/proxy.py without
     adding a matching SettingField gets a failing test, not a silent gap.
     """
 
-    def test_every_headroom_click_envvar_is_in_the_registry(self):
-        from headroom.cli.proxy import proxy
+    def test_every_horizon_click_envvar_is_in_the_registry(self):
+        from horizon.cli.proxy import proxy
 
         click_envvars = {
             param.envvar
             for param in proxy.params
             if isinstance(getattr(param, "envvar", None), str)
-            and param.envvar.startswith("HEADROOM_")
+            and param.envvar.startswith("HORIZON_")
         }
         registry_envvars = {field.env for field in settings_store.SETTINGS}
         missing = click_envvars - registry_envvars
         assert not missing, (
-            f"New HEADROOM_* Click option(s) not covered by settings_store.SETTINGS: "
+            f"New HORIZON_* Click option(s) not covered by settings_store.SETTINGS: "
             f"{sorted(missing)}. Add a SettingField for each, or document why it's "
             "deliberately excluded (e.g. a secret)."
         )

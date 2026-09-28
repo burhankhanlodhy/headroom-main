@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.providers.grok.model_metadata import (
+from horizon.providers.grok.model_metadata import (
     is_xai_model_list_target,
     normalize_xai_model_metadata,
 )
-from headroom.providers.grok.runtime import DEFAULT_API_URL
+from horizon.providers.grok.runtime import DEFAULT_API_URL
 
 
 @pytest.mark.parametrize(

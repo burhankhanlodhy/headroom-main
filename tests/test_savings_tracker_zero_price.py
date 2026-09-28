@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import types
 
-from headroom.proxy import savings_tracker as st
-from headroom.proxy.savings_tracker import (
+from horizon.proxy import savings_tracker as st
+from horizon.proxy.savings_tracker import (
     DEFAULT_FALLBACK_INPUT_COST_PER_TOKEN,
     DEFAULT_FALLBACK_OUTPUT_COST_PER_TOKEN,
     _estimate_compression_savings_usd,

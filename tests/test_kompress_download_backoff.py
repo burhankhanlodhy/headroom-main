@@ -13,7 +13,7 @@ import threading
 
 import pytest
 
-from headroom.transforms import kompress_compressor as kc
+from horizon.transforms import kompress_compressor as kc
 
 
 @pytest.fixture(autouse=True)

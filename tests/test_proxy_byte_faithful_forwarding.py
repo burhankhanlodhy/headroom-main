@@ -12,7 +12,7 @@ PR-A3 makes every forwarder byte-faithful:
     (compact separators, ``ensure_ascii=False``).
 
 The legacy behavior is still reachable via
-``HEADROOM_PROXY_PYTHON_FORWARDER_MODE=legacy_json_kwarg`` for emergency
+``HORIZON_PROXY_PYTHON_FORWARDER_MODE=legacy_json_kwarg`` for emergency
 rollback (operator opt-in, not a fallback).
 """
 
@@ -29,8 +29,8 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from headroom.pipeline import PipelineStage
-from headroom.proxy.body_forwarding import (
+from horizon.pipeline import PipelineStage
+from horizon.proxy.body_forwarding import (
     BodyMutationTracker,
     OutboundBody,
     get_python_forwarder_mode,
@@ -40,22 +40,22 @@ from headroom.proxy.body_forwarding import (
     serialize_body_canonical,
     thinking_blocks_survived_mutation,
 )
-from headroom.proxy.helpers import (
+from horizon.proxy.helpers import (
     _reset_session_beta_tracker_for_test,
     append_text_to_latest_user_chat_message,
     get_session_beta_tracker,
     log_outbound_request,
 )
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.proxy.server import ProxyConfig, create_app
 
 pytest.importorskip("fastapi")
 
 
 @pytest.fixture(autouse=True)
 def _disable_output_shaper(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Isolate this suite from the opt-in HEADROOM_OUTPUT_SHAPER a developer shell
+    # Isolate this suite from the opt-in HORIZON_OUTPUT_SHAPER a developer shell
     # may export, which otherwise perturbs the byte-faithful assertions.
-    monkeypatch.delenv("HEADROOM_OUTPUT_SHAPER", raising=False)
+    monkeypatch.delenv("HORIZON_OUTPUT_SHAPER", raising=False)
 
 
 # ---------------------------------------------------------------------------
@@ -155,7 +155,7 @@ def test_select_outbound_body_returns_value_object() -> None:
 
 
 def test_helpers_preserve_body_forwarding_compatibility_exports() -> None:
-    from headroom.proxy import helpers
+    from horizon.proxy import helpers
 
     assert helpers.BodyMutationTracker is BodyMutationTracker
     assert helpers.get_python_forwarder_mode is get_python_forwarder_mode
@@ -435,22 +435,22 @@ def test_legacy_json_kwarg_mode_falls_back() -> None:
 def test_python_forwarder_mode_default_is_byte_faithful(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("HEADROOM_PROXY_PYTHON_FORWARDER_MODE", raising=False)
+    monkeypatch.delenv("HORIZON_PROXY_PYTHON_FORWARDER_MODE", raising=False)
     assert get_python_forwarder_mode() == "byte_faithful"
 
 
 def test_python_forwarder_mode_invalid_raises(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_PROXY_PYTHON_FORWARDER_MODE", "garbage")
-    with pytest.raises(ValueError, match="HEADROOM_PROXY_PYTHON_FORWARDER_MODE"):
+    monkeypatch.setenv("HORIZON_PROXY_PYTHON_FORWARDER_MODE", "garbage")
+    with pytest.raises(ValueError, match="HORIZON_PROXY_PYTHON_FORWARDER_MODE"):
         get_python_forwarder_mode()
 
 
 def test_python_forwarder_mode_legacy_value_accepted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_PROXY_PYTHON_FORWARDER_MODE", "legacy_json_kwarg")
+    monkeypatch.setenv("HORIZON_PROXY_PYTHON_FORWARDER_MODE", "legacy_json_kwarg")
     assert get_python_forwarder_mode() == "legacy_json_kwarg"
 
 
@@ -468,7 +468,7 @@ def test_log_outbound_request_emits_structured_fields() -> None:
     """
     import logging
 
-    proxy_logger = logging.getLogger("headroom.proxy")
+    proxy_logger = logging.getLogger("horizon.proxy")
     records: list[logging.LogRecord] = []
 
     class _ListHandler(logging.Handler):
@@ -616,7 +616,7 @@ def test_signed_thinking_discarded_mutation_uses_wire_truth_for_all_accounting(
     # assertions under the kill switch proves two things at once: the accounting
     # neutralisation still works whenever the lock does engage, and the env-var
     # rollback really is a complete restoration rather than a partial one.
-    monkeypatch.setenv("HEADROOM_THINKING_PRESERVING_MUTATIONS", "0")
+    monkeypatch.setenv("HORIZON_THINKING_PRESERVING_MUTATIONS", "0")
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,
@@ -682,8 +682,8 @@ def test_signed_thinking_discarded_mutation_uses_wire_truth_for_all_accounting(
 
     assert response.status_code == 200
     assert transport.captured_body == inbound_bytes
-    assert response.headers["x-headroom-tokens-saved"] == "0"
-    assert "x-headroom-transforms" not in response.headers
+    assert response.headers["x-horizon-tokens-saved"] == "0"
+    assert "x-horizon-transforms" not in response.headers
 
     outcome = proxy._record_request_outcome.await_args.args[0]
     assert outcome.tokens_saved == 0
@@ -692,7 +692,7 @@ def test_signed_thinking_discarded_mutation_uses_wire_truth_for_all_accounting(
     assert outcome.tags["wire_mutations_discarded"] > 0
     assert "anthropic:tool_schema_compaction" not in outcome.transforms_applied
     assert "tool_search_deferred_tokens" not in outcome.tags
-    assert outcome.tags.get("_headroom_savings_attribution") == []
+    assert outcome.tags.get("_horizon_savings_attribution") == []
     assert proxy.metrics.tokens_saved_total == 0
     assert proxy.metrics.tool_search_saved_total == 0
     assert tracker._last_forwarded_messages[: len(inbound["messages"])] == inbound["messages"]
@@ -709,7 +709,7 @@ def test_untouched_thinking_lets_tool_compaction_reach_the_wire(
     every turn of a thinking-bearing session. Here the compaction must reach
     upstream AND be credited, while the thinking block goes out untouched.
     """
-    monkeypatch.delenv("HEADROOM_THINKING_PRESERVING_MUTATIONS", raising=False)
+    monkeypatch.delenv("HORIZON_THINKING_PRESERVING_MUTATIONS", raising=False)
     config = ProxyConfig(
         optimize=True,
         cache_enabled=False,
@@ -818,7 +818,7 @@ def _start_proxy_log_capture() -> tuple[
     int,
     list[logging.LogRecord],
 ]:
-    proxy_logger = logging.getLogger("headroom.proxy")
+    proxy_logger = logging.getLogger("horizon.proxy")
     records: list[logging.LogRecord] = []
 
     class _ListHandler(logging.Handler):
@@ -1017,7 +1017,7 @@ def test_anthropic_tools_unsorted_reordered_and_canonicalized_when_optimized(
     # proxy and appends a steering block to the system tail. Shaping is
     # covered by its own suites; folding its text into this expectation would
     # make a tool-ordering test fail every time the steering copy is edited.
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "0")
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "0")
     client, transport = _make_anthropic_app(optimize=True)
     proxy = client.app.state.proxy
     proxy.config.mode = "token"
@@ -1143,7 +1143,7 @@ def test_legacy_json_kwarg_mode_yields_drifted_bytes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Operator opt-in produces the OLD drifted bytes (rollback validation)."""
-    monkeypatch.setenv("HEADROOM_PROXY_PYTHON_FORWARDER_MODE", "legacy_json_kwarg")
+    monkeypatch.setenv("HORIZON_PROXY_PYTHON_FORWARDER_MODE", "legacy_json_kwarg")
     client, transport = _make_no_optimize_app()
 
     inbound_dict = {
@@ -1265,7 +1265,7 @@ def test_openai_chat_memory_routes_to_user_tail_not_system() -> None:
         "/v1/chat/completions",
         headers={
             "authorization": "Bearer sk-test",
-            "x-headroom-user-id": "u1",
+            "x-horizon-user-id": "u1",
         },
         json={
             "model": "gpt-4o",
@@ -1295,7 +1295,7 @@ def test_openai_chat_memory_routes_to_user_tail_not_system() -> None:
 def test_openai_chat_memory_disabled_mode_no_op(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_MEMORY_INJECTION_MODE", "disabled")
+    monkeypatch.setenv("HORIZON_MEMORY_INJECTION_MODE", "disabled")
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,
@@ -1342,7 +1342,7 @@ def test_openai_chat_memory_disabled_mode_no_op(
         "/v1/chat/completions",
         headers={
             "authorization": "Bearer sk-test",
-            "x-headroom-user-id": "u1",
+            "x-horizon-user-id": "u1",
         },
         json={
             "model": "gpt-4o",
@@ -1463,7 +1463,7 @@ def test_vertex_stream_rawpredict_preserves_client_beta_header_on_passthrough() 
             "claude-sonnet-4-6:streamRawPredict",
             headers={
                 "x-api-key": "test-key",
-                "x-headroom-session-id": "vertex-stream-beta-1",
+                "x-horizon-session-id": "vertex-stream-beta-1",
                 "anthropic-version": "2023-06-01",
                 "anthropic-beta": client_beta,
                 "content-type": "application/json",
@@ -1527,7 +1527,7 @@ def test_messages_custom_upstream_stream_preserves_client_beta_header() -> None:
             "/v1/messages",
             headers={
                 "x-api-key": "test-key",
-                "x-headroom-session-id": "custom-stream-beta-1",
+                "x-horizon-session-id": "custom-stream-beta-1",
                 "anthropic-version": "2023-06-01",
                 "anthropic-beta": client_beta,
                 "content-type": "application/json",
@@ -1565,7 +1565,7 @@ def test_vertex_rawpredict_keeps_sticky_beta_union_on_non_stream_passthrough() -
             "claude-sonnet-4-6:rawPredict",
             headers={
                 "x-api-key": "test-key",
-                "x-headroom-session-id": "vertex-raw-beta-1",
+                "x-horizon-session-id": "vertex-raw-beta-1",
                 "anthropic-version": "2023-06-01",
                 "anthropic-beta": client_beta,
                 "content-type": "application/json",
@@ -1736,7 +1736,7 @@ def test_ws_http_fallback_uses_canonical_serializer() -> None:
 # whenever any thinking block was present, which on Claude Code traffic meant
 # every computed compression was discarded from turn 2 of a session onward.
 #
-# The relaxation ships dark behind ``HEADROOM_THINKING_PRESERVING_MUTATIONS``
+# The relaxation ships dark behind ``HORIZON_THINKING_PRESERVING_MUTATIONS``
 # and only engages when every thinking block is provably byte-equal to the one
 # the client sent. These tests pin both directions: what must now ship, and what
 # must still lock.
@@ -1788,7 +1788,7 @@ def test_thinking_preserving_mutation_ships_compression(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Untouched thinking block => the rest of the body may be re-serialized."""
-    monkeypatch.setenv("HEADROOM_THINKING_PRESERVING_MUTATIONS", "1")
+    monkeypatch.setenv("HORIZON_THINKING_PRESERVING_MUTATIONS", "1")
     original = json.dumps(_tb_body()).encode()
     mutated = json.loads(original)
     mutated["messages"][2]["content"][0]["content"][0]["text"] = "[compressed]"
@@ -1819,7 +1819,7 @@ def test_touching_a_thinking_block_still_locks(
     monkeypatch: pytest.MonkeyPatch, label: str, tamper
 ) -> None:
     """Any detectable change to a thinking block keeps today's verbatim passthrough."""
-    monkeypatch.setenv("HEADROOM_THINKING_PRESERVING_MUTATIONS", "1")
+    monkeypatch.setenv("HORIZON_THINKING_PRESERVING_MUTATIONS", "1")
     original = json.dumps(_tb_body()).encode()
     mutated = json.loads(original)
     tamper(mutated)
@@ -1833,7 +1833,7 @@ def test_touching_a_thinking_block_still_locks(
 
 def test_thinking_relaxation_is_on_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     """Unset flag => relaxation active (maintainer chose on-by-default)."""
-    monkeypatch.delenv("HEADROOM_THINKING_PRESERVING_MUTATIONS", raising=False)
+    monkeypatch.delenv("HORIZON_THINKING_PRESERVING_MUTATIONS", raising=False)
     original = json.dumps(_tb_body()).encode()
     mutated = json.loads(original)
     mutated["messages"][2]["content"][0]["content"][0]["text"] = "[compressed]"
@@ -1849,7 +1849,7 @@ def test_kill_switch_restores_the_blanket_lock(
     monkeypatch: pytest.MonkeyPatch, off_value: str
 ) -> None:
     """The documented rollback must work without a deploy, on every falsey spelling."""
-    monkeypatch.setenv("HEADROOM_THINKING_PRESERVING_MUTATIONS", off_value)
+    monkeypatch.setenv("HORIZON_THINKING_PRESERVING_MUTATIONS", off_value)
     original = json.dumps(_tb_body()).encode()
     mutated = json.loads(original)
     mutated["messages"][2]["content"][0]["content"][0]["text"] = "[compressed]"
@@ -1863,7 +1863,7 @@ def test_kill_switch_restores_the_blanket_lock(
 
 def test_thinking_block_key_reorder_is_not_an_edit(monkeypatch: pytest.MonkeyPatch) -> None:
     """The contract is over parsed values, so dict key order must not matter."""
-    monkeypatch.setenv("HEADROOM_THINKING_PRESERVING_MUTATIONS", "1")
+    monkeypatch.setenv("HORIZON_THINKING_PRESERVING_MUTATIONS", "1")
     original = json.dumps(_tb_body()).encode()
     mutated = json.loads(original)
     block = mutated["messages"][1]["content"][0]
@@ -1878,7 +1878,7 @@ def test_thinking_block_key_reorder_is_not_an_edit(monkeypatch: pytest.MonkeyPat
 
 def test_is_client_bytes_agrees_with_selection(monkeypatch: pytest.MonkeyPatch) -> None:
     """The CCR buffering probe must never disagree with the forwarder (#2952)."""
-    monkeypatch.setenv("HEADROOM_THINKING_PRESERVING_MUTATIONS", "1")
+    monkeypatch.setenv("HORIZON_THINKING_PRESERVING_MUTATIONS", "1")
     original = json.dumps(_tb_body()).encode()
 
     preserved = json.loads(original)
@@ -1898,7 +1898,7 @@ def test_unparseable_original_cannot_prove_preservation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """No proof => no relaxation. Fail closed."""
-    monkeypatch.setenv("HEADROOM_THINKING_PRESERVING_MUTATIONS", "1")
+    monkeypatch.setenv("HORIZON_THINKING_PRESERVING_MUTATIONS", "1")
     assert thinking_blocks_survived_mutation(_tb_body(), b"{not json") is False
     assert thinking_blocks_survived_mutation(_tb_body(), None) is False
 
@@ -1914,7 +1914,7 @@ def test_lone_surrogate_in_thinking_body_serializes_instead_of_raising():
     """
     import json
 
-    from headroom.proxy.body_forwarding import select_outbound_body
+    from horizon.proxy.body_forwarding import select_outbound_body
 
     lone_surrogate = chr(0xD800)
     original = {

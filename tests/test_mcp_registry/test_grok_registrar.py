@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from headroom.mcp_registry.base import RegisterStatus, ServerSpec
-from headroom.mcp_registry.grok import GrokRegistrar
+from horizon.mcp_registry.base import RegisterStatus, ServerSpec
+from horizon.mcp_registry.grok import GrokRegistrar
 
 
 def _make_registrar(tmp_path: Path) -> GrokRegistrar:
@@ -16,9 +16,9 @@ def _make_registrar(tmp_path: Path) -> GrokRegistrar:
 
 def _spec() -> ServerSpec:
     return ServerSpec(
-        name="headroom",
+        name="horizon",
         command="/usr/bin/python",
-        args=("-m", "headroom.cli", "mcp", "serve"),
+        args=("-m", "horizon.cli", "mcp", "serve"),
     )
 
 
@@ -40,4 +40,4 @@ def test_register_uses_grok_home_env(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     assert result.status == RegisterStatus.REGISTERED
     config = grok_home / "config.toml"
     assert config.exists()
-    assert "[mcp_servers.headroom]" in config.read_text()
+    assert "[mcp_servers.horizon]" in config.read_text()

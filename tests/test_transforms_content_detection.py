@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from headroom.transforms.content_detector import (
+from horizon.transforms.content_detector import (
     ContentType,
     _is_grep_context_line,
     _is_search_result_line,
@@ -16,7 +16,7 @@ from headroom.transforms.content_detector import (
     is_json_array_of_dicts,
     normalize_concatenated_json,
 )
-from headroom.transforms.error_detection import (
+from horizon.transforms.error_detection import (
     ERROR_INDICATOR_KEYWORDS,
     ERROR_KEYWORDS,
     ERROR_PATTERN,
@@ -231,7 +231,7 @@ def test_search_detection_classifies_grep_context_lines() -> None:
         'payload["env"] = env_map',
         'path.write_text(json.dumps(payload, indent=2), encoding="utf-8")',
     ]
-    path = "./headroom/providers/claude/install.py"
+    path = "./horizon/providers/claude/install.py"
 
     def build(sep: str) -> str:
         return "\n".join(
@@ -251,7 +251,7 @@ def test_grep_context_line_predicate_guards() -> None:
     # Genuine context lines, including dashed file names and ripgrep output.
     assert _is_grep_context_line("src/main.py-40-some context before")
     assert _is_grep_context_line("src/my-file.py-12-x = 1")
-    assert _is_grep_context_line("./headroom/providers/claude/install.py-40-    x = 1")
+    assert _is_grep_context_line("./horizon/providers/claude/install.py-40-    x = 1")
     # Group separators and single dashes are never matches.
     assert not _is_grep_context_line("--")
     assert not _is_grep_context_line("-")
@@ -267,7 +267,7 @@ def test_grep_context_line_predicate_guards() -> None:
 def test_grep_colon_dash_shape_routes_like_context() -> None:
     """``path:NN-content`` (the reported repro shape) is search output too."""
     assert _is_search_result_line("src/main.py:40-    context before")
-    assert _is_search_result_line("./headroom/x.py:40-env = payload.get(1)")
+    assert _is_search_result_line("./horizon/x.py:40-env = payload.get(1)")
     # Same prefix exclusions as the colon branch.
     assert not _is_search_result_line('<log time="10:00-00">started</log>')
     assert not _is_search_result_line("timeout=30:12-retried")

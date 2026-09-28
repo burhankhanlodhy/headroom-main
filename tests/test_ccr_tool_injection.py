@@ -2,7 +2,7 @@
 
 import json
 
-from headroom.ccr import (
+from horizon.ccr import (
     CCR_TOOL_NAME,
     CCRToolInjector,
     create_ccr_tool_definition,
@@ -667,16 +667,16 @@ class TestVerifyOwnership:
 
     Shape-only marker scanning (``scan_for_markers``) matches markers from
     ANY context tool that happens to use the same bracket format, not just
-    Headroom's own. ``verify_ownership`` closes that gap by checking each
+    Horizon's own. ``verify_ownership`` closes that gap by checking each
     detected hash against the actual compression store before it can drive
     retrieve-tool injection.
     """
 
     def test_foreign_marker_is_dropped(self):
-        """The exact repro from issue #2836: a marker Headroom never
+        """The exact repro from issue #2836: a marker Horizon never
         created must not be adopted, even though its shape matches.
         """
-        from headroom.cache.compression_store import reset_compression_store
+        from horizon.cache.compression_store import reset_compression_store
 
         reset_compression_store()
         try:
@@ -698,8 +698,8 @@ class TestVerifyOwnership:
             reset_compression_store()
 
     def test_real_hash_survives_verification(self):
-        """A hash Headroom actually stored must still be recognized."""
-        from headroom.cache.compression_store import (
+        """A hash Horizon actually stored must still be recognized."""
+        from horizon.cache.compression_store import (
             get_compression_store,
             reset_compression_store,
         )
@@ -727,7 +727,7 @@ class TestVerifyOwnership:
         """One own hash and one foreign hash in the same scan — only the
         own hash survives verification.
         """
-        from headroom.cache.compression_store import (
+        from horizon.cache.compression_store import (
             get_compression_store,
             reset_compression_store,
         )

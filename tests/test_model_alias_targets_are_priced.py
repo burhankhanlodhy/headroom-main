@@ -15,8 +15,8 @@ from tests._dotenv import importorskip_no_env_leak
 
 importorskip_no_env_leak("litellm")
 
-from headroom.pricing.litellm_model_resolution import MODEL_ALIASES  # noqa: E402
-from headroom.pricing.litellm_pricing import get_model_pricing  # noqa: E402
+from horizon.pricing.litellm_model_resolution import MODEL_ALIASES  # noqa: E402
+from horizon.pricing.litellm_pricing import get_model_pricing  # noqa: E402
 
 
 @pytest.mark.parametrize(("retired", "target"), sorted(MODEL_ALIASES.items()))
@@ -25,7 +25,7 @@ def test_model_aliases_point_at_something_litellm_still_prices(retired: str, tar
     assert get_model_pricing(target) is not None, (
         f"MODEL_ALIASES[{retired!r}] points at {target!r}, which litellm no longer "
         "prices. Repoint it at a current model of the same tier "
-        "(headroom/pricing/litellm_model_resolution.py)."
+        "(horizon/pricing/litellm_model_resolution.py)."
     )
 
 

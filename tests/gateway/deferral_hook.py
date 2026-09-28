@@ -7,7 +7,7 @@ relies on, so the contract tests prove core carries a hook's deferral end to
 end without depending on the extension package:
 
 * the OSS primitives (``inject_tool_search_deferral`` and the two gate helpers
-  in ``headroom.proxy.helpers``) applied as a pure function of ``ctx.tools``;
+  in ``horizon.proxy.helpers``) applied as a pure function of ``ctx.tools``;
 * the savings tags core's ``/stats`` headline reads
   (``tool_search_deferred_tools`` / ``tool_search_deferred_tokens``) and the
   ``tool_search`` attribution entry;
@@ -24,13 +24,13 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
-from headroom.proxy.helpers import (
+from horizon.proxy.helpers import (
     anthropic_model_is_first_party,
     inject_tool_search_deferral,
     resolved_core_tools,
     tools_are_anthropic_shaped,
 )
-from headroom.proxy.turn_hooks import register_turn_hook
+from horizon.proxy.turn_hooks import register_turn_hook
 
 BETA_TOKEN = "advanced-tool-use-2025-11-20"
 _ON = ("1", "true", "yes", "on", "auto")
@@ -51,14 +51,14 @@ class DeferralHook:
         self.request_calls += 1
         if ctx.provider != "anthropic":
             return
-        if os.environ.get("HEADROOM_TOOL_SEARCH", "1").strip().lower() not in _ON:
+        if os.environ.get("HORIZON_TOOL_SEARCH", "1").strip().lower() not in _ON:
             return
         if not anthropic_model_is_first_party(ctx.model):
             return
         if not tools_are_anthropic_shaped(ctx.tools):
             return
         # resolved_core_tools(), not the raw default: passing the constant
-        # ignored HEADROOM_TOOL_SEARCH_CORE_TOOLS entirely, so an operator who
+        # ignored HORIZON_TOOL_SEARCH_CORE_TOOLS entirely, so an operator who
         # set it got the built-in list on this path and their own on the proxy
         # path -- the two-paths-disagree failure the one-knob change exists to
         # prevent, reintroduced by the reference hook.
@@ -112,5 +112,5 @@ def register(hook: Any | None = None, **kwargs: Any) -> Any:
 
 
 def install(app: Any, config: Any) -> None:
-    """``headroom.proxy_extension`` entry-point shape."""
+    """``horizon.proxy_extension`` entry-point shape."""
     register()

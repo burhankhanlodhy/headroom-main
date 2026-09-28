@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 
-from headroom.proxy.turn_hooks import (
+from horizon.proxy.turn_hooks import (
     DEFAULT_HOOK_PRIORITY,
     PROVIDER_HEADER_ALLOWLIST,
     TurnContext,

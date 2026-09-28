@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from headroom.tokenizer import Tokenizer, count_tokens_messages, count_tokens_text
+from horizon.tokenizer import Tokenizer, count_tokens_messages, count_tokens_text
 
 
 class FakeTokenCounter:
@@ -29,7 +29,7 @@ def test_claude_priced_with_real_bpe_not_char_estimate() -> None:
     can appear to *increase* tokens. A tool_result fold must always register as
     a reduction; and when the vocab is available the count is the exact o200k
     count (proving it is a real BPE, not a chars/token ratio)."""
-    from headroom.tokenizers import get_tokenizer
+    from horizon.tokenizers import get_tokenizer
 
     tok = get_tokenizer("claude-opus-4-8")
 

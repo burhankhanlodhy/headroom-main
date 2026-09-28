@@ -4,11 +4,11 @@ from datetime import datetime, timezone
 
 import pytest
 
-from headroom.pricing.deepseek_prices import (
+from horizon.pricing.deepseek_prices import (
     DEEPSEEK_PRICES,
     get_deepseek_registry,
 )
-from headroom.pricing.registry import ModelPricing, PricingRegistry
+from horizon.pricing.registry import ModelPricing, PricingRegistry
 
 # Monday 2026-08-17: 02:00 UTC = 10:00 Beijing (peak), 12:00 UTC = 20:00 Beijing (off-peak).
 PEAK = datetime(2026, 8, 17, 2, 0, tzinfo=timezone.utc)
@@ -167,7 +167,7 @@ class TestDeepSeekLiteLLMInjection:
     """Tests for DeepSeek pricing injection into litellm."""
 
     def test_deepseek_ids_in_litellm_model_cost(self):
-        from headroom.pricing.litellm_pricing import LITELLM_AVAILABLE, litellm
+        from horizon.pricing.litellm_pricing import LITELLM_AVAILABLE, litellm
 
         if not LITELLM_AVAILABLE:
             pytest.skip("litellm not available")
@@ -181,7 +181,7 @@ class TestDeepSeekLiteLLMInjection:
             assert f"deepseek/{model}" in litellm.model_cost
 
     def test_deepseek_flash_litellm_rows_are_off_peak(self):
-        from headroom.pricing.litellm_pricing import LITELLM_AVAILABLE, litellm
+        from horizon.pricing.litellm_pricing import LITELLM_AVAILABLE, litellm
 
         if not LITELLM_AVAILABLE:
             pytest.skip("litellm not available")
@@ -195,7 +195,7 @@ class TestDeepSeekLiteLLMInjection:
             assert row["max_output_tokens"] == 393_216
 
     def test_deepseek_v4_pro_litellm_rows_are_off_peak(self):
-        from headroom.pricing.litellm_pricing import LITELLM_AVAILABLE, litellm
+        from horizon.pricing.litellm_pricing import LITELLM_AVAILABLE, litellm
 
         if not LITELLM_AVAILABLE:
             pytest.skip("litellm not available")
@@ -210,8 +210,8 @@ class TestDeepSeekLiteLLMInjection:
 
     def test_injected_rows_track_the_tier_table(self):
         """Injected rows are the tier module's off-peak figures, not a copy."""
-        from headroom.pricing.deepseek_tiers import OFF_PEAK_RATES_PER_1M
-        from headroom.pricing.litellm_pricing import (
+        from horizon.pricing.deepseek_tiers import OFF_PEAK_RATES_PER_1M
+        from horizon.pricing.litellm_pricing import (
             _DEEPSEEK_LITELLM_IDS,
             LITELLM_AVAILABLE,
             litellm,
@@ -228,7 +228,7 @@ class TestDeepSeekLiteLLMInjection:
                 assert row["cache_read_input_token_cost"] == cache_hit / 1e6
 
     def test_cost_per_token_resolves_deepseek_flash(self):
-        from headroom.pricing.litellm_pricing import (
+        from horizon.pricing.litellm_pricing import (
             LITELLM_AVAILABLE,
             litellm,
             resolve_litellm_model,
@@ -271,7 +271,7 @@ class TestDeepSeekLiteLLMInjection:
             )
 
     def test_resolve_litellm_model_prefixes_deepseek(self):
-        from headroom.pricing.litellm_pricing import LITELLM_AVAILABLE, resolve_litellm_model
+        from horizon.pricing.litellm_pricing import LITELLM_AVAILABLE, resolve_litellm_model
 
         if not LITELLM_AVAILABLE:
             pytest.skip("litellm not available")
@@ -280,12 +280,12 @@ class TestDeepSeekLiteLLMInjection:
 
     def test_injection_overrides_upstream_peak_rows(self):
         """Upstream litellm ships these ids at peak; the flat figure stays off-peak."""
-        from headroom.pricing.litellm_pricing import LITELLM_AVAILABLE, litellm
+        from horizon.pricing.litellm_pricing import LITELLM_AVAILABLE, litellm
 
         if not LITELLM_AVAILABLE:
             pytest.skip("litellm not available")
 
-        import headroom.pricing.litellm_pricing as lp
+        import horizon.pricing.litellm_pricing as lp
 
         saved = dict(litellm.model_cost["deepseek-flash"])
         try:
@@ -300,7 +300,7 @@ class TestDeepSeekAnthropicProviderFallback:
     """Tests that Anthropic provider's _get_pricing handles DeepSeek models."""
 
     def test_deepseek_flash_fallback_rates_are_off_peak(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         pricing = AnthropicProvider()._get_pricing("deepseek-flash")
         assert pricing is not None
@@ -309,7 +309,7 @@ class TestDeepSeekAnthropicProviderFallback:
         assert pricing["cached_input"] == 0.003
 
     def test_deepseek_v4_pro_fallback_rates_are_off_peak(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         pricing = AnthropicProvider()._get_pricing("deepseek-v4-pro")
         assert pricing is not None
@@ -318,7 +318,7 @@ class TestDeepSeekAnthropicProviderFallback:
         assert pricing["cached_input"] == 0.022
 
     def test_retired_flash_id_shares_the_flash_rates(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         provider = AnthropicProvider()
         legacy = provider._get_pricing("deepseek-v4-flash")
@@ -328,12 +328,12 @@ class TestDeepSeekAnthropicProviderFallback:
         assert provider._get_pricing("deepseek-v4-flash-vision-exp") == current
 
     def test_deepseek_unknown_model_returns_none(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         assert AnthropicProvider()._get_pricing("deepseek-unknown-model") is None
 
     def test_deepseek_partial_match_v4_flash_alias(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         provider = AnthropicProvider()
         # Should match via partial match (flash in v4-flash)
@@ -341,7 +341,7 @@ class TestDeepSeekAnthropicProviderFallback:
         assert pricing is not None
 
     def test_estimate_cost_prices_the_off_peak_tier(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         cost = AnthropicProvider().estimate_cost(
             input_tokens=1_000_000,
@@ -352,7 +352,7 @@ class TestDeepSeekAnthropicProviderFallback:
         assert cost == pytest.approx(0.15)
 
     def test_estimate_cost_prices_the_peak_tier(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         cost = AnthropicProvider().estimate_cost(
             input_tokens=1_000_000,
@@ -363,7 +363,7 @@ class TestDeepSeekAnthropicProviderFallback:
         assert cost == pytest.approx(0.30)
 
     def test_estimate_cost_cached_tokens_use_the_cache_hit_rate(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         cost = AnthropicProvider().estimate_cost(
             input_tokens=1_000_000,
@@ -383,7 +383,7 @@ class TestDeepSeekTieredCost:
     """
 
     def test_flash_off_peak_one_megatoken_each_way(self):
-        from headroom.pricing.litellm_pricing import estimate_cost_from_tokens
+        from horizon.pricing.litellm_pricing import estimate_cost_from_tokens
 
         cost = estimate_cost_from_tokens(
             "deepseek-flash", input_tokens=1_000_000, output_tokens=1_000_000, now=OFF_PEAK
@@ -391,7 +391,7 @@ class TestDeepSeekTieredCost:
         assert cost == pytest.approx(0.15 + 0.60)
 
     def test_peak_is_exactly_twice_off_peak(self):
-        from headroom.pricing.litellm_pricing import estimate_cost_from_tokens
+        from horizon.pricing.litellm_pricing import estimate_cost_from_tokens
 
         peak = estimate_cost_from_tokens(
             "deepseek-flash", input_tokens=1_000_000, output_tokens=1_000_000, now=PEAK
@@ -402,7 +402,7 @@ class TestDeepSeekTieredCost:
         assert peak == pytest.approx(off * 2)
 
     def test_pro_off_peak_one_megatoken_each_way(self):
-        from headroom.pricing.litellm_pricing import estimate_cost_from_tokens
+        from horizon.pricing.litellm_pricing import estimate_cost_from_tokens
 
         cost = estimate_cost_from_tokens(
             "deepseek-v4-pro", input_tokens=1_000_000, output_tokens=1_000_000, now=OFF_PEAK
@@ -410,7 +410,7 @@ class TestDeepSeekTieredCost:
         assert cost == pytest.approx(0.66 + 1.98)
 
     def test_cached_tokens_bill_at_the_cache_hit_rate_exactly_once(self):
-        from headroom.pricing.litellm_pricing import estimate_cost_from_tokens
+        from horizon.pricing.litellm_pricing import estimate_cost_from_tokens
 
         # input_tokens is the TOTAL prompt, cached included (litellm contract).
         cost = estimate_cost_from_tokens(
@@ -423,7 +423,7 @@ class TestDeepSeekTieredCost:
         assert cost == pytest.approx(0.003)
 
     def test_partially_cached_prompt_splits_the_two_input_rates(self):
-        from headroom.pricing.litellm_pricing import estimate_cost_from_tokens
+        from horizon.pricing.litellm_pricing import estimate_cost_from_tokens
 
         cost = estimate_cost_from_tokens(
             "deepseek-flash",
@@ -439,7 +439,7 @@ class TestDeepSeekTieredCost:
         ["deepseek-v4-flash", "deepseek-v4-flash-vision-exp", "deepseek/deepseek-v4-pro"],
     )
     def test_legacy_and_prefixed_ids_price_like_the_canonical_id(self, model):
-        from headroom.pricing.litellm_pricing import estimate_cost_from_tokens
+        from horizon.pricing.litellm_pricing import estimate_cost_from_tokens
 
         canonical = "deepseek-v4-pro" if model.endswith("v4-pro") else "deepseek-flash"
         alias_cost = estimate_cost_from_tokens(
@@ -455,7 +455,7 @@ class TestDeepSeekTieredCost:
         assert alias_cost == pytest.approx(canonical_cost)
 
     def test_non_deepseek_models_still_take_the_litellm_path(self):
-        from headroom.pricing.litellm_pricing import LITELLM_AVAILABLE, estimate_cost_from_tokens
+        from horizon.pricing.litellm_pricing import LITELLM_AVAILABLE, estimate_cost_from_tokens
 
         if not LITELLM_AVAILABLE:
             pytest.skip("litellm not available")
@@ -464,7 +464,7 @@ class TestDeepSeekTieredCost:
         assert cost > 0.0
 
     def test_deepseek_models_outside_the_rate_card_take_the_litellm_path(self):
-        from headroom.pricing.litellm_pricing import LITELLM_AVAILABLE, estimate_cost_from_tokens
+        from horizon.pricing.litellm_pricing import LITELLM_AVAILABLE, estimate_cost_from_tokens
 
         if not LITELLM_AVAILABLE:
             pytest.skip("litellm not available")

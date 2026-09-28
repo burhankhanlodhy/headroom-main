@@ -1,4 +1,4 @@
-"""Tests for `headroom wrap opencode` and `headroom unwrap opencode`."""
+"""Tests for `horizon wrap opencode` and `horizon unwrap opencode`."""
 
 from __future__ import annotations
 
@@ -9,15 +9,15 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli import wrap as wrap_mod
-from headroom.cli.main import main
-from headroom.copilot_auth import CopilotSubscriptionTokenResolution
+from horizon.cli import wrap as wrap_mod
+from horizon.cli.main import main
+from horizon.copilot_auth import CopilotSubscriptionTokenResolution
 
 
 @pytest.fixture(autouse=True)
 def _no_retired_context_tool_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A developer's exported HEADROOM_CONTEXT_TOOL would abort every wrap below."""
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    """A developer's exported HORIZON_CONTEXT_TOOL would abort every wrap below."""
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
 
 
 @pytest.fixture(autouse=True)
@@ -95,14 +95,14 @@ def test_wrap_opencode_copilot_subscription_normalizes_enterprise_host_and_hando
     with (
         patch.object(wrap_mod.shutil, "which", return_value="opencode"),
         patch(
-            "headroom.copilot_auth.iter_oauth_token_candidates",
+            "horizon.copilot_auth.iter_oauth_token_candidates",
             return_value=[
                 type(
                     "_Candidate",
                     (),
                     {
                         "token": "gho-oauth",
-                        "source": "headroom-copilot-auth:/tmp/copilot_auth.json",
+                        "source": "horizon-copilot-auth:/tmp/copilot_auth.json",
                         "confidence": "copilot-oauth",
                         "validate_for_subscription": True,
                     },
@@ -110,7 +110,7 @@ def test_wrap_opencode_copilot_subscription_normalizes_enterprise_host_and_hando
             ],
         ),
         patch(
-            "headroom.copilot_auth.CopilotTokenProvider._exchange_token_sync",
+            "horizon.copilot_auth.CopilotTokenProvider._exchange_token_sync",
             staticmethod(
                 lambda _headers: {
                     "token": "copilot-api-secret",
@@ -120,7 +120,7 @@ def test_wrap_opencode_copilot_subscription_normalizes_enterprise_host_and_hando
                 }
             ),
         ),
-        patch("headroom.copilot_auth._fetch_copilot_user_info", return_value=None),
+        patch("horizon.copilot_auth._fetch_copilot_user_info", return_value=None),
         patch.object(wrap_mod, "_ensure_proxy", side_effect=fake_ensure_proxy),
         patch.object(wrap_mod, "_launch_tool", side_effect=fake_launch_tool),
     ):
@@ -186,10 +186,10 @@ def test_wrap_opencode_copilot_subscription_rejects_incompatible_modes(
         )
     assert result.exit_code == 1
     assert message in result.output
-    assert not config_file.with_name("opencode.json.headroom-backup").exists()
+    assert not config_file.with_name("opencode.json.horizon-backup").exists()
 
 
-def test_wrap_opencode_copilot_subscription_rejects_headroom_backend_env(
+def test_wrap_opencode_copilot_subscription_rejects_horizon_backend_env(
     runner: CliRunner,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -197,7 +197,7 @@ def test_wrap_opencode_copilot_subscription_rejects_headroom_backend_env(
     monkeypatch.chdir(tmp_path)
     _set_test_home(monkeypatch, tmp_path)
     _clear_copilot_route_config(monkeypatch)
-    monkeypatch.setenv("HEADROOM_BACKEND", "anyllm")
+    monkeypatch.setenv("HORIZON_BACKEND", "anyllm")
     with patch.object(wrap_mod, "_ensure_proxy", side_effect=AssertionError("proxy launched")):
         result = runner.invoke(
             main,
@@ -228,7 +228,7 @@ def test_wrap_opencode_copilot_subscription_requires_login_before_launch(
             ["wrap", "opencode", "--copilot-subscription", "--no-mcp"],
         )
     assert result.exit_code == 1
-    assert "headroom copilot-auth login" in result.output
+    assert "horizon copilot-auth login" in result.output
 
 
 def test_wrap_opencode_copilot_subscription_cleans_up_proxy_on_config_failure(
@@ -298,9 +298,9 @@ def test_wrap_opencode_sets_config_content_env(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """OPENCODE_CONFIG_CONTENT env var is set with the headroom provider."""
+    """OPENCODE_CONFIG_CONTENT env var is set with the horizon provider."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
     monkeypatch.setenv("OPENAI_BASE_URL", "https://deepseek.example/v1")
     monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://anthropic.example")
@@ -322,9 +322,9 @@ def test_wrap_opencode_sets_config_content_env(
     assert isinstance(env, dict)
     assert "OPENCODE_CONFIG_CONTENT" in env
     config = json.loads(env["OPENCODE_CONFIG_CONTENT"])
-    assert config["provider"]["headroom"]["npm"] == "@ai-sdk/openai-compatible"
-    assert config["provider"]["headroom"]["options"]["baseURL"] == "http://127.0.0.1:9000/v1"
-    assert "model" not in config  # headroom provider is a transparent pass-through
+    assert config["provider"]["horizon"]["npm"] == "@ai-sdk/openai-compatible"
+    assert config["provider"]["horizon"]["options"]["baseURL"] == "http://127.0.0.1:9000/v1"
+    assert "model" not in config  # horizon provider is a transparent pass-through
     assert captured["tool_label"] == "OPENCODE"
     assert captured["agent_type"] == "opencode"
     assert captured["args"] == ("--model", "gpt-4o")
@@ -337,7 +337,7 @@ def test_wrap_opencode_does_not_add_base_url_env_vars(
 ) -> None:
     """OPENAI_BASE_URL and ANTHROPIC_BASE_URL are left to OpenCode providers."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
     monkeypatch.setenv("OPENAI_BASE_URL", "https://deepseek.example/v1")
     monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://anthropic.example")
@@ -365,7 +365,7 @@ def test_wrap_opencode_missing_binary_errors_clearly(
 ) -> None:
     """If the opencode binary is missing the command must fail with a clear error."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
 
     with patch.object(wrap_mod.shutil, "which", return_value=None):
         result = runner.invoke(main, ["wrap", "opencode"])
@@ -382,17 +382,17 @@ def test_wrap_opencode_missing_binary_does_not_mutate_config(
     """A missing opencode binary must not leave memory side-effects behind (#1614 class).
 
     The MCP/Serena registrations are already gated on ``registrar.detect()``, but
-    the ``--memory`` injections (AGENTS.md, the .headroom dir, the memory MCP
+    the ``--memory`` injections (AGENTS.md, the .horizon dir, the memory MCP
     config) are not -- they ran unconditionally before the binary check. Verify
     the binary first, like claude/codex/goose/omp, so an absent tool cannot write
     those and then error with nothing launched.
     """
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     agents_md = tmp_path / "AGENTS.md"
-    headroom_dir = tmp_path / ".headroom"
+    horizon_dir = tmp_path / ".horizon"
 
     with patch.object(wrap_mod.shutil, "which", return_value=None):
         result = runner.invoke(main, ["wrap", "opencode", "--memory"])
@@ -400,7 +400,7 @@ def test_wrap_opencode_missing_binary_does_not_mutate_config(
     assert result.exit_code == 1
     assert "'opencode' not found in PATH" in result.output
     assert not agents_md.exists(), "AGENTS.md was created before the missing-binary check"
-    assert not headroom_dir.exists(), ".headroom dir was created before the missing-binary check"
+    assert not horizon_dir.exists(), ".horizon dir was created before the missing-binary check"
 
 
 def test_wrap_opencode_prepare_only_injects_config(
@@ -410,7 +410,7 @@ def test_wrap_opencode_prepare_only_injects_config(
 ) -> None:
     """`wrap opencode --prepare-only` writes the provider config to opencode.json."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     with patch.object(wrap_mod.shutil, "which", return_value="opencode"):
@@ -420,7 +420,7 @@ def test_wrap_opencode_prepare_only_injects_config(
     config_file = tmp_path / ".config" / "opencode" / "opencode.json"
     assert config_file.exists()
     config = json.loads(config_file.read_text(encoding="utf-8"))
-    assert config["provider"]["headroom"]["options"]["baseURL"] == "http://127.0.0.1:9000/v1"
+    assert config["provider"]["horizon"]["options"]["baseURL"] == "http://127.0.0.1:9000/v1"
 
 
 def test_wrap_opencode_prepare_only_registers_serena_with_agent_context(
@@ -429,7 +429,7 @@ def test_wrap_opencode_prepare_only_registers_serena_with_agent_context(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     with patch.object(wrap_mod.shutil, "which", return_value="opencode"):
@@ -449,7 +449,7 @@ def test_wrap_opencode_no_mcp_skips_mcp_injection(
 ) -> None:
     """`--no-mcp` skips MCP server injection."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     captured: dict[str, object] = {}
@@ -467,7 +467,7 @@ def test_wrap_opencode_no_mcp_skips_mcp_injection(
     assert "mcp" not in config
     config_file = tmp_path / ".config" / "opencode" / "opencode.json"
     persisted_config = json.loads(config_file.read_text())
-    assert "headroom" not in persisted_config.get("mcp", {})
+    assert "horizon" not in persisted_config.get("mcp", {})
 
 
 def test_wrap_opencode_injects_mcp_by_default(
@@ -477,7 +477,7 @@ def test_wrap_opencode_injects_mcp_by_default(
 ) -> None:
     """MCP is included in OPENCODE_CONFIG_CONTENT by default."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     captured: dict[str, object] = {}
@@ -493,11 +493,11 @@ def test_wrap_opencode_injects_mcp_by_default(
     env = captured["env"]
     config = json.loads(env["OPENCODE_CONFIG_CONTENT"])
     assert "mcp" in config
-    assert config["mcp"]["headroom"] == {
+    assert config["mcp"]["horizon"] == {
         "type": "local",
-        "command": ["headroom", "mcp", "serve"],
+        "command": ["horizon", "mcp", "serve"],
         "enabled": True,
-        "environment": {"HEADROOM_PROXY_URL": "http://127.0.0.1:9000"},
+        "environment": {"HORIZON_PROXY_URL": "http://127.0.0.1:9000"},
     }
 
 
@@ -516,7 +516,7 @@ def test_unwrap_opencode_restores_from_backup(
     _set_test_home(monkeypatch, tmp_path)
 
     config_file = tmp_path / ".config" / "opencode" / "opencode.json"
-    backup_file = config_file.with_name("opencode.json.headroom-backup")
+    backup_file = config_file.with_name("opencode.json.horizon-backup")
     config_file.parent.mkdir(parents=True, exist_ok=True)
     original = '{"model": "openai/gpt-4o"}'
     config_file.write_text(original)
@@ -541,7 +541,7 @@ def test_unwrap_opencode_restores_from_backup_jsonc(
     _set_test_home(monkeypatch, tmp_path)
 
     config_file = tmp_path / ".config" / "opencode" / "opencode.jsonc"
-    backup_file = config_file.with_name("opencode.jsonc.headroom-backup")
+    backup_file = config_file.with_name("opencode.jsonc.horizon-backup")
     config_file.parent.mkdir(parents=True, exist_ok=True)
     original = '{\n  // User comment\n  "model": "openai/gpt-4o"\n}'
     config_file.write_text(original)
@@ -561,7 +561,7 @@ def test_unwrap_opencode_strips_blocks_when_no_backup(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Unwrap strips Headroom blocks when no backup exists."""
+    """Unwrap strips Horizon blocks when no backup exists."""
     monkeypatch.chdir(tmp_path)
     _set_test_home(monkeypatch, tmp_path)
 
@@ -581,7 +581,7 @@ def test_unwrap_opencode_strips_blocks_when_no_backup(
         result = runner.invoke(main, ["unwrap", "opencode"])
 
     assert result.exit_code == 0, result.output
-    assert "Removed Headroom block" in result.output
+    assert "Removed Horizon block" in result.output
     assert user_content in config_file.read_text(encoding="utf-8")
     assert wrap_mod._PROVIDER_MARKER_START not in config_file.read_text(encoding="utf-8")
 
@@ -596,9 +596,9 @@ def test_wrap_opencode_preserves_existing_user_providers(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Wrap merges headroom provider without disturbing user's existing providers."""
+    """Wrap merges horizon provider without disturbing user's existing providers."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     config_file = tmp_path / ".config" / "opencode" / "opencode.json"
@@ -611,7 +611,7 @@ def test_wrap_opencode_preserves_existing_user_providers(
 
     assert result.exit_code == 0, result.output
     config = json.loads(config_file.read_text(encoding="utf-8"))
-    assert "headroom" in config["provider"], "headroom provider not injected"
+    assert "horizon" in config["provider"], "horizon provider not injected"
     assert "openai" in config["provider"], "user's openai provider was removed"
 
 
@@ -622,7 +622,7 @@ def test_wrap_opencode_port_change_updates_existing_config(
 ) -> None:
     """Wrapping with a different port updates the baseURL in opencode.json."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     with patch.object(wrap_mod.shutil, "which", return_value="opencode"):
@@ -632,7 +632,7 @@ def test_wrap_opencode_port_change_updates_existing_config(
 
     config_file = tmp_path / ".config" / "opencode" / "opencode.json"
     config = json.loads(config_file.read_text(encoding="utf-8"))
-    assert config["provider"]["headroom"]["options"]["baseURL"] == "http://127.0.0.1:9001/v1"
+    assert config["provider"]["horizon"]["options"]["baseURL"] == "http://127.0.0.1:9001/v1"
 
 
 def test_wrap_opencode_handles_malformed_config_file(
@@ -642,14 +642,14 @@ def test_wrap_opencode_handles_malformed_config_file(
 ) -> None:
     """Wrap handles a malformed opencode.json by backing it up before overwriting."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     config_file = tmp_path / ".config" / "opencode" / "opencode.json"
     config_file.parent.mkdir(parents=True, exist_ok=True)
     malformed = '{"model": "gpt-4o",}'  # trailing comma
     config_file.write_text(malformed)
-    backup_file = config_file.with_suffix(".json.headroom-backup")
+    backup_file = config_file.with_suffix(".json.horizon-backup")
 
     with patch.object(wrap_mod.shutil, "which", return_value="opencode"):
         with patch.object(wrap_mod, "_launch_tool", side_effect=SystemExit(0)):
@@ -660,9 +660,9 @@ def test_wrap_opencode_handles_malformed_config_file(
     assert backup_file.read_text(encoding="utf-8") == malformed, (
         "backup must preserve original byte-for-byte"
     )
-    # The config file is now valid JSON with headroom provider.
+    # The config file is now valid JSON with horizon provider.
     config = json.loads(config_file.read_text(encoding="utf-8"))
-    assert "headroom" in config.get("provider", {})
+    assert "horizon" in config.get("provider", {})
 
 
 def test_wrap_opencode_handles_empty_config_file(
@@ -672,7 +672,7 @@ def test_wrap_opencode_handles_empty_config_file(
 ) -> None:
     """Wrap handles an empty opencode.json file gracefully."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     config_file = tmp_path / ".config" / "opencode" / "opencode.json"
@@ -685,7 +685,7 @@ def test_wrap_opencode_handles_empty_config_file(
 
     assert result.exit_code == 0, result.output
     config = json.loads(config_file.read_text(encoding="utf-8"))
-    assert config["provider"]["headroom"]["options"]["baseURL"] == "http://127.0.0.1:9000/v1"
+    assert config["provider"]["horizon"]["options"]["baseURL"] == "http://127.0.0.1:9000/v1"
 
 
 def test_wrap_opencode_handles_config_dir_missing(
@@ -695,7 +695,7 @@ def test_wrap_opencode_handles_config_dir_missing(
 ) -> None:
     """Wrap creates the config directory when it doesn't exist."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     config_dir = tmp_path / ".config" / "opencode"
@@ -717,7 +717,7 @@ def test_wrap_opencode_leaves_agents_md_untouched(
 ) -> None:
     """`wrap opencode` never rewrites an existing AGENTS.md."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     existing_content = "# My custom rules\nUse spaces, not tabs."
@@ -739,7 +739,7 @@ def test_wrap_opencode_respects_opencode_config_env(
 ) -> None:
     """OPENCODE_CONFIG env var overrides the default config path."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     custom_config = tmp_path / "custom" / "config.json"
@@ -757,17 +757,17 @@ def test_wrap_opencode_respects_opencode_config_env(
     )
 
 
-def test_wrap_opencode_headroom_project_from_cwd(
+def test_wrap_opencode_horizon_project_from_cwd(
     runner: CliRunner,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """HEADROOM_PROJECT is set based on the current working directory name."""
+    """HORIZON_PROJECT is set based on the current working directory name."""
     project_dir = tmp_path / "my-project"
     project_dir.mkdir()
     monkeypatch.chdir(project_dir)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
-    monkeypatch.delenv("HEADROOM_PROJECT", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_PROJECT", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     captured: dict[str, object] = {}
@@ -781,19 +781,19 @@ def test_wrap_opencode_headroom_project_from_cwd(
 
     assert result.exit_code == 0, result.output
     env = captured["env"]
-    assert env.get("HEADROOM_PROJECT") == "my-project"
+    assert env.get("HORIZON_PROJECT") == "my-project"
 
 
-def test_wrap_opencode_respects_existing_headroom_project(
+def test_wrap_opencode_respects_existing_horizon_project(
     runner: CliRunner,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """User-set HEADROOM_PROJECT env var is preserved, not overridden."""
+    """User-set HORIZON_PROJECT env var is preserved, not overridden."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
-    monkeypatch.setenv("HEADROOM_PROJECT", "user-set-value")
+    monkeypatch.setenv("HORIZON_PROJECT", "user-set-value")
 
     captured: dict[str, object] = {}
 
@@ -806,7 +806,7 @@ def test_wrap_opencode_respects_existing_headroom_project(
 
     assert result.exit_code == 0, result.output
     env = captured["env"]
-    assert env["HEADROOM_PROJECT"] == "user-set-value"
+    assert env["HORIZON_PROJECT"] == "user-set-value"
 
 
 def test_wrap_opencode_config_merges_existing_model(
@@ -816,7 +816,7 @@ def test_wrap_opencode_config_merges_existing_model(
 ) -> None:
     """Wrap preserves the user's existing model selection."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     config_file = tmp_path / ".config" / "opencode" / "opencode.json"
@@ -830,7 +830,7 @@ def test_wrap_opencode_config_merges_existing_model(
     assert result.exit_code == 0, result.output
     config = json.loads(config_file.read_text(encoding="utf-8"))
     assert config["model"] == "openai/gpt-4o"
-    assert config["provider"]["headroom"]["npm"] == "@ai-sdk/openai-compatible"
+    assert config["provider"]["horizon"]["npm"] == "@ai-sdk/openai-compatible"
 
 
 # ---------------------------------------------------------------------------
@@ -838,12 +838,12 @@ def test_wrap_opencode_config_merges_existing_model(
 # ---------------------------------------------------------------------------
 
 
-def test_unwrap_opencode_removes_config_when_only_headroom_content(
+def test_unwrap_opencode_removes_config_when_only_horizon_content(
     runner: CliRunner,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Unwrap removes the config file entirely when it contained only Headroom content."""
+    """Unwrap removes the config file entirely when it contained only Horizon content."""
     monkeypatch.chdir(tmp_path)
     _set_test_home(monkeypatch, tmp_path)
 
@@ -878,12 +878,12 @@ def test_unwrap_opencode_noop_when_config_missing(
     assert "does not exist" in result.output
 
 
-def test_unwrap_opencode_noop_when_no_headroom_markers(
+def test_unwrap_opencode_noop_when_no_horizon_markers(
     runner: CliRunner,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Unwrap is a safe no-op when the config has no Headroom markers."""
+    """Unwrap is a safe no-op when the config has no Horizon markers."""
     monkeypatch.chdir(tmp_path)
     _set_test_home(monkeypatch, tmp_path)
 
@@ -895,7 +895,7 @@ def test_unwrap_opencode_noop_when_no_headroom_markers(
         result = runner.invoke(main, ["unwrap", "opencode"])
 
     assert result.exit_code == 0, result.output
-    assert "no Headroom wrap markers" in result.output
+    assert "no Horizon wrap markers" in result.output
     assert config_file.read_text(encoding="utf-8").strip() == '{"model": "openai/gpt-4o"}'
 
 
@@ -906,7 +906,7 @@ def test_wrap_unwrap_rewrap_is_idempotent(
 ) -> None:
     """Full wrap-unwrap-rewrap cycle produces consistent results."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     config_file = tmp_path / ".config" / "opencode" / "opencode.json"
@@ -926,17 +926,17 @@ def test_wrap_unwrap_rewrap_is_idempotent(
     # After unwrap, file should match original
     after_unwrap = json.loads(config_file.read_text(encoding="utf-8"))
     assert after_unwrap["model"] == "openai/gpt-4o"
-    assert "headroom" not in after_unwrap.get("provider", {})
+    assert "horizon" not in after_unwrap.get("provider", {})
 
     # Re-wrap
     with patch.object(wrap_mod.shutil, "which", return_value="opencode"):
         with patch.object(wrap_mod, "_launch_tool", side_effect=SystemExit(0)):
             runner.invoke(main, ["wrap", "opencode", "--port", "9001", "--no-mcp"])
 
-    # After re-wrap, headroom should be back, model unchanged
+    # After re-wrap, horizon should be back, model unchanged
     after_rewrap = json.loads(config_file.read_text(encoding="utf-8"))
     assert after_rewrap["model"] == "openai/gpt-4o"
-    assert "headroom" in after_rewrap.get("provider", {})
+    assert "horizon" in after_rewrap.get("provider", {})
 
 
 def test_unwrap_opencode_restores_backup_and_removes_it(
@@ -949,7 +949,7 @@ def test_unwrap_opencode_restores_backup_and_removes_it(
     _set_test_home(monkeypatch, tmp_path)
 
     config_file = tmp_path / ".config" / "opencode" / "opencode.json"
-    backup_file = config_file.with_suffix(".json.headroom-backup")
+    backup_file = config_file.with_suffix(".json.horizon-backup")
     config_file.parent.mkdir(parents=True, exist_ok=True)
     original = '{"model": "openai/gpt-4o"}'
     config_file.write_text(original)
@@ -968,9 +968,9 @@ def test_wrap_opencode_no_arguments_is_valid(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """`headroom wrap opencode` with no additional arguments is a valid command."""
+    """`horizon wrap opencode` with no additional arguments is a valid command."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     captured: dict[str, object] = {}
@@ -994,7 +994,7 @@ def test_wrap_opencode_with_memory_flag(
 ) -> None:
     """--memory flag is accepted and does not crash."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     with patch.object(wrap_mod.shutil, "which", return_value="opencode"):
@@ -1013,7 +1013,7 @@ def test_wrap_opencode_with_backend_and_anyllm_provider(
 ) -> None:
     """--backend and --anyllm-provider flags are accepted."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     with patch.object(wrap_mod.shutil, "which", return_value="opencode"):
@@ -1043,7 +1043,7 @@ def test_wrap_opencode_with_no_proxy(
 ) -> None:
     """--no-proxy flag skips proxy startup but still configures the tool."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     with patch.object(wrap_mod.shutil, "which", return_value="opencode"):
@@ -1062,7 +1062,7 @@ def test_wrap_opencode_with_verbose_flag(
 ) -> None:
     """--verbose flag does not crash."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     _set_test_home(monkeypatch, tmp_path)
 
     with patch.object(wrap_mod.shutil, "which", return_value="opencode"):
@@ -1081,7 +1081,7 @@ def test_wrap_opencode_respects_opencode_home_env(
 ) -> None:
     """OPENCODE_HOME env var controls where opencode.json is written."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("HEADROOM_CONTEXT_TOOL", raising=False)
+    monkeypatch.delenv("HORIZON_CONTEXT_TOOL", raising=False)
     custom_home = str(tmp_path / "custom-opencode-home")
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("OPENCODE_HOME", custom_home)
@@ -1104,7 +1104,7 @@ def test_unwrap_opencode_preserves_utf8_user_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Unwrap strips Headroom blocks but preserves non-ASCII UTF-8 user content (#1126)."""
+    """Unwrap strips Horizon blocks but preserves non-ASCII UTF-8 user content (#1126)."""
     monkeypatch.chdir(tmp_path)
     _set_test_home(monkeypatch, tmp_path)
 
@@ -1131,11 +1131,11 @@ def test_unwrap_opencode_preserves_utf8_user_content(
     # (pre-existing; outside this PR's scope).
     fake_registrar = type("FakeRegistrar", (), {"detect": lambda self: False})()
     with patch.object(wrap_mod, "_stop_local_proxy_for_unwrap", return_value="stopped"):
-        with patch("headroom.mcp_registry.OpencodeRegistrar", return_value=fake_registrar):
+        with patch("horizon.mcp_registry.OpencodeRegistrar", return_value=fake_registrar):
             result = runner.invoke(main, ["unwrap", "opencode"])
 
     assert result.exit_code == 0, result.output
-    assert "Removed Headroom block" in result.output
+    assert "Removed Horizon block" in result.output
     content = config_file.read_text(encoding="utf-8")
     assert "“smart quotes”" in content
     assert "—" in content

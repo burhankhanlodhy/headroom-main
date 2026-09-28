@@ -74,7 +74,7 @@ def test_watchdog_is_skipped_only_where_it_has_no_wheel() -> None:
 
 @pytest.mark.proxy_dependency_gate
 def test_proxy_starts_without_watchdog(monkeypatch: pytest.MonkeyPatch) -> None:
-    from headroom.cli import proxy
+    from horizon.cli import proxy
 
     requested: list[str] = []
 
@@ -94,7 +94,7 @@ def test_code_graph_watcher_skips_itself_without_watchdog(
 ) -> None:
     import builtins
 
-    from headroom.graph.watcher import CodeGraphWatcher
+    from horizon.graph.watcher import CodeGraphWatcher
 
     real_import = builtins.__import__
 
@@ -111,7 +111,7 @@ def test_code_graph_watcher_skips_itself_without_watchdog(
 def test_proxy_cost_degrades_without_litellm(monkeypatch: pytest.MonkeyPatch) -> None:
     # With litellm absent from the environment, the proxy cost path must return
     # None rather than raise.
-    from headroom.proxy import cost
+    from horizon.proxy import cost
 
     monkeypatch.setattr(cost, "LITELLM_AVAILABLE", False)
     monkeypatch.setattr(cost, "litellm", None)

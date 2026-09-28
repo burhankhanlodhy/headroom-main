@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 
-from headroom.proxy.handlers.openai import _openai_responses_to_sse
+from horizon.proxy.handlers.openai import _openai_responses_to_sse
 
 
 def _parse(events: list[bytes]) -> list[dict]:

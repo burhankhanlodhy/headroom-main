@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-Solutions for common Headroom issues.
+Solutions for common Horizon issues.
 
 ---
 
@@ -8,7 +8,7 @@ Solutions for common Headroom issues.
 
 ### "Proxy won't start"
 
-**Symptom**: `headroom proxy` fails or hangs.
+**Symptom**: `horizon proxy` fails or hangs.
 
 **Solutions**:
 
@@ -18,13 +18,13 @@ lsof -i :8787
 # If something is using the port, either kill it or use a different port
 
 # 2. Try a different port
-headroom proxy --port 8788
+horizon proxy --port 8788
 
 # 3. Check for missing dependencies
-pip install "headroom-ai[proxy]"
+pip install "horizon-ai[proxy]"
 
 # 4. Run with request logging
-headroom proxy --log-file ~/.headroom/logs/proxy.jsonl --log-messages
+horizon proxy --log-file ~/.horizon/logs/proxy.jsonl --log-messages
 ```
 
 ### "Connection refused" when calling proxy
@@ -38,7 +38,7 @@ headroom proxy --log-file ~/.headroom/logs/proxy.jsonl --log-messages
 curl http://localhost:8787/health
 
 # 2. Check if proxy started on a different port
-ps aux | grep headroom
+ps aux | grep horizon
 
 # 3. Check firewall settings (macOS)
 sudo pfctl -s rules | grep 8787
@@ -48,13 +48,13 @@ sudo pfctl -s rules | grep 8787
 
 **Symptom**: The upstream API returns an error referencing a beta feature (`anthropic-beta` header) even though the client is no longer sending that header.
 
-**Cause**: Headroom's `SessionBetaTracker` re-injects any `anthropic-beta` token seen earlier in the same session to preserve prefix-cache stability. Once a token is in the tracker it persists for the rest of the session. Stopping the token on the client side alone is not sufficient.
+**Cause**: Horizon's `SessionBetaTracker` re-injects any `anthropic-beta` token seen earlier in the same session to preserve prefix-cache stability. Once a token is in the tracker it persists for the rest of the session. Stopping the token on the client side alone is not sufficient.
 
-**Solution**: Set `HEADROOM_BETA_HEADER_STICKY=disabled` to pass the client's header value verbatim without accumulation:
+**Solution**: Set `HORIZON_BETA_HEADER_STICKY=disabled` to pass the client's header value verbatim without accumulation:
 
 ```bash
-export HEADROOM_BETA_HEADER_STICKY=disabled
-headroom proxy ...
+export HORIZON_BETA_HEADER_STICKY=disabled
+horizon proxy ...
 ```
 
 Alternatively, restarting the proxy process clears the in-memory tracker. See [Session Beta Header Tracking](configuration.md#session-beta-header-tracking) for details.
@@ -69,7 +69,7 @@ Alternatively, restarting the proxy process clears the in-memory tracker. See [S
 
 ```bash
 # 1. Check proxy logs for the actual error
-headroom proxy --log-file ~/.headroom/logs/proxy.jsonl --log-messages
+horizon proxy --log-file ~/.horizon/logs/proxy.jsonl --log-messages
 
 # 2. Verify API key is set
 echo $OPENAI_API_KEY  # or ANTHROPIC_API_KEY
@@ -104,7 +104,7 @@ print(f"SmartCrusher: {stats['transforms']['smart_crusher_enabled']}")
 
 ```python
 # 1. Ensure mode is "optimize"
-client = HeadroomClient(
+client = HorizonClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     default_mode="optimize",  # NOT "audit"
@@ -114,11 +114,11 @@ client = HeadroomClient(
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=messages,
-    headroom_mode="optimize",
+    horizon_mode="optimize",
 )
 
 # 3. Lower the compression threshold
-config = HeadroomConfig()
+config = HorizonConfig()
 config.smart_crusher.min_tokens_to_crush = 100  # Default is 200
 ```
 
@@ -136,14 +136,14 @@ config.smart_crusher.min_tokens_to_crush = 100  # Default is 200
 
 ```python
 # 1. Keep more items
-config = HeadroomConfig()
+config = HorizonConfig()
 config.smart_crusher.max_items_after_crush = 50  # Default: 15
 
 # 2. Skip compression for specific tools
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=messages,
-    headroom_tool_profiles={
+    horizon_tool_profiles={
         "important_tool": {"skip_compression": True},
     },
 )
@@ -177,7 +177,7 @@ print(f"Total time: {time.time() - start:.2f}s")
 
 ```python
 # 1. Use BM25 instead of embeddings (faster)
-config = HeadroomConfig()
+config = HorizonConfig()
 config.smart_crusher.relevance.tier = "bm25"  # Default may use embeddings
 
 # 2. Increase threshold to skip small payloads
@@ -215,7 +215,7 @@ print(result)
 
 ```python
 # 1. For testing, use in-memory storage
-client = HeadroomClient(
+client = HorizonClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     store_url="sqlite:///:memory:",  # No file created
@@ -225,8 +225,8 @@ client = HeadroomClient(
 import tempfile
 import os
 
-db_path = os.path.join(tempfile.gettempdir(), "headroom.db")
-client = HeadroomClient(
+db_path = os.path.join(tempfile.gettempdir(), "horizon.db")
+client = HorizonClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     store_url=f"sqlite:///{db_path}",
@@ -246,16 +246,16 @@ RuntimeError: Unsupported compiler -- at least C++11 support is needed!
 ERROR: Failed building wheel for hnswlib
 ```
 
-**Cause**: `headroom-ai` depends on `hnswlib`, a C++ extension that must be compiled from source. Slim environments (Docker slim images, minimal CI runners) lack the required build tools.
+**Cause**: `horizon-ai` depends on `hnswlib`, a C++ extension that must be compiled from source. Slim environments (Docker slim images, minimal CI runners) lack the required build tools.
 
 **Solutions**:
 
 ```bash
 # Linux / Debian-based (including Docker)
-apt-get install -y build-essential && pip install headroom-ai
+apt-get install -y build-essential && pip install horizon-ai
 
 # macOS (Xcode command line tools)
-xcode-select --install && pip install headroom-ai
+xcode-select --install && pip install horizon-ai
 ```
 
 In a Dockerfile, install and remove build tools in one layer to keep the image slim:
@@ -263,42 +263,42 @@ In a Dockerfile, install and remove build tools in one layer to keep the image s
 ```dockerfile
 FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
-    && pip install "headroom-ai[proxy]" \
+    && pip install "horizon-ai[proxy]" \
     && apt-get purge -y build-essential && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 ```
 
 ---
 
-### "ModuleNotFoundError: No module named 'headroom'"
+### "ModuleNotFoundError: No module named 'horizon'"
 
 ```bash
 # 1. Check it's installed in the right environment
-pip show headroom-ai
+pip show horizon-ai
 
 # 2. If using virtual environment, ensure it's activated
 source venv/bin/activate  # or equivalent
 
 # 3. Reinstall
-pip install --upgrade headroom-ai
+pip install --upgrade horizon-ai
 ```
 
-### "ImportError: cannot import name 'X' from 'headroom'"
+### "ImportError: cannot import name 'X' from 'horizon'"
 
 ```python
 # Check available imports
-import headroom
+import horizon
 
-print(dir(headroom))
+print(dir(horizon))
 
 # Common imports:
-from headroom import (
-    HeadroomClient,
+from horizon import (
+    HorizonClient,
     OpenAIProvider,
     AnthropicProvider,
-    HeadroomConfig,
+    HorizonConfig,
     # Exceptions
-    HeadroomError,
+    HorizonError,
     ConfigurationError,
     ProviderError,
 )
@@ -308,13 +308,13 @@ from headroom import (
 
 ```bash
 # For proxy server
-pip install "headroom-ai[proxy]"
+pip install "horizon-ai[proxy]"
 
 # For embedding-based relevance scoring
-pip install "headroom-ai[relevance]"
+pip install "horizon-ai[relevance]"
 
 # For everything
-pip install "headroom-ai[all]"
+pip install "horizon-ai[all]"
 ```
 
 ---
@@ -332,7 +332,7 @@ api_key = os.environ.get("OPENAI_API_KEY")
 if not api_key:
     raise ValueError("OPENAI_API_KEY not set")
 
-client = HeadroomClient(
+client = HorizonClient(
     original_client=OpenAI(api_key=api_key),
     provider=OpenAIProvider(),
 )
@@ -345,7 +345,7 @@ from anthropic import Anthropic
 import os
 
 api_key = os.environ.get("ANTHROPIC_API_KEY")
-client = HeadroomClient(
+client = HorizonClient(
     original_client=Anthropic(api_key=api_key),
     provider=AnthropicProvider(),
 )
@@ -355,7 +355,7 @@ client = HeadroomClient(
 
 ```python
 # For custom/fine-tuned models, specify context limit
-client = HeadroomClient(
+client = HorizonClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     model_context_limits={
@@ -380,8 +380,8 @@ logging.basicConfig(
     format="%(asctime)s %(name)s %(levelname)s %(message)s",
 )
 
-# Or just Headroom logs
-logging.getLogger("headroom").setLevel(logging.DEBUG)
+# Or just Horizon logs
+logging.getLogger("horizon").setLevel(logging.DEBUG)
 ```
 
 ### Inspect Transform Results
@@ -424,8 +424,8 @@ for m in metrics:
 ### Manual Transform Testing
 
 ```python
-from headroom import SmartCrusher, Tokenizer
-from headroom.config import SmartCrusherConfig
+from horizon import SmartCrusher, Tokenizer
+from horizon.config import SmartCrusherConfig
 import json
 
 # Test compression directly
@@ -448,13 +448,13 @@ print(f"Compressed content: {result.messages[0]['content'][:200]}...")
 
 On some older or virtualized x86_64 CPUs, AVX2 may be unavailable. The
 Magika/ONNX Runtime detector can require AVX2 through its precompiled runtime
-binary. Headroom skips that detector tier on x86/x86_64 hosts without AVX2 and
+binary. Horizon skips that detector tier on x86/x86_64 hosts without AVX2 and
 falls back to non-Magika detection tiers instead of crashing.
 
 If native startup still fails on an older CPU, set:
 
 ```bash
-export HEADROOM_REQUIRE_RUST_CORE=false
+export HORIZON_REQUIRE_RUST_CORE=false
 ```
 
 ---
@@ -473,24 +473,24 @@ export HEADROOM_REQUIRE_RUST_CORE=false
 ### Handling Errors
 
 ```python
-from headroom import (
-    HeadroomClient,
-    HeadroomError,
+from horizon import (
+    HorizonClient,
+    HorizonError,
     ConfigurationError,
     StorageError,
 )
 
 try:
-    client = HeadroomClient(...)
+    client = HorizonClient(...)
     response = client.chat.completions.create(...)
 except ConfigurationError as e:
     print(f"Config issue: {e}")
     print(f"Details: {e.details}")
 except StorageError as e:
     print(f"Storage issue: {e}")
-    # Headroom continues to work, just without metrics persistence
-except HeadroomError as e:
-    print(f"Headroom error: {e}")
+    # Horizon continues to work, just without metrics persistence
+except HorizonError as e:
+    print(f"Horizon error: {e}")
 ```
 
 ---
@@ -500,10 +500,10 @@ except HeadroomError as e:
 1. **Enable debug logging** and check the output
 2. **Use simulate()** to see what transforms would apply
 3. **Check validate_setup()** for configuration issues
-4. **File an issue** at https://github.com/headroom-sdk/headroom/issues
+4. **File an issue** at https://github.com/horizon-sdk/horizon/issues
 
 When filing an issue, include:
-- Headroom version (`pip show headroom`)
+- Horizon version (`pip show horizon`)
 - Python version
 - Provider (OpenAI/Anthropic)
 - Debug log output

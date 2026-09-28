@@ -17,9 +17,9 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.models import RequestLog  # noqa: E402
-from headroom.proxy.outcome import RequestOutcome, emit_request_outcome  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.models import RequestLog  # noqa: E402
+from horizon.proxy.outcome import RequestOutcome, emit_request_outcome  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 def test_request_log_carries_provider_cache_deltas(tmp_path):

@@ -38,16 +38,16 @@ from typing import Any
 
 import pytest
 
-from headroom.transforms.content_detector import ContentType
-from headroom.transforms.content_router import (
+from horizon.transforms.content_detector import ContentType
+from horizon.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
     RouterCompressionResult,
     RoutingDecision,
 )
-from headroom.transforms.observability import CompressionObserver
-from headroom.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
+from horizon.transforms.observability import CompressionObserver
+from horizon.transforms.smart_crusher import SmartCrusher, SmartCrusherConfig
 
 # ─── Test doubles ──────────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@ def test_spy_satisfies_observer_protocol():
 
 
 def test_prometheus_metrics_satisfies_observer_protocol():
-    from headroom.proxy.prometheus_metrics import PrometheusMetrics
+    from horizon.proxy.prometheus_metrics import PrometheusMetrics
 
     m = PrometheusMetrics()
     assert isinstance(m, CompressionObserver)
@@ -188,7 +188,7 @@ def isolated_toin(tmp_path, monkeypatch):
 
     SmartCrusher.apply() feeds the global TOIN learning store via
     `record_compression`. Its default storage path is
-    `~/.headroom/toin.json`, which persists across pytest invocations.
+    `~/.horizon/toin.json`, which persists across pytest invocations.
     On Python 3.11 CI runs the suite twice (regular + coverage); a
     pattern written in run #1 changes which rows the lossy sampler
     keeps in run #2 and breaks `test_first_last_items_always_preserved`
@@ -198,7 +198,7 @@ def isolated_toin(tmp_path, monkeypatch):
     """
     from pathlib import Path
 
-    from headroom.telemetry.toin import TOIN_PATH_ENV_VAR, reset_toin
+    from horizon.telemetry.toin import TOIN_PATH_ENV_VAR, reset_toin
 
     storage = str(Path(tmp_path) / "toin.json")
     monkeypatch.setenv(TOIN_PATH_ENV_VAR, storage)
@@ -210,8 +210,8 @@ def isolated_toin(tmp_path, monkeypatch):
 def test_smart_crusher_apply_records_observer_per_crushed_message(isolated_toin):
     """End-to-end: SmartCrusher.apply() walks messages, crushes the
     big tool_result, fires the observer with strategy='smart_crusher'."""
-    from headroom.providers.openai import OpenAITokenCounter
-    from headroom.tokenizer import Tokenizer
+    from horizon.providers.openai import OpenAITokenCounter
+    from horizon.tokenizer import Tokenizer
 
     spy = SpyObserver()
     crusher = SmartCrusher(SmartCrusherConfig(), observer=spy)
@@ -236,8 +236,8 @@ def test_smart_crusher_apply_records_observer_per_crushed_message(isolated_toin)
 def test_smart_crusher_apply_swallows_observer_failures(isolated_toin):
     """Observer raises → compression still completes, returns valid
     TransformResult, count of raises matches the crushed_count."""
-    from headroom.providers.openai import OpenAITokenCounter
-    from headroom.tokenizer import Tokenizer
+    from horizon.providers.openai import OpenAITokenCounter
+    from horizon.tokenizer import Tokenizer
 
     boom = ExplodingObserver()
     crusher = SmartCrusher(SmartCrusherConfig(), observer=boom)
@@ -254,7 +254,7 @@ def test_smart_crusher_apply_swallows_observer_failures(isolated_toin):
 
 
 def test_prometheus_metrics_accumulates_per_strategy_counters():
-    from headroom.proxy.prometheus_metrics import PrometheusMetrics
+    from horizon.proxy.prometheus_metrics import PrometheusMetrics
 
     m = PrometheusMetrics()
 
@@ -275,7 +275,7 @@ def test_prometheus_metrics_accumulates_per_strategy_counters():
 
 
 def test_prometheus_metrics_accumulates_extension_savings_per_key() -> None:
-    from headroom.proxy.prometheus_metrics import PrometheusMetrics
+    from horizon.proxy.prometheus_metrics import PrometheusMetrics
 
     m = PrometheusMetrics()
 
@@ -295,9 +295,9 @@ def test_extension_savings_surface_in_stats(
 ) -> None:
     from fastapi.testclient import TestClient
 
-    from headroom.proxy.server import ProxyConfig, create_app
+    from horizon.proxy.server import ProxyConfig, create_app
 
-    monkeypatch.setenv("HEADROOM_SAVINGS_PATH", str(tmp_path / "proxy_savings.json"))
+    monkeypatch.setenv("HORIZON_SAVINGS_PATH", str(tmp_path / "proxy_savings.json"))
     config = ProxyConfig(
         cache_enabled=False,
         rate_limit_enabled=False,
@@ -319,7 +319,7 @@ def test_extension_savings_surface_in_stats(
 
 
 def test_prometheus_metrics_accumulates_codex_ws_unit_and_frame_counters():
-    from headroom.proxy.prometheus_metrics import PrometheusMetrics
+    from horizon.proxy.prometheus_metrics import PrometheusMetrics
 
     m = PrometheusMetrics()
 
@@ -394,7 +394,7 @@ def test_prometheus_export_does_not_leak_per_strategy_metrics():
     decision."""
     import asyncio
 
-    from headroom.proxy.prometheus_metrics import PrometheusMetrics
+    from horizon.proxy.prometheus_metrics import PrometheusMetrics
 
     m = PrometheusMetrics()
     m.record_compression("smart_crusher", original_tokens=200, compressed_tokens=50)
@@ -402,8 +402,8 @@ def test_prometheus_export_does_not_leak_per_strategy_metrics():
 
     output = asyncio.run(m.export())
 
-    assert "headroom_compressions_total" not in output
-    assert "headroom_tokens_saved_by_strategy_total" not in output
+    assert "horizon_compressions_total" not in output
+    assert "horizon_tokens_saved_by_strategy_total" not in output
 
 
 # ─── End-to-end smoke (router + metrics together) ──────────────────────
@@ -413,8 +413,8 @@ def test_router_with_prometheus_observer_increments_counters():
     """Plumbing test: a router wired to a real PrometheusMetrics
     instance lights up the per-strategy counters as routing decisions
     accumulate. This is the production wiring shape from
-    `headroom/proxy/server.py`."""
-    from headroom.proxy.prometheus_metrics import PrometheusMetrics
+    `horizon/proxy/server.py`."""
+    from horizon.proxy.prometheus_metrics import PrometheusMetrics
 
     m = PrometheusMetrics()
     router = ContentRouter(ContentRouterConfig(), observer=m)

@@ -4,8 +4,8 @@ from urllib.parse import urlsplit
 
 import pytest
 
-from headroom.providers.registry import DEFAULT_VERTEX_API_URL
-from headroom.providers.vertex import (
+from horizon.providers.registry import DEFAULT_VERTEX_API_URL
+from horizon.providers.vertex import (
     VERTEX_ANTHROPIC_PROVIDER_NAME,
     VERTEX_COUNT_TOKENS,
     VERTEX_GENERATE_CONTENT,

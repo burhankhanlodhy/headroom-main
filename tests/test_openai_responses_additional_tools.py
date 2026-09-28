@@ -14,7 +14,7 @@ import copy
 import json
 from typing import Any
 
-from headroom.proxy.handlers.openai import (
+from horizon.proxy.handlers.openai import (
     OpenAIHandlerMixin,
     _compact_openai_responses_tools,
     _lift_codex_additional_tools,
@@ -106,7 +106,7 @@ def test_lift_is_noop_without_carrier_items() -> None:
 
 
 def test_lift_disabled_by_kill_switch(monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_CODEX_ADDITIONAL_TOOLS_LIFT", "0")
+    monkeypatch.setenv("HORIZON_CODEX_ADDITIONAL_TOOLS_LIFT", "0")
     payload = _codex_0149_payload()
     before = copy.deepcopy(payload)
 
@@ -117,7 +117,7 @@ def test_lift_disabled_by_kill_switch(monkeypatch) -> None:
 def test_lift_logs_with_request_id(caplog) -> None:
     payload = _codex_0149_payload()
 
-    with caplog.at_level("INFO", logger="headroom.proxy"):
+    with caplog.at_level("INFO", logger="horizon.proxy"):
         assert _lift_codex_additional_tools(payload, request_id="req_test") == 2
 
     assert any(
@@ -228,7 +228,7 @@ def test_compressor_sees_tools_but_forwarded_payload_does_not() -> None:
 def test_stateful_second_turn_still_carries_tools() -> None:
     """Reproduces the 0.36.3 session: turn one worked, then tools vanished.
 
-    A stateful client appends to the transcript it already sent. If Headroom
+    A stateful client appends to the transcript it already sent. If Horizon
     forwards turn one without the carrier, the transcript the client builds
     turn two from has no tool definitions at all -- and turn two carries no
     top-level ``tools`` either, so the model is left with no tool surface.
@@ -355,7 +355,7 @@ def test_restore_is_a_noop_without_a_plan() -> None:
 
 
 def test_kill_switch_leaves_the_payload_completely_untouched(monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_CODEX_ADDITIONAL_TOOLS_LIFT", "0")
+    monkeypatch.setenv("HORIZON_CODEX_ADDITIONAL_TOOLS_LIFT", "0")
     payload = _codex_0149_payload()
     before = copy.deepcopy(payload)
 
@@ -389,7 +389,7 @@ def test_unrestorable_payload_warns_instead_of_failing_silently(caplog) -> None:
         payload["input"] = "collapsed-to-a-string"
         return (payload, True, 0, [], None, 0, 0, 0, {})
 
-    with caplog.at_level("WARNING", logger="headroom.proxy"):
+    with caplog.at_level("WARNING", logger="horizon.proxy"):
         forwarded = _forward(_codex_0149_payload(), _mangle)
 
     assert any("could not be restored" in message for message in caplog.messages)

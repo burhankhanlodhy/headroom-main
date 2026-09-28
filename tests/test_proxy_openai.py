@@ -10,9 +10,9 @@ import httpx
 import pytest
 from starlette.datastructures import Headers
 
-from headroom.proxy.auth_mode import classify_client
-from headroom.proxy.handlers.openai import OpenAIHandlerMixin
-from headroom.proxy.helpers import (
+from horizon.proxy.auth_mode import classify_client
+from horizon.proxy.handlers.openai import OpenAIHandlerMixin
+from horizon.proxy.helpers import (
     inject_tool_search_deferral_openai,
     openai_tool_search_client_supported,
 )
@@ -321,7 +321,7 @@ def _native_responses_client():  # noqa: ANN202
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
-    from headroom.proxy.server import ProxyConfig, create_app
+    from horizon.proxy.server import ProxyConfig, create_app
 
     config = ProxyConfig(
         optimize=True,

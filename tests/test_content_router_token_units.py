@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 
-from headroom.transforms.content_router import _estimate_tokens
+from horizon.transforms.content_router import _estimate_tokens
 
 _CAP = 50_000
 

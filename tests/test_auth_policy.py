@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from headroom.proxy.auth_policy import (
+from horizon.proxy.auth_policy import (
     AuthMode,
     AuthSignals,
     classify_auth_signals,

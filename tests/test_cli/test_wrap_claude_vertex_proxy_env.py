@@ -8,9 +8,9 @@ from typing import Any
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli import wrap as wrap_mod
-from headroom.cli.main import main
-from headroom.providers.registry import DEFAULT_VERTEX_API_URL
+from horizon.cli import wrap as wrap_mod
+from horizon.cli.main import main
+from horizon.providers.registry import DEFAULT_VERTEX_API_URL
 
 
 class _Completed:
@@ -212,7 +212,7 @@ def test_wrap_claude_sibling_note_accurate_under_1m_and_tool_search_optouts(
         extra_args=("--1m", "--tool-search", "false"),
     )
     assert "already restored via --1m" in output
-    assert "restore with `headroom wrap claude --1m`" not in output
+    assert "restore with `horizon wrap claude --1m`" not in output
     assert "OFF for this session" in output
     assert "DISABLED per your setting" in output
     assert "kept on" not in output
@@ -489,10 +489,10 @@ def test_start_proxy_clears_inherited_vertex_target_env(
 def test_start_proxy_sets_pythonsafepath_to_avoid_cwd_shadow(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """`python -m headroom.cli` prepends the launch cwd to sys.path, so running
-    wrap from a directory that contains a `headroom/` folder (a clone of this
+    """`python -m horizon.cli` prepends the launch cwd to sys.path, so running
+    wrap from a directory that contains a `horizon/` folder (a clone of this
     repo) shadows the installed wheel with the raw source tree, which has no
-    compiled `headroom._core`, and the proxy dies importing it (#2793). The
+    compiled `horizon._core`, and the proxy dies importing it (#2793). The
     subprocess env must set PYTHONSAFEPATH=1 to disable that cwd prepend."""
     fake_proc = _FakeProxyProcess()
     captured: dict[str, Any] = {}
@@ -513,7 +513,7 @@ def test_start_proxy_sets_pythonsafepath_to_avoid_cwd_shadow(
     assert proc is fake_proc
     assert captured["kwargs"]["env"]["PYTHONSAFEPATH"] == "1"
     # Still launched as a module of the installed package.
-    assert captured["cmd"][:4] == [wrap_mod.sys.executable, "-m", "headroom.cli", "proxy"]
+    assert captured["cmd"][:4] == [wrap_mod.sys.executable, "-m", "horizon.cli", "proxy"]
 
 
 def test_ensure_proxy_restarts_idle_proxy_for_vertex_api_url_mismatch(
@@ -521,7 +521,7 @@ def test_ensure_proxy_restarts_idle_proxy_for_vertex_api_url_mismatch(
 ) -> None:
     calls: list[object] = []
     health = {
-        "version": wrap_mod._HEADROOM_VERSION,
+        "version": wrap_mod._HORIZON_VERSION,
         "runtime": {"websocket_sessions": {"active_sessions": 0, "active_relay_tasks": 0}},
         "config": {
             "pid": "12345",
@@ -566,7 +566,7 @@ def test_ensure_proxy_restarts_idle_proxy_to_clear_vertex_api_url(
 ) -> None:
     calls: list[object] = []
     health = {
-        "version": wrap_mod._HEADROOM_VERSION,
+        "version": wrap_mod._HORIZON_VERSION,
         "runtime": {"websocket_sessions": {"active_sessions": 0, "active_relay_tasks": 0}},
         "config": {
             "pid": "12345",

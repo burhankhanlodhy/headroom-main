@@ -1,4 +1,4 @@
-"""Tests for headroom.integrations.litellm_callback."""
+"""Tests for horizon.integrations.litellm_callback."""
 
 from __future__ import annotations
 
@@ -11,41 +11,41 @@ import pytest
 
 
 def _import_callback() -> type:
-    # Import the module directly to avoid triggering headroom/integrations/__init__.py
+    # Import the module directly to avoid triggering horizon/integrations/__init__.py
     # which pulls in langchain and the native .so extension.
     module_path = (
-        Path(__file__).resolve().parents[2] / "headroom" / "integrations" / "litellm_callback.py"
+        Path(__file__).resolve().parents[2] / "horizon" / "integrations" / "litellm_callback.py"
     )
     spec = importlib.util.spec_from_file_location(
-        "headroom.integrations.litellm_callback",
+        "horizon.integrations.litellm_callback",
         module_path,
     )
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)  # type: ignore[union-attr]
-    return mod.HeadroomCallback  # type: ignore[attr-defined]
+    return mod.HorizonCallback  # type: ignore[attr-defined]
 
 
-HeadroomCallback = _import_callback()
+HorizonCallback = _import_callback()
 
 
-class TestHeadroomCallbackPostCallSuccessHook:
+class TestHorizonCallbackPostCallSuccessHook:
     """async_post_call_success_hook must exist and return response unchanged."""
 
     def test_method_exists(self) -> None:
-        cb = HeadroomCallback()
+        cb = HorizonCallback()
         assert hasattr(cb, "async_post_call_success_hook"), (
-            "HeadroomCallback must define async_post_call_success_hook "
+            "HorizonCallback must define async_post_call_success_hook "
             "for LiteLLM proxy compatibility"
         )
 
     def test_method_is_coroutine(self) -> None:
-        cb = HeadroomCallback()
+        cb = HorizonCallback()
         assert inspect.iscoroutinefunction(cb.async_post_call_success_hook)
 
     @pytest.mark.asyncio
     async def test_returns_response_unchanged(self) -> None:
-        cb = HeadroomCallback()
+        cb = HorizonCallback()
         sentinel = object()
         result = await cb.async_post_call_success_hook(
             data={},
@@ -55,12 +55,12 @@ class TestHeadroomCallbackPostCallSuccessHook:
         assert result is sentinel
 
 
-class TestHeadroomCallbackClientLifecycle:
+class TestHorizonCallbackClientLifecycle:
     """Cloud client cleanup must be explicit and safe to repeat."""
 
     @pytest.mark.asyncio
     async def test_aclose_closes_and_clears_initialized_client(self) -> None:
-        cb = HeadroomCallback(api_key="hdr_test")
+        cb = HorizonCallback(api_key="hdr_test")
         client = MagicMock()
         client.aclose = AsyncMock()
         cb._client = client
@@ -75,7 +75,7 @@ class TestHeadroomCallbackClientLifecycle:
 
     @pytest.mark.asyncio
     async def test_aclose_without_initialized_client_is_a_noop(self) -> None:
-        cb = HeadroomCallback(api_key="hdr_test")
+        cb = HorizonCallback(api_key="hdr_test")
 
         await cb.aclose()
 

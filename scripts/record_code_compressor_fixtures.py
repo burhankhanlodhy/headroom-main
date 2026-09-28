@@ -46,7 +46,7 @@ def main() -> int:
 
     install_individual_grammar_parsers()
 
-    from headroom.transforms.code_compressor import (
+    from horizon.transforms.code_compressor import (
         CodeAwareCompressor,
         CodeCompressorConfig,
         DocstringMode,

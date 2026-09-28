@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, Mock
 import httpx
 from fastapi.testclient import TestClient
 
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.proxy.server import ProxyConfig, create_app
 
 MODEL = "claude-sonnet-4-6"
 MARKER = "large-tool-result-marker " * 80
@@ -113,7 +113,7 @@ def test_no_optimize_second_turn_forwards_client_history_verbatim():
         ]
         response = client.post(
             "/v1/messages",
-            headers={"x-headroom-bypass": "true"},
+            headers={"x-horizon-bypass": "true"},
             json={"model": MODEL, "max_tokens": 16, "messages": current},
         )
 
@@ -185,13 +185,13 @@ def test_bypass_header_does_not_invoke_cached_prefix_replay(monkeypatch):
     def fail_if_called(*args, **kwargs):  # noqa: ANN002, ANN003
         raise AssertionError("cached-prefix replay must be bypassed")
 
-    replay("headroom.cache.prefix_tracker.overlay_cached_prefix", fail_if_called)
+    replay("horizon.cache.prefix_tracker.overlay_cached_prefix", fail_if_called)
     with TestClient(app) as client:
         captured, _ = _capture_proxy(client)
         messages = [{"role": "user", "content": "bypass"}]
         response = client.post(
             "/v1/messages",
-            headers={"x-headroom-bypass": "true"},
+            headers={"x-horizon-bypass": "true"},
             json={"model": MODEL, "max_tokens": 16, "messages": messages},
         )
 
@@ -219,7 +219,7 @@ def test_backpressure_still_invokes_cached_prefix_replay(monkeypatch):
         )
     )
 
-    from headroom.cache import prefix_tracker as _pt
+    from horizon.cache import prefix_tracker as _pt
 
     real_overlay = _pt.overlay_cached_prefix
     overlay_calls: list[int] = []
@@ -230,18 +230,18 @@ def test_backpressure_still_invokes_cached_prefix_replay(monkeypatch):
 
     # Patch every binding of overlay_cached_prefix: the handler historically
     # imported it from prefix_tracker per-request, and the shared session
-    # engine (headroom.proxy.session_engine, later in this stack) binds it
+    # engine (horizon.proxy.session_engine, later in this stack) binds it
     # at module import — cover both so this test holds across the stack.
-    monkeypatch.setattr("headroom.cache.prefix_tracker.overlay_cached_prefix", spy)
+    monkeypatch.setattr("horizon.cache.prefix_tracker.overlay_cached_prefix", spy)
     try:
-        import headroom.proxy.session_engine as _se
+        import horizon.proxy.session_engine as _se
 
         monkeypatch.setattr(_se, "overlay_cached_prefix", spy)
     except ImportError:
         pass
 
     info = Mock()
-    monkeypatch.setattr("headroom.proxy.handlers.anthropic.logger.info", info)
+    monkeypatch.setattr("horizon.proxy.handlers.anthropic.logger.info", info)
     proxy = app.state.proxy
 
     class _SaturatedSemaphore:

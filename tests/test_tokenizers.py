@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.tokenizers import (
+from horizon.tokenizers import (
     BaseTokenizer,
     CharacterCounter,
     EstimatingTokenCounter,
@@ -42,7 +42,7 @@ class TestTiktokenCounter:
         the "gpt-4o" entry first and wrongly returned o200k_base for any
         gpt-4 snapshot not in the table (e.g. a future dated build).
         """
-        from headroom.tokenizers.tiktoken_counter import get_encoding_for_model
+        from horizon.tokenizers.tiktoken_counter import get_encoding_for_model
 
         assert get_encoding_for_model("gpt-4-2025-01-01") == "cl100k_base"
         assert get_encoding_for_model("gpt-4-future") == "cl100k_base"
@@ -58,7 +58,7 @@ class TestTiktokenCounter:
         resolved to cl100k_base, and o4* matched no prefix and fell to the
         cl100k_base default — both wrong encodings for those models.
         """
-        from headroom.tokenizers.tiktoken_counter import get_encoding_for_model
+        from horizon.tokenizers.tiktoken_counter import get_encoding_for_model
 
         assert get_encoding_for_model("gpt-4.1") == "o200k_base"
         assert get_encoding_for_model("gpt-4.1-mini") == "o200k_base"
@@ -757,7 +757,7 @@ class TestThinkingBlockCounting:
         assert counter.count_messages([omitted]) > counter.count_messages([empty])
 
     def test_provider_walker_shares_the_thinking_rule(self):
-        from headroom.tokenizers.base import count_content_blocks
+        from horizon.tokenizers.base import count_content_blocks
 
         counter = EstimatingTokenCounter()
         text = "consider the failing test " * 20

@@ -1,9 +1,9 @@
 """Comprehensive tests for LangChain integration.
 
 Tests cover:
-1. HeadroomChatModel - Wrapper for any BaseChatModel
-2. HeadroomCallbackHandler - Metrics and observability
-3. HeadroomRunnable - LCEL chain composition
+1. HorizonChatModel - Wrapper for any BaseChatModel
+2. HorizonCallbackHandler - Metrics and observability
+3. HorizonRunnable - LCEL chain composition
 4. optimize_messages() - Standalone optimization function
 """
 
@@ -29,7 +29,7 @@ try:
 except ImportError:
     LANGCHAIN_AVAILABLE = False
 
-from headroom import HeadroomConfig, HeadroomMode
+from horizon import HorizonConfig, HorizonMode
 
 # Skip all tests if LangChain not installed
 pytestmark = pytest.mark.skipif(not LANGCHAIN_AVAILABLE, reason="LangChain not installed")
@@ -87,68 +87,68 @@ class TestLangchainAvailable:
 
     def test_returns_bool(self):
         """langchain_available returns boolean."""
-        from headroom.integrations.langchain import langchain_available
+        from horizon.integrations.langchain import langchain_available
 
         assert isinstance(langchain_available(), bool)
 
     def test_returns_true_when_installed(self):
         """Returns True when LangChain is installed."""
-        from headroom.integrations.langchain import langchain_available
+        from horizon.integrations.langchain import langchain_available
 
         assert langchain_available() is True
 
 
-class TestHeadroomChatModel:
-    """Tests for HeadroomChatModel wrapper."""
+class TestHorizonChatModel:
+    """Tests for HorizonChatModel wrapper."""
 
     def test_init_with_defaults(self, mock_chat_model):
         """Initialize with default config."""
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = HorizonChatModel(mock_chat_model)
 
         assert model.wrapped_model is mock_chat_model
-        assert model.mode == HeadroomMode.OPTIMIZE
+        assert model.mode == HorizonMode.OPTIMIZE
         assert model._metrics_history == []
         assert model._total_tokens_saved == 0
 
     def test_init_with_custom_config(self, mock_chat_model):
         """Initialize with custom config."""
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
-        config = HeadroomConfig(default_mode=HeadroomMode.AUDIT)
-        model = HeadroomChatModel(
+        config = HorizonConfig(default_mode=HorizonMode.AUDIT)
+        model = HorizonChatModel(
             mock_chat_model,
             config=config,
-            mode=HeadroomMode.SIMULATE,
+            mode=HorizonMode.SIMULATE,
         )
 
-        assert model.headroom_config is config
-        assert model.mode == HeadroomMode.SIMULATE
+        assert model.horizon_config is config
+        assert model.mode == HorizonMode.SIMULATE
 
     def test_llm_type(self, mock_chat_model):
         """_llm_type includes wrapped model type."""
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
-        assert "headroom" in model._llm_type
+        model = HorizonChatModel(mock_chat_model)
+        assert "horizon" in model._llm_type
         assert "mock-chat" in model._llm_type
 
     def test_identifying_params(self, mock_chat_model):
         """_identifying_params includes wrapped model params."""
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = HorizonChatModel(mock_chat_model)
         params = model._identifying_params
 
         assert "wrapped_model" in params
-        assert "headroom_mode" in params
+        assert "horizon_mode" in params
 
     def test_convert_messages_to_openai(self, mock_chat_model, sample_messages):
         """Convert LangChain messages to OpenAI format."""
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = HorizonChatModel(mock_chat_model)
         openai_msgs = model._convert_messages_to_openai(sample_messages)
 
         assert len(openai_msgs) == 2
@@ -159,7 +159,7 @@ class TestHeadroomChatModel:
 
     def test_convert_messages_with_tool_calls(self, mock_chat_model):
         """Convert messages with tool calls."""
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
         messages = [
             HumanMessage(content="Get the weather"),
@@ -170,7 +170,7 @@ class TestHeadroomChatModel:
             ToolMessage(content='{"temp": 20}', tool_call_id="call_123"),
         ]
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = HorizonChatModel(mock_chat_model)
         openai_msgs = model._convert_messages_to_openai(messages)
 
         assert len(openai_msgs) == 3
@@ -181,7 +181,7 @@ class TestHeadroomChatModel:
 
     def test_convert_messages_from_openai(self, mock_chat_model):
         """Convert OpenAI format back to LangChain."""
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
         openai_msgs = [
             {"role": "system", "content": "You are helpful."},
@@ -189,7 +189,7 @@ class TestHeadroomChatModel:
             {"role": "assistant", "content": "Hi there!"},
         ]
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = HorizonChatModel(mock_chat_model)
         lc_msgs = model._convert_messages_from_openai(openai_msgs)
 
         assert len(lc_msgs) == 3
@@ -198,11 +198,11 @@ class TestHeadroomChatModel:
         assert isinstance(lc_msgs[2], AIMessage)
 
     def test_generate_applies_optimization(self, mock_chat_model, sample_messages):
-        """_generate applies Headroom optimization."""
-        from headroom.integrations import HeadroomChatModel
-        from headroom.providers import OpenAIProvider
+        """_generate applies Horizon optimization."""
+        from horizon.integrations import HorizonChatModel
+        from horizon.providers import OpenAIProvider
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = HorizonChatModel(mock_chat_model)
 
         # Initialize provider and pipeline for mocking
         model._provider = OpenAIProvider()
@@ -231,9 +231,9 @@ class TestHeadroomChatModel:
 
     def test_metrics_history_limited(self, mock_chat_model, sample_messages):
         """Metrics history is limited to 100 entries."""
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = HorizonChatModel(mock_chat_model)
 
         # Add 150 fake metrics
         for _i in range(150):
@@ -246,9 +246,9 @@ class TestHeadroomChatModel:
 
     def test_get_savings_summary_empty(self, mock_chat_model):
         """get_savings_summary with no history."""
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = HorizonChatModel(mock_chat_model)
         summary = model.get_savings_summary()
 
         assert summary["total_requests"] == 0
@@ -257,10 +257,10 @@ class TestHeadroomChatModel:
 
     def test_get_savings_summary_with_data(self, mock_chat_model):
         """get_savings_summary with metrics."""
-        from headroom.integrations import HeadroomChatModel
-        from headroom.integrations.langchain import OptimizationMetrics
+        from horizon.integrations import HorizonChatModel
+        from horizon.integrations.langchain import OptimizationMetrics
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = HorizonChatModel(mock_chat_model)
 
         # Add fake metrics
         model._metrics_history = [
@@ -295,9 +295,9 @@ class TestHeadroomChatModel:
 
     def test_get_metrics_empty(self, mock_chat_model):
         """get_metrics with no history."""
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = HorizonChatModel(mock_chat_model)
         metrics = model.get_metrics()
 
         assert metrics["tokens_saved"] == 0
@@ -305,10 +305,10 @@ class TestHeadroomChatModel:
 
     def test_get_metrics_with_data(self, mock_chat_model):
         """get_metrics returns tokens_saved from tracked optimization history."""
-        from headroom.integrations import HeadroomChatModel
-        from headroom.integrations.langchain import OptimizationMetrics
+        from horizon.integrations import HorizonChatModel
+        from horizon.integrations.langchain import OptimizationMetrics
 
-        model = HeadroomChatModel(mock_chat_model)
+        model = HorizonChatModel(mock_chat_model)
 
         model._metrics_history = [
             OptimizationMetrics(
@@ -340,14 +340,14 @@ class TestHeadroomChatModel:
         assert metrics["total_requests"] == 2
 
 
-class TestHeadroomCallbackHandler:
-    """Tests for HeadroomCallbackHandler."""
+class TestHorizonCallbackHandler:
+    """Tests for HorizonCallbackHandler."""
 
     def test_init_defaults(self):
         """Initialize with default settings."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from horizon.integrations import HorizonCallbackHandler
 
-        handler = HeadroomCallbackHandler()
+        handler = HorizonCallbackHandler()
 
         assert handler.log_level == "INFO"
         assert handler.token_alert_threshold is None
@@ -356,9 +356,9 @@ class TestHeadroomCallbackHandler:
 
     def test_init_with_thresholds(self):
         """Initialize with alert thresholds."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from horizon.integrations import HorizonCallbackHandler
 
-        handler = HeadroomCallbackHandler(
+        handler = HorizonCallbackHandler(
             token_alert_threshold=10000,
             cost_alert_threshold=1.0,
         )
@@ -368,9 +368,9 @@ class TestHeadroomCallbackHandler:
 
     def test_on_chat_model_start(self):
         """Track chat model start."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from horizon.integrations import HorizonCallbackHandler
 
-        handler = HeadroomCallbackHandler()
+        handler = HorizonCallbackHandler()
 
         messages = [[HumanMessage(content="Hello, how are you?")]]
         handler.on_chat_model_start(
@@ -384,9 +384,9 @@ class TestHeadroomCallbackHandler:
 
     def test_on_chat_model_start_triggers_alert(self):
         """Alert triggered when tokens exceed threshold."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from horizon.integrations import HorizonCallbackHandler
 
-        handler = HeadroomCallbackHandler(token_alert_threshold=5)
+        handler = HorizonCallbackHandler(token_alert_threshold=5)
 
         # Long message to exceed threshold
         messages = [[HumanMessage(content="A" * 100)]]
@@ -400,9 +400,9 @@ class TestHeadroomCallbackHandler:
 
     def test_on_llm_end_tracks_tokens(self):
         """Track tokens on LLM completion."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from horizon.integrations import HorizonCallbackHandler
 
-        handler = HeadroomCallbackHandler()
+        handler = HorizonCallbackHandler()
         handler._current_request = {"start_time": datetime.now()}
 
         response = MagicMock()
@@ -422,9 +422,9 @@ class TestHeadroomCallbackHandler:
 
     def test_on_llm_error(self):
         """Track errors."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from horizon.integrations import HorizonCallbackHandler
 
-        handler = HeadroomCallbackHandler()
+        handler = HorizonCallbackHandler()
         handler._current_request = {"start_time": datetime.now()}
 
         handler.on_llm_error(ValueError("Test error"), run_id=uuid4())
@@ -434,9 +434,9 @@ class TestHeadroomCallbackHandler:
 
     def test_get_summary(self):
         """Get summary statistics."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from horizon.integrations import HorizonCallbackHandler
 
-        handler = HeadroomCallbackHandler()
+        handler = HorizonCallbackHandler()
 
         # Add some requests
         handler._requests = [
@@ -454,9 +454,9 @@ class TestHeadroomCallbackHandler:
 
     def test_reset(self):
         """Reset clears all state."""
-        from headroom.integrations import HeadroomCallbackHandler
+        from horizon.integrations import HorizonCallbackHandler
 
-        handler = HeadroomCallbackHandler()
+        handler = HorizonCallbackHandler()
         handler._requests = [{"test": 1}]
         handler._total_tokens = 100
         handler._alerts = ["alert"]
@@ -468,45 +468,45 @@ class TestHeadroomCallbackHandler:
         assert len(handler.alerts) == 0
 
 
-class TestHeadroomRunnable:
-    """Tests for HeadroomRunnable LCEL component."""
+class TestHorizonRunnable:
+    """Tests for HorizonRunnable LCEL component."""
 
     def test_init_defaults(self):
         """Initialize with defaults."""
-        from headroom.integrations.langchain import HeadroomRunnable
+        from horizon.integrations.langchain import HorizonRunnable
 
-        runnable = HeadroomRunnable()
+        runnable = HorizonRunnable()
 
-        assert runnable.mode == HeadroomMode.OPTIMIZE
+        assert runnable.mode == HorizonMode.OPTIMIZE
         assert runnable.config is not None
 
     def test_init_custom_config(self):
         """Initialize with custom config."""
-        from headroom.integrations.langchain import HeadroomRunnable
+        from horizon.integrations.langchain import HorizonRunnable
 
-        config = HeadroomConfig(default_mode=HeadroomMode.AUDIT)
-        runnable = HeadroomRunnable(config=config, mode=HeadroomMode.SIMULATE)
+        config = HorizonConfig(default_mode=HorizonMode.AUDIT)
+        runnable = HorizonRunnable(config=config, mode=HorizonMode.SIMULATE)
 
         assert runnable.config is config
-        assert runnable.mode == HeadroomMode.SIMULATE
+        assert runnable.mode == HorizonMode.SIMULATE
 
     def test_as_runnable(self):
         """Convert to LangChain Runnable."""
         from langchain_core.runnables import RunnableLambda
 
-        from headroom.integrations.langchain import HeadroomRunnable
+        from horizon.integrations.langchain import HorizonRunnable
 
-        runnable = HeadroomRunnable()
+        runnable = HorizonRunnable()
         lc_runnable = runnable.as_runnable()
 
         assert isinstance(lc_runnable, RunnableLambda)
 
     def test_optimize_messages(self, sample_messages):
         """Optimize list of messages."""
-        from headroom.integrations.langchain import HeadroomRunnable
-        from headroom.providers import OpenAIProvider
+        from horizon.integrations.langchain import HorizonRunnable
+        from horizon.providers import OpenAIProvider
 
-        runnable = HeadroomRunnable()
+        runnable = HorizonRunnable()
 
         # Initialize provider and pipeline for mocking
         runnable._provider = OpenAIProvider()
@@ -534,9 +534,9 @@ class TestOptimizeMessages:
 
     def test_basic_optimization(self, sample_messages):
         """Basic message optimization."""
-        from headroom.integrations import optimize_messages
+        from horizon.integrations import optimize_messages
 
-        with patch("headroom.integrations.langchain.chat_model.TransformPipeline") as MockPipeline:
+        with patch("horizon.integrations.langchain.chat_model.TransformPipeline") as MockPipeline:
             mock_instance = MagicMock()
             mock_result = MagicMock()
             mock_result.messages = [
@@ -557,11 +557,11 @@ class TestOptimizeMessages:
 
     def test_with_custom_config(self, sample_messages):
         """Optimization with custom config."""
-        from headroom.integrations import optimize_messages
+        from horizon.integrations import optimize_messages
 
-        config = HeadroomConfig(default_mode=HeadroomMode.AUDIT)
+        config = HorizonConfig(default_mode=HorizonMode.AUDIT)
 
-        with patch("headroom.integrations.langchain.chat_model.TransformPipeline") as MockPipeline:
+        with patch("horizon.integrations.langchain.chat_model.TransformPipeline") as MockPipeline:
             mock_instance = MagicMock()
             mock_result = MagicMock()
             mock_result.messages = []
@@ -574,7 +574,7 @@ class TestOptimizeMessages:
             _, metrics = optimize_messages(
                 sample_messages,
                 config=config,
-                mode=HeadroomMode.AUDIT,
+                mode=HorizonMode.AUDIT,
             )
 
             # Verify pipeline was created with config
@@ -584,7 +584,7 @@ class TestOptimizeMessages:
 
     def test_with_tool_messages(self):
         """Optimization with tool messages."""
-        from headroom.integrations import optimize_messages
+        from horizon.integrations import optimize_messages
 
         messages = [
             HumanMessage(content="Get weather"),
@@ -595,7 +595,7 @@ class TestOptimizeMessages:
             ToolMessage(content="Sunny", tool_call_id="1"),
         ]
 
-        with patch("headroom.integrations.langchain.chat_model.TransformPipeline") as MockPipeline:
+        with patch("horizon.integrations.langchain.chat_model.TransformPipeline") as MockPipeline:
             mock_instance = MagicMock()
             mock_result = MagicMock()
             mock_result.messages = [
@@ -625,17 +625,17 @@ class TestOptimizeMessages:
             assert isinstance(optimized[2], ToolMessage)
 
 
-class TestIntegrationWithRealHeadroom:
-    """Integration tests using real Headroom components (no mocking)."""
+class TestIntegrationWithRealHorizon:
+    """Integration tests using real Horizon components (no mocking)."""
 
     def test_real_optimization_pipeline(self, sample_messages):
-        """Test with real Headroom client (no API calls)."""
-        from headroom.integrations import optimize_messages
+        """Test with real Horizon client (no API calls)."""
+        from horizon.integrations import optimize_messages
 
-        # This uses real Headroom transforms but no LLM API calls
+        # This uses real Horizon transforms but no LLM API calls
         optimized, metrics = optimize_messages(
             sample_messages,
-            mode=HeadroomMode.OPTIMIZE,
+            mode=HorizonMode.OPTIMIZE,
         )
 
         # Should return valid messages
@@ -651,7 +651,7 @@ class TestIntegrationWithRealHeadroom:
 
     def test_large_conversation_compression(self):
         """Test compression of large conversation."""
-        from headroom.integrations import optimize_messages
+        from horizon.integrations import optimize_messages
 
         # Create large conversation
         messages = [SystemMessage(content="You are a helpful assistant.")]
@@ -771,11 +771,11 @@ class TestAinvokeStreamingTrue:
 
     @pytest.fixture
     def _patched_pipeline(self, streaming_mock_model):
-        """Create a HeadroomChatModel with a mocked optimization pipeline."""
-        from headroom.integrations import HeadroomChatModel
-        from headroom.providers import OpenAIProvider
+        """Create a HorizonChatModel with a mocked optimization pipeline."""
+        from horizon.integrations import HorizonChatModel
+        from horizon.providers import OpenAIProvider
 
-        model = HeadroomChatModel(streaming_mock_model)
+        model = HorizonChatModel(streaming_mock_model)
         model._provider = OpenAIProvider()
         _ = model.pipeline  # Force lazy init
 
@@ -800,10 +800,10 @@ class TestAinvokeStreamingTrue:
         This is the core fix for #1285 — without the fix, the mock's _agenerate
         returns a FakeAsyncStream and the test would fail the isinstance check.
         """
-        from headroom.integrations import HeadroomChatModel
-        from headroom.providers import OpenAIProvider
+        from horizon.integrations import HorizonChatModel
+        from horizon.providers import OpenAIProvider
 
-        model = HeadroomChatModel(streaming_mock_model)
+        model = HorizonChatModel(streaming_mock_model)
         model._provider = OpenAIProvider()
         _ = model.pipeline
 
@@ -830,10 +830,10 @@ class TestAinvokeStreamingTrue:
         self, streaming_mock_model, sample_messages
     ):
         """streaming=True is never changed on the wrapped model during/after _agenerate()."""
-        from headroom.integrations import HeadroomChatModel
-        from headroom.providers import OpenAIProvider
+        from horizon.integrations import HorizonChatModel
+        from horizon.providers import OpenAIProvider
 
-        model = HeadroomChatModel(streaming_mock_model)
+        model = HorizonChatModel(streaming_mock_model)
         model._provider = OpenAIProvider()
         _ = model.pipeline
 
@@ -864,10 +864,10 @@ class TestAinvokeStreamingTrue:
         With the per-call copy approach, the original model is never mutated.
         The copy gets streaming=False, which is why we still get a ChatResult.
         """
-        from headroom.integrations import HeadroomChatModel
-        from headroom.providers import OpenAIProvider
+        from horizon.integrations import HorizonChatModel
+        from horizon.providers import OpenAIProvider
 
-        model = HeadroomChatModel(streaming_mock_model)
+        model = HorizonChatModel(streaming_mock_model)
         model._provider = OpenAIProvider()
         _ = model.pipeline
 
@@ -903,10 +903,10 @@ class TestAinvokeStreamingTrue:
 
     async def test_streaming_unchanged_on_exception(self, streaming_mock_model, sample_messages):
         """Original model's streaming is unchanged even if _agenerate raises."""
-        from headroom.integrations import HeadroomChatModel
-        from headroom.providers import OpenAIProvider
+        from horizon.integrations import HorizonChatModel
+        from horizon.providers import OpenAIProvider
 
-        model = HeadroomChatModel(streaming_mock_model)
+        model = HorizonChatModel(streaming_mock_model)
         model._provider = OpenAIProvider()
         _ = model.pipeline
 
@@ -949,10 +949,10 @@ class TestAinvokeStreamingTrue:
         each get their own copy with streaming=False, so the original model's
         streaming is never mutated. Both calls return ChatResult.
         """
-        from headroom.integrations import HeadroomChatModel
-        from headroom.providers import OpenAIProvider
+        from horizon.integrations import HorizonChatModel
+        from horizon.providers import OpenAIProvider
 
-        model = HeadroomChatModel(streaming_mock_model)
+        model = HorizonChatModel(streaming_mock_model)
         model._provider = OpenAIProvider()
         _ = model.pipeline
 
@@ -1003,8 +1003,8 @@ class TestAinvokeStreamingTrue:
 
     async def test_agenerate_no_streaming_attr_passthrough(self, sample_messages):
         """_agenerate() works when wrapped model has no streaming attribute."""
-        from headroom.integrations import HeadroomChatModel
-        from headroom.providers import OpenAIProvider
+        from horizon.integrations import HorizonChatModel
+        from horizon.providers import OpenAIProvider
 
         # Mock without streaming attribute — MagicMock auto-generates
         # attributes, so we must explicitly delete streaming to simulate
@@ -1027,7 +1027,7 @@ class TestAinvokeStreamingTrue:
 
         mock._agenerate = mock_agenerate
 
-        model = HeadroomChatModel(mock)
+        model = HorizonChatModel(mock)
         model._provider = OpenAIProvider()
         _ = model.pipeline
 
@@ -1147,27 +1147,27 @@ class TestOllamaIntegration:
             pytest.skip("No Ollama models available")
         return model
 
-    def test_headroom_chat_model_with_ollama(self, ollama_model_name):
-        """Test HeadroomChatModel wrapping real ChatOllama model."""
+    def test_horizon_chat_model_with_ollama(self, ollama_model_name):
+        """Test HorizonChatModel wrapping real ChatOllama model."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
         # Create real Ollama model (no API key needed)
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
+        horizon_model = HorizonChatModel(base_model)
 
-        assert headroom_model.wrapped_model is base_model
-        assert isinstance(headroom_model, HeadroomChatModel)
+        assert horizon_model.wrapped_model is base_model
+        assert isinstance(horizon_model, HorizonChatModel)
 
     def test_invoke_with_ollama(self, ollama_model_name):
         """Actually invoke an LLM call with Ollama - full end-to-end test."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
+        horizon_model = HorizonChatModel(base_model)
 
         messages = [
             SystemMessage(content="You are a helpful assistant. Be very brief."),
@@ -1175,7 +1175,7 @@ class TestOllamaIntegration:
         ]
 
         # This makes a real LLM call
-        result = headroom_model.invoke(messages)
+        result = horizon_model.invoke(messages)
 
         assert result is not None
         assert result.content is not None
@@ -1185,16 +1185,16 @@ class TestOllamaIntegration:
         """Test _generate method with real Ollama model."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
+        horizon_model = HorizonChatModel(base_model)
 
         messages = [
             HumanMessage(content="Say 'hello' and nothing else."),
         ]
 
-        result = headroom_model._generate(messages)
+        result = horizon_model._generate(messages)
 
         assert result is not None
         assert len(result.generations) > 0
@@ -1204,10 +1204,10 @@ class TestOllamaIntegration:
         """Test that optimization metrics are tracked with real calls."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
+        horizon_model = HorizonChatModel(base_model)
 
         # Make a call with some messages
         messages = [
@@ -1215,46 +1215,46 @@ class TestOllamaIntegration:
             HumanMessage(content="Hi"),
         ]
 
-        headroom_model.invoke(messages)
+        horizon_model.invoke(messages)
 
         # Metrics should be tracked
-        assert len(headroom_model._metrics_history) >= 1
+        assert len(horizon_model._metrics_history) >= 1
 
     def test_multiple_turns_with_ollama(self, ollama_model_name):
         """Test multi-turn conversation with real Ollama."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
+        horizon_model = HorizonChatModel(base_model)
 
         # First turn
         messages = [
             SystemMessage(content="You are a helpful assistant. Be brief."),
             HumanMessage(content="My name is Alice."),
         ]
-        response1 = headroom_model.invoke(messages)
+        response1 = horizon_model.invoke(messages)
 
         # Second turn - add previous exchange
         messages.append(AIMessage(content=response1.content))
         messages.append(HumanMessage(content="What is my name?"))
 
-        response2 = headroom_model.invoke(messages)
+        response2 = horizon_model.invoke(messages)
 
         assert response2 is not None
         assert response2.content is not None
         # Model should remember the name from context
         assert len(response2.content) > 0
 
-    def test_headroom_optimization_reduces_tokens(self, ollama_model_name):
-        """Test that Headroom optimization actually reduces token count."""
+    def test_horizon_optimization_reduces_tokens(self, ollama_model_name):
+        """Test that Horizon optimization actually reduces token count."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model, mode=HeadroomMode.OPTIMIZE)
+        horizon_model = HorizonChatModel(base_model, mode=HorizonMode.OPTIMIZE)
 
         # Create a conversation with repetitive content that should be compressed
         messages = [SystemMessage(content="You are a helpful assistant.")]
@@ -1264,30 +1264,30 @@ class TestOllamaIntegration:
         messages.append(HumanMessage(content="What was question 5?"))
 
         # This should trigger compression
-        headroom_model.invoke(messages)
+        horizon_model.invoke(messages)
 
         # Check that some optimization was tracked
-        if headroom_model._metrics_history:
-            metrics = headroom_model._metrics_history[-1]
+        if horizon_model._metrics_history:
+            metrics = horizon_model._metrics_history[-1]
             # With a large conversation, we expect some savings
             assert metrics.tokens_before >= metrics.tokens_after
 
     def test_callback_handler_with_ollama(self, ollama_model_name):
-        """Test HeadroomCallbackHandler with real Ollama calls."""
+        """Test HorizonCallbackHandler with real Ollama calls."""
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomCallbackHandler, HeadroomChatModel
+        from horizon.integrations import HorizonCallbackHandler, HorizonChatModel
 
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
-        handler = HeadroomCallbackHandler()
+        horizon_model = HorizonChatModel(base_model)
+        handler = HorizonCallbackHandler()
 
         messages = [
             HumanMessage(content="Say 'test' and nothing else."),
         ]
 
         # Invoke with callback
-        headroom_model.invoke(messages, config={"callbacks": [handler]})
+        horizon_model.invoke(messages, config={"callbacks": [handler]})
 
         # Handler should have tracked the request
         assert handler.total_requests >= 1
@@ -1311,17 +1311,17 @@ class TestRealLangChainIntegration:
             pytest.skip("No Ollama models available")
         return model
 
-    def test_lcel_chain_with_headroom(self, ollama_model_name):
-        """Test LCEL chain composition with HeadroomChatModel."""
+    def test_lcel_chain_with_horizon(self, ollama_model_name):
+        """Test LCEL chain composition with HorizonChatModel."""
         from langchain_core.output_parsers import StrOutputParser
         from langchain_core.prompts import ChatPromptTemplate
         from langchain_ollama import ChatOllama
 
-        from headroom.integrations import HeadroomChatModel
+        from horizon.integrations import HorizonChatModel
 
-        # Create chain: prompt -> headroom model -> output parser
+        # Create chain: prompt -> horizon model -> output parser
         base_model = ChatOllama(model=ollama_model_name)
-        headroom_model = HeadroomChatModel(base_model)
+        horizon_model = HorizonChatModel(base_model)
 
         prompt = ChatPromptTemplate.from_messages(
             [
@@ -1330,7 +1330,7 @@ class TestRealLangChainIntegration:
             ]
         )
 
-        chain = prompt | headroom_model | StrOutputParser()
+        chain = prompt | horizon_model | StrOutputParser()
 
         # Invoke the chain
         result = chain.invoke({"input": "What is 1+1? Just the number."})
@@ -1340,7 +1340,7 @@ class TestRealLangChainIntegration:
 
     def test_optimize_messages_standalone_with_ollama_types(self, ollama_model_name):
         """Test standalone optimize_messages function with real message types."""
-        from headroom.integrations import optimize_messages
+        from horizon.integrations import optimize_messages
 
         # Use real LangChain message types
         messages = [

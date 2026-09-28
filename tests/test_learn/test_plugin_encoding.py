@@ -14,9 +14,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from headroom.learn.models import SessionData
-from headroom.learn.plugins.claude import ClaudeCodePlugin
-from headroom.learn.plugins.codex import CodexPlugin
+from horizon.learn.models import SessionData
+from horizon.learn.plugins.claude import ClaudeCodePlugin
+from horizon.learn.plugins.codex import CodexPlugin
 
 
 def _stray_byte_line() -> bytes:

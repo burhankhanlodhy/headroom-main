@@ -1,10 +1,10 @@
 """Regression: CCR must store the pre-protection original, not the
-``{{HEADROOM_TAG_N}}`` placeholder intermediate, for tag-protected Kompress inputs.
+``{{HORIZON_TAG_N}}`` placeholder intermediate, for tag-protected Kompress inputs.
 
 Before the fix, ``ContentRouter._try_ml_compressor`` passed the tag-protected
 (placeholdered) text into ``KompressCompressor.compress`` without an original, so
 CCR stored the placeholder as the entry's ``original_content``. A later *full*
-retrieval then returned ``{{HEADROOM_TAG_N}}`` and the protected block (e.g. a
+retrieval then returned ``{{HORIZON_TAG_N}}`` and the protected block (e.g. a
 ``<system-reminder>`` instruction) was lost from the retrieval path — even
 though the immediate upstream request was correctly restored by ``restore_tags``.
 
@@ -16,8 +16,8 @@ compressor half (``compress`` stores ``ccr_original`` rather than the protected
 
 from __future__ import annotations
 
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
-from headroom.transforms.kompress_compressor import KompressCompressor, KompressConfig
+from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
+from horizon.transforms.kompress_compressor import KompressCompressor, KompressConfig
 
 
 def _kompress_router() -> ContentRouter:
@@ -70,13 +70,13 @@ def test_router_forwards_raw_original_as_ccr_original_for_tagged_content(monkeyp
     router._try_ml_compressor(raw, context="")
 
     # The model only ever sees the tag-protected placeholder.
-    assert "{{HEADROOM_TAG" in captured["model_input"]
+    assert "{{HORIZON_TAG" in captured["model_input"]
     assert "CRITICAL" not in captured["model_input"]
 
     # CCR must receive the raw pre-protection original, so a later full retrieval
     # returns the real <system-reminder> content rather than the placeholder.
     assert captured["ccr_original"] == raw
-    assert "{{HEADROOM_TAG" not in str(captured["ccr_original"])
+    assert "{{HORIZON_TAG" not in str(captured["ccr_original"])
 
 
 def test_router_omits_ccr_original_when_no_tags(monkeypatch):
@@ -144,7 +144,7 @@ def test_compress_batch_validates_ccr_originals_length():
 
 # 100 filler words: keeping two saves ~99, well past the marker cost gate.
 _RAW = "<system-reminder>CRITICAL: invoke the skill</system-reminder> " + " ".join(["filler"] * 100)
-_PLACEHOLDER = "{{HEADROOM_TAG_0}} " + " ".join(["filler"] * 100)
+_PLACEHOLDER = "{{HORIZON_TAG_0}} " + " ".join(["filler"] * 100)
 
 
 class _FakeEncoding:
@@ -185,7 +185,7 @@ def _capture_store(compressor, monkeypatch):
 
     monkeypatch.setattr(compressor, "_store_in_ccr", fake_store)
     monkeypatch.setattr(
-        "headroom.transforms.kompress_compressor._load_kompress",
+        "horizon.transforms.kompress_compressor._load_kompress",
         lambda *a, **k: (_FakeModel(), _FakeTokenizer(), "onnx"),
     )
     return captured
@@ -200,7 +200,7 @@ def test_compress_inline_stores_ccr_original_not_placeholder(monkeypatch):
     compressor.compress(_PLACEHOLDER, ccr_original=_RAW)
 
     assert captured["original"] == _RAW
-    assert "{{HEADROOM_TAG" not in str(captured["original"])
+    assert "{{HORIZON_TAG" not in str(captured["original"])
 
 
 def test_compress_batch_batched_path_stores_ccr_original(monkeypatch):
@@ -214,4 +214,4 @@ def test_compress_batch_batched_path_stores_ccr_original(monkeypatch):
     compressor.compress_batch([_PLACEHOLDER], ccr_originals=[_RAW])
 
     assert captured["original"] == _RAW
-    assert "{{HEADROOM_TAG" not in str(captured["original"])
+    assert "{{HORIZON_TAG" not in str(captured["original"])

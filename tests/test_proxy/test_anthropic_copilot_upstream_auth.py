@@ -3,7 +3,7 @@ attributed to Copilot — on the buffered (non-streaming) arm, not just streamin
 
 Copilot serves Claude models from its Anthropic surface (``/v1/messages``) on
 the same host as its OpenAI surface, so the resolved Anthropic target can be a
-Copilot host with no per-request ``x-headroom-base-url`` in play. Two things
+Copilot host with no per-request ``x-horizon-base-url`` in play. Two things
 used to be true only on the streaming path:
 
 - **Auth.** ``apply_copilot_api_auth`` is keyed on the upstream URL and was
@@ -30,8 +30,8 @@ httpx = pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom import copilot_auth  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon import copilot_auth  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 MESSAGES = "/v1/messages"
 COPILOT = "https://api.githubcopilot.com"
@@ -120,7 +120,7 @@ def _emitted_providers(anthropic_api_url: str, monkeypatch: pytest.MonkeyPatch) 
     created by ``asyncio.shield`` — so this also pins that the flag survives the
     context copy into that task, which asserting on the flag alone would not.
     """
-    import headroom.telemetry.session as telemetry_session
+    import horizon.telemetry.session as telemetry_session
 
     seen: list[str] = []
     monkeypatch.setattr(

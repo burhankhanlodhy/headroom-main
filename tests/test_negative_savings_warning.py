@@ -19,8 +19,8 @@ import logging
 
 import pytest
 
-from headroom.proxy import savings_tracker as st
-from headroom.proxy.savings_tracker import SavingsTracker
+from horizon.proxy import savings_tracker as st
+from horizon.proxy.savings_tracker import SavingsTracker
 
 
 @pytest.fixture

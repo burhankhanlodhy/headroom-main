@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.backends.litellm import _caller_key_travels_to
+from horizon.backends.litellm import _caller_key_travels_to
 
 ANTHROPIC_KEY = "sk-ant-api03-abc123"
 

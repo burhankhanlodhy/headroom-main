@@ -1,21 +1,21 @@
 # SDK Guide
 
-The Headroom SDK wraps your existing LLM client to add compression and optimization transparently.
+The Horizon SDK wraps your existing LLM client to add compression and optimization transparently.
 
 ## Installation
 
 ```bash
-pip install headroom-ai openai
+pip install horizon-ai openai
 ```
 
 ## Quick Start
 
 ```python
-from headroom import HeadroomClient, OpenAIProvider
+from horizon import HorizonClient, OpenAIProvider
 from openai import OpenAI
 
 # Create wrapped client
-client = HeadroomClient(
+client = HorizonClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     default_mode="optimize",
@@ -34,7 +34,7 @@ print(response.choices[0].message.content)
 
 ## Tool Output Compression
 
-Real savings happen with tool outputs. Here's where Headroom shines:
+Real savings happen with tool outputs. Here's where Horizon shines:
 
 ```python
 import json
@@ -63,7 +63,7 @@ messages = [
     {"role": "user", "content": "What are the top 3?"},
 ]
 
-# Headroom compresses 500 results to ~15, keeping highest-scoring items
+# Horizon compresses 500 results to ~15, keeping highest-scoring items
 response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
 
 # Check savings
@@ -77,10 +77,10 @@ print(f"Tokens saved: {stats['session']['tokens_saved_total']}")
 ### OpenAI
 
 ```python
-from headroom import HeadroomClient, OpenAIProvider
+from horizon import HorizonClient, OpenAIProvider
 from openai import OpenAI
 
-client = HeadroomClient(
+client = HorizonClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
 )
@@ -89,10 +89,10 @@ client = HeadroomClient(
 ### Anthropic
 
 ```python
-from headroom import HeadroomClient, AnthropicProvider
+from horizon import HorizonClient, AnthropicProvider
 from anthropic import Anthropic
 
-client = HeadroomClient(
+client = HorizonClient(
     original_client=Anthropic(),
     provider=AnthropicProvider(),
 )
@@ -107,11 +107,11 @@ response = client.messages.create(
 ### Google
 
 ```python
-from headroom import HeadroomClient
-from headroom.providers import GoogleProvider
+from horizon import HorizonClient
+from horizon.providers import GoogleProvider
 import google.generativeai as genai
 
-client = HeadroomClient(
+client = HorizonClient(
     original_client=genai,
     provider=GoogleProvider(),
 )
@@ -145,7 +145,7 @@ if not result["valid"]:
 Applies all safe transforms:
 
 ```python
-client = HeadroomClient(
+client = HorizonClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     default_mode="optimize",
@@ -157,7 +157,7 @@ client = HeadroomClient(
 Observes and logs without modifying:
 
 ```python
-client = HeadroomClient(
+client = HorizonClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     default_mode="audit",
@@ -185,11 +185,11 @@ response = client.chat.completions.create(
     model="gpt-4o",
     messages=[...],
     # Override mode for this request
-    headroom_mode="audit",
+    horizon_mode="audit",
     # Reserve more tokens for output
-    headroom_output_buffer_tokens=8000,
+    horizon_output_buffer_tokens=8000,
     # Keep last N turns
-    headroom_keep_turns=5,
+    horizon_keep_turns=5,
 )
 ```
 
@@ -201,8 +201,8 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 # Now you'll see:
-# INFO:headroom.transforms.pipeline:Pipeline complete: 45000 -> 4500 tokens
-# INFO:headroom.transforms.smart_crusher:SmartCrusher: kept 15 of 1000 items
+# INFO:horizon.transforms.pipeline:Pipeline complete: 45000 -> 4500 tokens
+# INFO:horizon.transforms.smart_crusher:SmartCrusher: kept 15 of 1000 items
 ```
 
 ## Streaming
@@ -224,9 +224,9 @@ for chunk in stream:
 ## Error Handling
 
 ```python
-from headroom import (
-    HeadroomClient,
-    HeadroomError,
+from horizon import (
+    HorizonClient,
+    HorizonError,
     ConfigurationError,
     ProviderError,
 )
@@ -237,8 +237,8 @@ except ConfigurationError as e:
     print(f"Config issue: {e}")
 except ProviderError as e:
     print(f"Provider issue: {e}")
-except HeadroomError as e:
-    print(f"Headroom error: {e}")
+except HorizonError as e:
+    print(f"Horizon error: {e}")
 ```
 
 ## Historical Metrics
@@ -262,7 +262,7 @@ for m in metrics:
 See [Configuration](configuration.md) for full options:
 
 ```python
-client = HeadroomClient(
+client = HorizonClient(
     original_client=OpenAI(),
     provider=OpenAIProvider(),
     default_mode="optimize",

@@ -15,13 +15,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from headroom.proxy.conversation_savings import (
+from horizon.proxy.conversation_savings import (
     ConversationSavings,
     get_conversation_savings,
     reset_conversation_savings,
     savings_conversation_key,
 )
-from headroom.proxy.outcome import RequestOutcome, emit_request_outcome
+from horizon.proxy.outcome import RequestOutcome, emit_request_outcome
 
 
 @pytest.fixture(autouse=True)
@@ -111,7 +111,7 @@ def test_touching_a_conversation_keeps_it_warm() -> None:
 
 
 class _Handler:
-    """Minimal stand-in for the parts of HeadroomProxy the funnel touches."""
+    """Minimal stand-in for the parts of HorizonProxy the funnel touches."""
 
     def __init__(self) -> None:
         self.metrics = MagicMock()
@@ -285,7 +285,7 @@ def test_shared_instructions_with_distinct_input_are_not_one_conversation() -> N
     input. The holdout key merges them (its Responses fallback is the
     instructions prefix); the savings key must not, or independent sessions
     suppress each other's savings through the process-wide ledger."""
-    from headroom.proxy.output_savings_policy import conversation_key_from_body
+    from horizon.proxy.output_savings_policy import conversation_key_from_body
 
     a_body = _responses_body("fix the failing test")
     b_body = _responses_body("write the release notes")

@@ -18,7 +18,7 @@ import asyncio
 
 import pytest
 
-from headroom.proxy.outcome import RequestOutcome, emit_request_outcome
+from horizon.proxy.outcome import RequestOutcome, emit_request_outcome
 
 
 class _Metrics:
@@ -34,7 +34,7 @@ class _Metrics:
     # ``source`` deliberately has NO default here: the funnel only ever sees
     # 429s the provider returned, so it must pass source="upstream" explicitly.
     # If it ever stops doing so, these tests record None and fail loudly rather
-    # than silently re-merging upstream throttling into Headroom's own counter.
+    # than silently re-merging upstream throttling into Horizon's own counter.
     async def record_rate_limited(self, provider, source=None):
         self.rate_limited.append(provider)
         self.rate_limited_sources.append(source)
@@ -84,8 +84,8 @@ def test_429_recorded_as_rate_limited_and_skips_success_funnel():
     handler = _Handler()
     asyncio.run(emit_request_outcome(handler, _outcome(429, tokens_saved=6380)))
     assert handler.metrics.rate_limited == ["anthropic"]
-    # Labelled as the PROVIDER's 429, not ours. Headroom's own limiter rejects
-    # before a request is ever sent and records source="headroom" from the
+    # Labelled as the PROVIDER's 429, not ours. Horizon's own limiter rejects
+    # before a request is ever sent and records source="horizon" from the
     # handler; merging the two would tell an operator to raise a cap that is
     # not the one being hit (issue #3696).
     assert handler.metrics.rate_limited_sources == ["upstream"]

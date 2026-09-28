@@ -2,7 +2,7 @@
 
 import pytest
 
-from headroom.providers.openai import (
+from horizon.providers.openai import (
     _get_encoding_name_for_model,
 )
 
@@ -142,15 +142,15 @@ class TestGuardedEncodingLoad:
 
     @pytest.fixture(autouse=True)
     def _clear_encoding_cache(self):
-        from headroom.providers import openai as openai_module
+        from horizon.providers import openai as openai_module
 
         openai_module._get_encoding.cache_clear()
         yield
         openai_module._get_encoding.cache_clear()
 
     def test_get_encoding_routes_through_bounded_loader(self, monkeypatch):
-        from headroom.providers.openai import OpenAITokenCounter
-        from headroom.tokenizers import tiktoken_counter
+        from horizon.providers.openai import OpenAITokenCounter
+        from horizon.tokenizers import tiktoken_counter
 
         seen: list[str] = []
 
@@ -164,9 +164,9 @@ class TestGuardedEncodingLoad:
         assert seen == ["o200k_base"]
 
     def test_get_token_counter_falls_back_to_estimation(self, monkeypatch):
-        from headroom.providers.openai import OpenAIProvider
-        from headroom.tokenizers import tiktoken_counter
-        from headroom.tokenizers.estimator import EstimatingTokenCounter
+        from horizon.providers.openai import OpenAIProvider
+        from horizon.tokenizers import tiktoken_counter
+        from horizon.tokenizers.estimator import EstimatingTokenCounter
 
         def fake_load_encoding(name: str):
             raise tiktoken_counter.TiktokenLoadError(f"{name} load timed out")

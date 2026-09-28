@@ -10,8 +10,8 @@ import click.shell_completion as click_shell_completion
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli.learn import _AgentChoice
-from headroom.cli.main import main
+from horizon.cli.learn import _AgentChoice
+from horizon.cli.main import main
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ class FakeWriter:
         return SimpleNamespace(
             dry_run=dry_run,
             content_by_file={
-                Path(project.project_path) / "AGENTS.md": "<!-- headroom -->\nRule 1\nRule 2"
+                Path(project.project_path) / "AGENTS.md": "<!-- horizon -->\nRule 1\nRule 2"
             },
         )
 
@@ -80,11 +80,11 @@ def test_agent_choice_convert_and_shell_complete(monkeypatch: pytest.MonkeyPatch
     choice = _AgentChoice()
     monkeypatch.setattr(click, "shell_completion", click_shell_completion)
     monkeypatch.setattr(
-        "headroom.learn.registry.get_registry",
+        "horizon.learn.registry.get_registry",
         lambda: {"codex": object(), "claude": object()},
     )
     monkeypatch.setattr(
-        "headroom.learn.registry.available_agent_names",
+        "horizon.learn.registry.available_agent_names",
         lambda: ["claude", "codex"],
     )
 
@@ -102,7 +102,7 @@ def test_learn_exits_cleanly_when_model_detection_fails(
     monkeypatch: pytest.MonkeyPatch, runner: CliRunner
 ) -> None:
     monkeypatch.setattr(
-        "headroom.learn.analyzer._detect_default_model",
+        "horizon.learn.analyzer._detect_default_model",
         lambda: (_ for _ in ()).throw(RuntimeError("no model")),
     )
 
@@ -115,9 +115,9 @@ def test_learn_exits_cleanly_when_model_detection_fails(
 def test_learn_auto_agent_reports_no_detected_plugins(
     monkeypatch: pytest.MonkeyPatch, runner: CliRunner
 ) -> None:
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.auto_detect_plugins", lambda: [])
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
+    monkeypatch.setattr("horizon.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("horizon.learn.registry.auto_detect_plugins", lambda: [])
+    monkeypatch.setattr("horizon.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
 
     result = runner.invoke(main, ["learn"], catch_exceptions=False)
 
@@ -131,9 +131,9 @@ def test_learn_single_agent_shows_available_projects_when_cwd_missing(
     project = SimpleNamespace(name="demo", project_path=tmp_path / "demo")
     plugin = FakePlugin("codex", "Codex", [project])
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
+    monkeypatch.setattr("horizon.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("horizon.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("horizon.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
 
     with runner.isolated_filesystem(temp_dir=tmp_path):
         result = runner.invoke(main, ["learn", "--agent", "codex"], catch_exceptions=False)
@@ -154,9 +154,9 @@ def test_learn_project_lookup_and_apply_flow(
     plugin = FakePlugin("codex", "Codex", [matched, unmatched])
     analyzer = FakeAnalyzer()
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
+    monkeypatch.setattr("horizon.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("horizon.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("horizon.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
     monkeypatch.setattr("os.cpu_count", lambda: 12)
 
     result = runner.invoke(
@@ -200,9 +200,9 @@ def test_learn_analyzing_line_gets_progress_detail_appended(
     plugin = FakePlugin("codex", "Codex", [matched])
     analyzer = ProgressEchoingAnalyzer()
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
+    monkeypatch.setattr("horizon.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("horizon.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("horizon.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
 
     result = runner.invoke(
         main,
@@ -222,7 +222,7 @@ def test_verbosity_all_apply_aggregates_baselines_across_projects(
 ) -> None:
     import json as _json
 
-    from headroom.proxy.output_savings import BaselineModel, SavingsLedger
+    from horizon.proxy.output_savings import BaselineModel, SavingsLedger
 
     # Two projects, each with a transcript dir holding a dummy session file
     # (analyze is faked, so contents are irrelevant — only presence matters).
@@ -263,9 +263,9 @@ def test_verbosity_all_apply_aggregates_baselines_across_projects(
     def fake_analyze(session_paths, project_path, llm_judge=None):  # noqa: ANN001, ANN201
         return results[project_path]
 
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.verbosity.analyze", fake_analyze)
-    monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path / "ws"))
+    monkeypatch.setattr("horizon.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("horizon.learn.verbosity.analyze", fake_analyze)
+    monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path / "ws"))
 
     result = runner.invoke(
         main,
@@ -293,9 +293,9 @@ def test_learn_reports_missing_requested_project_and_lists_discovered(
     discovered = SimpleNamespace(name="project-a", project_path=tmp_path / "project-a")
     plugin = FakePlugin("claude", "Claude Code", [discovered])
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
+    monkeypatch.setattr("horizon.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("horizon.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("horizon.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
 
     result = runner.invoke(
         main,
@@ -318,12 +318,12 @@ def test_learn_analyze_all_uses_default_workers_and_prints_summary(
     plugin_b = FakePlugin("claude", "Claude Code", projects_b)
     analyzer = FakeAnalyzer()
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("horizon.learn.analyzer._detect_default_model", lambda: "gpt-4o")
     monkeypatch.setattr(
-        "headroom.learn.registry.auto_detect_plugins",
+        "horizon.learn.registry.auto_detect_plugins",
         lambda: [plugin_a, plugin_b],
     )
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
+    monkeypatch.setattr("horizon.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
     monkeypatch.setattr("os.cpu_count", lambda: 12)
 
     result = runner.invoke(main, ["learn", "--all"], catch_exceptions=False)
@@ -344,9 +344,9 @@ def test_learn_analyze_all_continues_when_one_project_write_fails(
     plugin.writer.fail_for = blocked
     analyzer = FakeAnalyzer()
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
+    monkeypatch.setattr("horizon.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("horizon.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("horizon.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
 
     result = runner.invoke(
         main,
@@ -399,9 +399,9 @@ def test_learn_handles_empty_sessions_and_no_pattern_outputs(
     plugin = BranchingPlugin("codex", "Codex", [no_sessions, no_failures, no_actions])
     analyzer = BranchingAnalyzer()
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
+    monkeypatch.setattr("horizon.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("horizon.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("horizon.learn.analyzer.SessionAnalyzer", lambda model=None: analyzer)
 
     result = runner.invoke(main, ["learn", "--agent", "codex", "--all"], catch_exceptions=False)
 
@@ -429,9 +429,9 @@ def test_learn_surfaces_analysis_failure_and_exits_nonzero(
                 analysis_error="codex CLI failed (exit 1): Not inside a trusted directory",
             )
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "codex-cli")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", FailingAnalyzer)
+    monkeypatch.setattr("horizon.learn.analyzer._detect_default_model", lambda: "codex-cli")
+    monkeypatch.setattr("horizon.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("horizon.learn.analyzer.SessionAnalyzer", FailingAnalyzer)
 
     result = runner.invoke(main, ["learn", "--agent", "codex", "--all"])
 
@@ -448,9 +448,9 @@ def test_learn_main_only_flag_threads_to_scanner(
     proj = SimpleNamespace(name="proj", project_path=project_path)
     plugin = FakePlugin("codex", "Codex", [proj])
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
+    monkeypatch.setattr("horizon.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("horizon.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("horizon.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
 
     # Default: descend into subagent/workflow transcripts.
     result = runner.invoke(main, ["learn", "--agent", "codex", "--all"], catch_exceptions=False)
@@ -481,9 +481,9 @@ class TargetAwareWriter(FakeWriter):
         return SimpleNamespace(
             dry_run=dry_run,
             content_by_file={
-                Path(project.project_path) / "CLAUDE.local.md": "<!-- headroom -->\nRule 1"
+                Path(project.project_path) / "CLAUDE.local.md": "<!-- horizon -->\nRule 1"
             },
-            warnings=["Moved Headroom learnings out of CLAUDE.md into CLAUDE.local.md."],
+            warnings=["Moved Horizon learnings out of CLAUDE.md into CLAUDE.local.md."],
         )
 
 
@@ -496,9 +496,9 @@ def test_learn_target_threads_to_writer_and_prints_warnings(
     plugin = FakePlugin("claude", "Claude Code", [proj])
     plugin.writer = TargetAwareWriter()
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
+    monkeypatch.setattr("horizon.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("horizon.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("horizon.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
 
     result = runner.invoke(
         main,
@@ -519,7 +519,7 @@ def test_learn_target_threads_to_writer_and_prints_warnings(
     # --target is threaded into the writer...
     assert plugin.writer.context_target == "CLAUDE.md"
     # ...and the writer's warnings are surfaced to the user.
-    assert "Moved Headroom learnings" in result.output
+    assert "Moved Horizon learnings" in result.output
 
 
 def test_learn_target_ignored_for_unsupported_agent(
@@ -531,9 +531,9 @@ def test_learn_target_ignored_for_unsupported_agent(
     # FakePlugin's FakeWriter has no set_context_target, so --target is unsupported.
     plugin = FakePlugin("codex", "Codex", [proj])
 
-    monkeypatch.setattr("headroom.learn.analyzer._detect_default_model", lambda: "gpt-4o")
-    monkeypatch.setattr("headroom.learn.registry.get_plugin", lambda name: plugin)
-    monkeypatch.setattr("headroom.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
+    monkeypatch.setattr("horizon.learn.analyzer._detect_default_model", lambda: "gpt-4o")
+    monkeypatch.setattr("horizon.learn.registry.get_plugin", lambda name: plugin)
+    monkeypatch.setattr("horizon.learn.analyzer.SessionAnalyzer", FakeAnalyzer)
 
     result = runner.invoke(
         main,
@@ -551,7 +551,7 @@ def test_activate_output_shaper_reports_effective_rollout_decision(
 ) -> None:
     import urllib.request
 
-    from headroom.cli.learn import _activate_output_shaper
+    from horizon.cli.learn import _activate_output_shaper
 
     class Response:
         def __enter__(self):
@@ -584,7 +584,7 @@ def test_activate_output_shaper_handles_malformed_response(
 ) -> None:
     import urllib.request
 
-    from headroom.cli.learn import _activate_output_shaper
+    from horizon.cli.learn import _activate_output_shaper
 
     class Response:
         def __enter__(self):

@@ -18,15 +18,15 @@ httpx = pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def _shaper_on(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
     # Whole-holdout: the control arm labels itself but never shapes, so the
     # assertions below pin the label pair rather than the steering text.
-    monkeypatch.setenv("HEADROOM_OUTPUT_HOLDOUT", "1.0")
+    monkeypatch.setenv("HORIZON_OUTPUT_HOLDOUT", "1.0")
 
 
 def _config() -> ProxyConfig:
@@ -77,7 +77,7 @@ def test_anthropic_messages_pairs_the_conversation_with_the_stratum() -> None:
         )
 
     assert resp.status_code == 200, resp.text
-    _assert_paired(resp.headers.get("x-headroom-transforms", ""))
+    _assert_paired(resp.headers.get("x-horizon-transforms", ""))
 
 
 def test_openai_chat_pairs_the_conversation_with_the_stratum() -> None:
@@ -113,4 +113,4 @@ def test_openai_chat_pairs_the_conversation_with_the_stratum() -> None:
         )
 
     assert resp.status_code == 200, resp.text
-    _assert_paired(resp.headers.get("x-headroom-transforms", ""))
+    _assert_paired(resp.headers.get("x-horizon-transforms", ""))

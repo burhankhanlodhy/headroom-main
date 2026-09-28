@@ -6,10 +6,10 @@ from types import SimpleNamespace
 
 import pytest
 
-import headroom._ort as ort_runtime
-import headroom.transforms.content_router as content_router_module
-from headroom.transforms.content_detector import ContentType, DetectionResult
-from headroom.transforms.content_router import (
+import horizon._ort as ort_runtime
+import horizon.transforms.content_router as content_router_module
+from horizon.transforms.content_detector import ContentType, DetectionResult
+from horizon.transforms.content_router import (
     CompressionCache,
     CompressionStrategy,
     ContentRouter,
@@ -37,7 +37,7 @@ def _reset_detect_module_state(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(content_router_module, "_detect_native_unhealthy", False)
     monkeypatch.setattr(content_router_module, "_detect_backend_warned", False)
     monkeypatch.setattr(content_router_module, "_detect_panic_warned", False)
-    # Router unit tests replace ``headroom._core.detect_content_type`` with
+    # Router unit tests replace ``horizon._core.detect_content_type`` with
     # deterministic fakes. Keep the separate ORT API-compatibility preflight
     # open so those fakes reach the watchdog/circuit-breaker behavior under
     # test; incompatibility itself is covered in test_ort_dylib.py (#2960).
@@ -125,7 +125,7 @@ def test_router_result_helpers_and_summary() -> None:
 
 def test_content_signature_and_detection_helpers(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stage-3d (PR5) wired `_detect_content` through the Rust chain
-    (`headroom._core.detect_content_type` → magika → unidiff →
+    (`horizon._core.detect_content_type` → magika → unidiff →
     PlainText). The pre-PR5 Python-side `_get_magika_detector`
     fallback path is gone.
 
@@ -141,12 +141,12 @@ def test_content_signature_and_detection_helpers(monkeypatch: pytest.MonkeyPatch
     # Monkeypatch the Rust binding to return a deterministic fake
     # result; verify _detect_content propagates the content_type
     # tag back as the Python ContentType enum.
-    import headroom._core as _core
+    import horizon._core as _core
 
     # Pin the Rust backend so this test exercises the native delegation
     # path on every platform (Windows now defaults to the pure-Python
     # detector — see content_router._resolve_detect_backend).
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "rust")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "rust")
 
     fake_rust_result = SimpleNamespace(
         content_type="source_code",
@@ -163,9 +163,9 @@ def test_content_signature_and_detection_helpers(monkeypatch: pytest.MonkeyPatch
 
 def test_native_detection_remains_bounded_after_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """A successful native call must not disable the watchdog for later calls."""
-    import headroom._core as _core
+    import horizon._core as _core
 
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "rust")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "rust")
     monkeypatch.setattr(content_router_module, "_detect_timeout_secs", lambda: 0.01)
     calls = 0
 
@@ -1161,7 +1161,7 @@ def test_fresh_cache_control_stays_hard_skipped_without_replay_guarantee(
 def test_fresh_cache_control_compressed_under_replay_guarantee_is_stable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from headroom.cache.prefix_tracker import overlay_cached_prefix
+    from horizon.cache.prefix_tracker import overlay_cached_prefix
 
     router, _ = _fresh_cc_router(monkeypatch)
     kw = {"model_limit": 100_000, "prefix_replay_guaranteed": True}
@@ -1333,10 +1333,10 @@ def test_pinning_skips_already_compressed(monkeypatch: pytest.MonkeyPatch) -> No
 def test_detect_backend_env_python_forces_python_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """HEADROOM_DETECT_BACKEND=python forces the pure-Python regex path."""
-    import headroom._core as _core
+    """HORIZON_DETECT_BACKEND=python forces the pure-Python regex path."""
+    import horizon._core as _core
 
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "python")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "python")
 
     called = []
 
@@ -1353,17 +1353,17 @@ def test_detect_backend_env_python_forces_python_path(
 
 
 def test_detect_backend_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    """HEADROOM_DETECT_BACKEND pins the detector on any platform."""
+    """HORIZON_DETECT_BACKEND pins the detector on any platform."""
     resolve = content_router_module._resolve_detect_backend
 
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "python")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "python")
     assert resolve() == "python"
 
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "RUST")  # case-insensitive
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "RUST")  # case-insensitive
     assert resolve() == "rust"
 
     # Unrecognized values fall back to the platform default.
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "bogus")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "bogus")
     monkeypatch.setattr(content_router_module.sys, "platform", "linux")
     assert resolve() == "rust"
 
@@ -1372,7 +1372,7 @@ def test_detect_backend_defaults_to_python_on_windows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Windows defaults to the pure-Python detector (native ONNX hang, #845)."""
-    monkeypatch.delenv("HEADROOM_DETECT_BACKEND", raising=False)
+    monkeypatch.delenv("HORIZON_DETECT_BACKEND", raising=False)
 
     monkeypatch.setattr(content_router_module.sys, "platform", "win32")
     assert content_router_module._resolve_detect_backend() == "python"
@@ -1385,9 +1385,9 @@ def test_detect_content_python_backend_skips_native(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The python backend must not touch the native detector at all."""
-    import headroom._core as _core
+    import horizon._core as _core
 
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "python")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "python")
 
     def _boom(_content: str) -> None:
         raise AssertionError("native detector must not be called")
@@ -1399,7 +1399,7 @@ def test_detect_content_python_backend_skips_native(
 
 
 # ---------------------------------------------------------------------------
-# Cache-churn fix: HEADROOM_FREEZE_BLOCK_DECISION (default off).
+# Cache-churn fix: HORIZON_FREEZE_BLOCK_DECISION (default off).
 #
 # Root cause: ``min_ratio`` drifts every turn with context pressure, so a
 # block whose compression ratio sits in [aggressive, relaxed) is compressed
@@ -1466,7 +1466,7 @@ def test_freeze_off_is_byte_identical_flapping_baseline(
     compressed on a low-pressure turn, downgraded to passthrough once
     pressure tightens min_ratio below the ratio. This is the legacy churn
     and must be preserved byte-for-byte when the flag is off."""
-    monkeypatch.delenv("HEADROOM_FREEZE_BLOCK_DECISION", raising=False)
+    monkeypatch.delenv("HORIZON_FREEZE_BLOCK_DECISION", raising=False)
     router = _churn_router(monkeypatch, ratio=0.75)
     content = _content_of_n_words(200)
 
@@ -1498,7 +1498,7 @@ def test_freeze_on_pins_compress_verdict_across_turns(
     verdict AND the SAME bytes on later turns despite rising pressure /
     drifting min_ratio. Use ratio 0.6 (< aggressive 0.65) so it compresses
     under the frozen threshold."""
-    monkeypatch.setenv("HEADROOM_FREEZE_BLOCK_DECISION", "1")
+    monkeypatch.setenv("HORIZON_FREEZE_BLOCK_DECISION", "1")
     router = _churn_router(monkeypatch, ratio=0.60)
     content = _content_of_n_words(200)
 
@@ -1527,7 +1527,7 @@ def test_freeze_on_pins_passthrough_verdict_across_turns(
     would ``move_to_skip`` and bust the prefix cache. So the bytes stay
     compressed and identical, and the freeze-pin counter records the
     busts it avoided. (Contrast with the flag-off flapping baseline.)"""
-    monkeypatch.setenv("HEADROOM_FREEZE_BLOCK_DECISION", "1")
+    monkeypatch.setenv("HORIZON_FREEZE_BLOCK_DECISION", "1")
     router = _churn_router(monkeypatch, ratio=0.75)
     content = _content_of_n_words(200)
 
@@ -1552,7 +1552,7 @@ def test_model_not_ready_passthrough_is_not_frozen(
     not ready must NOT have its skip verdict frozen — once the model is
     ready it must be re-evaluated. We simulate not-ready (compress returns
     the content unchanged at ratio 1.0) then ready (real compression)."""
-    monkeypatch.setenv("HEADROOM_FREEZE_BLOCK_DECISION", "1")
+    monkeypatch.setenv("HORIZON_FREEZE_BLOCK_DECISION", "1")
     cfg = ContentRouterConfig()
     router = ContentRouter(cfg)
     content = _content_of_n_words(200)
@@ -1643,7 +1643,7 @@ def test_block_freeze_off_is_byte_identical_flapping_baseline(
     """(b) Block path, flag OFF (default): a mid-zone tool_result block
     (ratio 0.75) flaps — compressed at low pressure, downgraded to passthrough
     once pressure tightens min_ratio below the ratio. Legacy churn preserved."""
-    monkeypatch.delenv("HEADROOM_FREEZE_BLOCK_DECISION", raising=False)
+    monkeypatch.delenv("HORIZON_FREEZE_BLOCK_DECISION", raising=False)
     router = _churn_router(monkeypatch, ratio=0.75)
     content = _content_of_n_words(200)
 
@@ -1661,7 +1661,7 @@ def test_block_freeze_on_pins_compress_verdict_across_turns(
     """(a) Block path, flag ON: a tool_result block that compresses on first
     sighting keeps the SAME verdict AND SAME bytes across rising-pressure
     turns despite drifting min_ratio. ratio 0.6 < aggressive 0.65."""
-    monkeypatch.setenv("HEADROOM_FREEZE_BLOCK_DECISION", "1")
+    monkeypatch.setenv("HORIZON_FREEZE_BLOCK_DECISION", "1")
     router = _churn_router(monkeypatch, ratio=0.60)
     content = _content_of_n_words(200)
 
@@ -1678,7 +1678,7 @@ def test_block_freeze_on_pins_passthrough_verdict_across_turns(
     compress verdict, and pins it compressed on every later turn even as
     rising pressure pulls min_ratio below 0.75 (where flag-off would
     move_to_skip). Bytes stay compressed/identical and pins are recorded."""
-    monkeypatch.setenv("HEADROOM_FREEZE_BLOCK_DECISION", "1")
+    monkeypatch.setenv("HORIZON_FREEZE_BLOCK_DECISION", "1")
     router = _churn_router(monkeypatch, ratio=0.75)
     content = _content_of_n_words(200)
 
@@ -1694,7 +1694,7 @@ def test_block_model_not_ready_passthrough_is_not_frozen(
     """Caveat (1) on the block path: a tool_result block that passes through
     ONLY because the ML model is not ready must NOT have its skip verdict
     frozen, so it is re-evaluated once the model is ready."""
-    monkeypatch.setenv("HEADROOM_FREEZE_BLOCK_DECISION", "1")
+    monkeypatch.setenv("HORIZON_FREEZE_BLOCK_DECISION", "1")
     router = ContentRouter(ContentRouterConfig())
     content = _content_of_n_words(200)
 
@@ -1734,7 +1734,7 @@ def test_frozen_verdicts_cleared_on_cache_clear(
 ) -> None:
     """(c) ``_frozen_verdicts`` is cleared in lock-step with the cache so it
     cannot outlive the entries it shadows."""
-    monkeypatch.setenv("HEADROOM_FREEZE_BLOCK_DECISION", "1")
+    monkeypatch.setenv("HORIZON_FREEZE_BLOCK_DECISION", "1")
     router = _churn_router(monkeypatch, ratio=0.60)
     content = _content_of_n_words(200)
 
@@ -1750,7 +1750,7 @@ def test_frozen_verdicts_is_size_bounded(
 ) -> None:
     """(c) ``_frozen_verdicts`` is capped with FIFO eviction so it cannot grow
     without bound across a long-lived process."""
-    monkeypatch.setenv("HEADROOM_FREEZE_BLOCK_DECISION", "1")
+    monkeypatch.setenv("HORIZON_FREEZE_BLOCK_DECISION", "1")
     router = ContentRouter(ContentRouterConfig())
     router._frozen_verdicts_max = 8
 
@@ -1784,20 +1784,20 @@ def test_frozen_verdict_refuses_unrecoverable_lossy_block() -> None:
 
 
 def test_detect_timeout_secs_env_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The watchdog budget reads HEADROOM_DETECT_TIMEOUT_SECS; bad values → default."""
+    """The watchdog budget reads HORIZON_DETECT_TIMEOUT_SECS; bad values → default."""
     get = content_router_module._detect_timeout_secs
     default = content_router_module._DEFAULT_DETECT_TIMEOUT_SECS
 
-    monkeypatch.delenv("HEADROOM_DETECT_TIMEOUT_SECS", raising=False)
+    monkeypatch.delenv("HORIZON_DETECT_TIMEOUT_SECS", raising=False)
     assert get() == default
 
-    monkeypatch.setenv("HEADROOM_DETECT_TIMEOUT_SECS", "0.25")
+    monkeypatch.setenv("HORIZON_DETECT_TIMEOUT_SECS", "0.25")
     assert get() == 0.25
 
-    monkeypatch.setenv("HEADROOM_DETECT_TIMEOUT_SECS", "nope")
+    monkeypatch.setenv("HORIZON_DETECT_TIMEOUT_SECS", "nope")
     assert get() == default
 
-    monkeypatch.setenv("HEADROOM_DETECT_TIMEOUT_SECS", "0")
+    monkeypatch.setenv("HORIZON_DETECT_TIMEOUT_SECS", "0")
     assert get() == default
 
 
@@ -1824,11 +1824,11 @@ def test_detect_content_watchdog_degrades_on_windows_hang(
     """A hung native detect on Windows degrades to pure-Python, never deadlocks (#575)."""
     import threading as _threading
 
-    import headroom._core as _core
+    import horizon._core as _core
 
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "rust")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "rust")
     monkeypatch.setattr(content_router_module.sys, "platform", "win32")
-    monkeypatch.setenv("HEADROOM_DETECT_TIMEOUT_SECS", "0.1")
+    monkeypatch.setenv("HORIZON_DETECT_TIMEOUT_SECS", "0.1")
 
     release = _threading.Event()
 
@@ -1851,9 +1851,9 @@ def test_detect_content_watchdog_uses_native_result_on_windows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """On Windows with rust forced, a fast native result still flows through unchanged."""
-    import headroom._core as _core
+    import horizon._core as _core
 
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "rust")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "rust")
     monkeypatch.setattr(content_router_module.sys, "platform", "win32")
 
     fake = SimpleNamespace(content_type="source_code", confidence=1.0, metadata={})
@@ -1869,11 +1869,11 @@ def test_detect_content_circuit_breaker_skips_native_after_hang(
     """After one watchdog timeout, native detection is disabled process-wide (#575)."""
     import threading as _threading
 
-    import headroom._core as _core
+    import horizon._core as _core
 
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "rust")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "rust")
     monkeypatch.setattr(content_router_module.sys, "platform", "win32")
-    monkeypatch.setenv("HEADROOM_DETECT_TIMEOUT_SECS", "0.1")
+    monkeypatch.setenv("HORIZON_DETECT_TIMEOUT_SECS", "0.1")
 
     release = _threading.Event()
     calls = 0
@@ -1938,9 +1938,9 @@ def test_detect_content_overrides_html_misroute_for_grep_and_logs(
     the structural log/search detectors positively claim the payload they
     override the HTML verdict (log checked first so tracebacks win); genuine
     HTML with no such structure is left as HTML."""
-    import headroom._core as _core
+    import horizon._core as _core
 
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "rust")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "rust")
     monkeypatch.setattr(
         _core,
         "detect_content_type",

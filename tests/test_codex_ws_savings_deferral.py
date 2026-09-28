@@ -13,9 +13,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from headroom.proxy.handlers.openai import _deferrable_savings_delta
+from horizon.proxy.handlers.openai import _deferrable_savings_delta
 
-OPENAI_HANDLER = Path(__file__).parent.parent / "headroom" / "proxy" / "handlers" / "openai.py"
+OPENAI_HANDLER = Path(__file__).parent.parent / "horizon" / "proxy" / "handlers" / "openai.py"
 
 
 def test_deferrable_savings_delta_gates_on_input() -> None:

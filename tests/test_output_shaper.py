@@ -1,4 +1,4 @@
-"""Tests for headroom.proxy.output_shaper.
+"""Tests for horizon.proxy.output_shaper.
 
 Covers turn classification (structural only), cache-safe verbosity steering,
 effort routing on mechanical continuations, and the env-driven gate.
@@ -9,7 +9,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from headroom.proxy.output_shaper import (
+from horizon.proxy.output_shaper import (
     DEFAULT_VERBOSITY_LEVEL,
     OutputShaperSettings,
     TurnKind,
@@ -143,7 +143,7 @@ class TestVerbositySteering:
         apply_verbosity_steering(body, 2)
         assert apply_verbosity_steering(body, 4) is True
         steering_blocks = [
-            b for b in body["system"] if b["text"].startswith("<headroom_output_shaping>")
+            b for b in body["system"] if b["text"].startswith("<horizon_output_shaping>")
         ]
         assert len(steering_blocks) == 1
         assert steering_blocks[0]["text"] == steering_text(4)
@@ -205,19 +205,19 @@ class TestShapeRequest:
         assert body == snapshot
 
     def test_from_env_defaults_off(self, monkeypatch):
-        monkeypatch.delenv("HEADROOM_OUTPUT_SHAPER", raising=False)
+        monkeypatch.delenv("HORIZON_OUTPUT_SHAPER", raising=False)
         assert OutputShaperSettings.from_env().enabled is False
 
     def test_from_env_enabled_with_overrides(self, monkeypatch):
-        monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
-        monkeypatch.setenv("HEADROOM_VERBOSITY_LEVEL", "3")
+        monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
+        monkeypatch.setenv("HORIZON_VERBOSITY_LEVEL", "3")
         settings = OutputShaperSettings.from_env()
         assert settings.enabled is True
         assert settings.verbosity_level == 3
 
     def test_from_env_clamps_bad_values(self, monkeypatch):
-        monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "true")
-        monkeypatch.setenv("HEADROOM_VERBOSITY_LEVEL", "99")
+        monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "true")
+        monkeypatch.setenv("HORIZON_VERBOSITY_LEVEL", "99")
         settings = OutputShaperSettings.from_env()
         assert settings.verbosity_level == 4
 
@@ -257,7 +257,7 @@ class TestOpenAIResponsesSteering:
         body = {"instructions": f"System.\n\n{steering_text(1)}"}
 
         assert apply_openai_responses_verbosity_steering(body, 2) is True
-        assert body["instructions"].count("<headroom_output_shaping>") == 1
+        assert body["instructions"].count("<horizon_output_shaping>") == 1
         assert steering_text(1) not in body["instructions"]
         assert steering_text(2) in body["instructions"]
 
@@ -312,34 +312,34 @@ class TestShaperEnabledFor:
     def _config(*, optimize: bool, env: dict[str, str] | None = None):
         from types import SimpleNamespace
 
-        from headroom.rollout import resolve_rollout
+        from horizon.rollout import resolve_rollout
 
         return SimpleNamespace(optimize=optimize, rollout=resolve_rollout(env or {}))
 
     def test_off_without_an_explicit_opt_in(self):
-        from headroom.proxy.output_shaper import shaper_enabled_for
+        from horizon.proxy.output_shaper import shaper_enabled_for
 
         assert shaper_enabled_for(self._config(optimize=True)) is False
 
     def test_on_when_explicitly_enabled(self):
-        from headroom.proxy.output_shaper import shaper_enabled_for
+        from horizon.proxy.output_shaper import shaper_enabled_for
 
-        cfg = self._config(optimize=True, env={"HEADROOM_OUTPUT_SHAPER": "1"})
+        cfg = self._config(optimize=True, env={"HORIZON_OUTPUT_SHAPER": "1"})
         assert shaper_enabled_for(cfg) is True
 
     def test_explicit_request_shapes_even_with_optimize_off(self):
         """Shaping without input compression is a supported combination."""
-        from headroom.proxy.output_shaper import shaper_enabled_for
+        from horizon.proxy.output_shaper import shaper_enabled_for
 
-        cfg = self._config(optimize=False, env={"HEADROOM_OUTPUT_SHAPER": "1"})
+        cfg = self._config(optimize=False, env={"HORIZON_OUTPUT_SHAPER": "1"})
         assert shaper_enabled_for(cfg) is True
 
     def test_kill_switch_wins(self):
-        from headroom.proxy.output_shaper import shaper_enabled_for
+        from horizon.proxy.output_shaper import shaper_enabled_for
 
         for env in (
-            {"HEADROOM_OUTPUT_SHAPER": "0"},
-            {"HEADROOM_DISABLE_FEATURES": "proxy_output_shaper"},
+            {"HORIZON_OUTPUT_SHAPER": "0"},
+            {"HORIZON_DISABLE_FEATURES": "proxy_output_shaper"},
         ):
             assert shaper_enabled_for(self._config(optimize=True, env=env)) is False
 
@@ -353,8 +353,8 @@ class TestShaperEnabledFor:
         getting a steering block appended, and on a body with no `system`
         field, one created.
         """
-        from headroom.proxy.output_shaper import shaper_enabled_for
-        from headroom.rollout import FeatureDecisionReason
+        from horizon.proxy.output_shaper import shaper_enabled_for
+        from horizon.rollout import FeatureDecisionReason
 
         class _Decision:
             enabled = True
@@ -374,7 +374,7 @@ class TestShaperEnabledFor:
         preserves OutputShaperSettings.from_env's own resolution."""
         from types import SimpleNamespace
 
-        from headroom.proxy.output_shaper import shaper_enabled_for
+        from horizon.proxy.output_shaper import shaper_enabled_for
 
         assert shaper_enabled_for(SimpleNamespace(optimize=True, rollout=None)) is None
         assert shaper_enabled_for(None) is None
@@ -393,7 +393,7 @@ class TestCacheModeSuppressesSteeringOnly:
     def test_steering_allowed_for_reads_the_mode(self):
         from types import SimpleNamespace
 
-        from headroom.proxy.output_shaper import steering_allowed_for
+        from horizon.proxy.output_shaper import steering_allowed_for
 
         assert steering_allowed_for(SimpleNamespace(mode="token")) is True
         assert steering_allowed_for(SimpleNamespace(mode="cache")) is False
@@ -402,7 +402,7 @@ class TestCacheModeSuppressesSteeringOnly:
     def test_cache_mode_steers_at_the_startup_level(self):
         """Cache mode used to force 0 here. What it must prevent is a level that
         MOVES; a level fixed at startup cannot, so it is steered at."""
-        from headroom.proxy.output_shaper import OutputShaperSettings, resolve_verbosity_level
+        from horizon.proxy.output_shaper import OutputShaperSettings, resolve_verbosity_level
 
         settings = OutputShaperSettings(enabled=True, verbosity_level=3, steering_enabled=False)
         assert resolve_verbosity_level(settings) == (3, "cache_mode_default")
@@ -414,22 +414,22 @@ class TestCacheModeSuppressesSteeringOnly:
         after it, so the cached prefix is established WITH it and hits normally.
         Previously this resolved to 0 and the knob was silently ignored.
         """
-        from headroom.proxy import runtime_env
-        from headroom.proxy.output_shaper import OutputShaperSettings, resolve_verbosity_level
+        from horizon.proxy import runtime_env
+        from horizon.proxy.output_shaper import OutputShaperSettings, resolve_verbosity_level
 
         monkeypatch.setattr(runtime_env, "getenv", lambda k, d="": "4" if "VERBOSITY" in k else d)
         settings = OutputShaperSettings(enabled=True, verbosity_level=4, steering_enabled=False)
         assert resolve_verbosity_level(settings) == (4, "env_pinned")
 
     def test_shaper_alone_steers_at_l2_in_cache_mode(self, monkeypatch):
-        """``HEADROOM_OUTPUT_SHAPER=1`` must be sufficient on its own.
+        """``HORIZON_OUTPUT_SHAPER=1`` must be sufficient on its own.
 
         The shaper is opt-in, so an enabled shaper is already an explicit
         request; there is nothing further to ask the operator for. Previously
         this resolved to 0 and the feature did nothing in the default mode.
         """
-        from headroom.proxy import runtime_env
-        from headroom.proxy.output_shaper import (
+        from horizon.proxy import runtime_env
+        from horizon.proxy.output_shaper import (
             DEFAULT_VERBOSITY_LEVEL,
             OutputShaperSettings,
             resolve_verbosity_level,
@@ -444,10 +444,10 @@ class TestCacheModeSuppressesSteeringOnly:
     def test_cache_mode_ignores_a_learned_level(self, tmp_path, monkeypatch):
         """``verbosity.json`` appears the moment someone runs ``learn``, so it
         must not be consulted where a mid-conversation change busts a cache."""
-        from headroom.proxy.output_shaper import OutputShaperSettings, resolve_verbosity_level
+        from horizon.proxy.output_shaper import OutputShaperSettings, resolve_verbosity_level
 
-        monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path))
-        monkeypatch.delenv("HEADROOM_VERBOSITY_LEVEL", raising=False)
+        monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path))
+        monkeypatch.delenv("HORIZON_VERBOSITY_LEVEL", raising=False)
         (tmp_path / "verbosity.json").write_text('{"verbosity_level": 4}')
 
         settings = OutputShaperSettings(enabled=True, verbosity_level=2, steering_enabled=False)
@@ -459,28 +459,28 @@ class TestCacheModeSuppressesSteeringOnly:
         """Autotune silently doing nothing is invisible from outside."""
         import logging
 
-        from headroom.proxy import output_shaper
-        from headroom.proxy.output_shaper import OutputShaperSettings, resolve_verbosity_level
+        from horizon.proxy import output_shaper
+        from horizon.proxy.output_shaper import OutputShaperSettings, resolve_verbosity_level
 
-        monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(tmp_path))
-        monkeypatch.setenv("HEADROOM_VERBOSITY_AUTOTUNE", "1")
-        monkeypatch.delenv("HEADROOM_VERBOSITY_LEVEL", raising=False)
+        monkeypatch.setenv("HORIZON_WORKSPACE_DIR", str(tmp_path))
+        monkeypatch.setenv("HORIZON_VERBOSITY_AUTOTUNE", "1")
+        monkeypatch.delenv("HORIZON_VERBOSITY_LEVEL", raising=False)
         (tmp_path / "verbosity_controller.json").write_text('{"level": 4}')
         output_shaper._REPORTED.clear()
 
         settings = OutputShaperSettings(enabled=True, verbosity_level=2, steering_enabled=False)
-        with caplog.at_level(logging.WARNING, logger="headroom.proxy.output_shaper"):
+        with caplog.at_level(logging.WARNING, logger="horizon.proxy.output_shaper"):
             assert resolve_verbosity_level(settings) == (2, "cache_mode_default")
             resolve_verbosity_level(settings)
 
         warnings = [r for r in caplog.records if "AUTOTUNE" in r.getMessage()]
         assert len(warnings) == 1, "must not reprint on every request"
-        assert "HEADROOM_MODE=token" in warnings[0].getMessage()
+        assert "HORIZON_MODE=token" in warnings[0].getMessage()
 
     def test_cache_mode_reads_no_workspace_files(self, monkeypatch):
         """Resolution runs per request; the default mode must not stat files."""
-        import headroom.paths as paths
-        from headroom.proxy.output_shaper import OutputShaperSettings, resolve_verbosity_level
+        import horizon.paths as paths
+        from horizon.proxy.output_shaper import OutputShaperSettings, resolve_verbosity_level
 
         def _boom():
             raise AssertionError("workspace_dir() must not be consulted in cache mode")
@@ -498,8 +498,8 @@ class TestCacheModeSuppressesSteeringOnly:
         """
         import json as _json
 
-        from headroom.proxy import runtime_env
-        from headroom.proxy.output_shaper import (
+        from horizon.proxy import runtime_env
+        from horizon.proxy.output_shaper import (
             OutputShaperSettings,
             resolve_verbosity_level,
             shape_request,
@@ -536,11 +536,11 @@ class TestCacheModeSuppressesSteeringOnly:
         # prefix it marks is untouched by the appended steering.
         first = _json.loads(systems[0])
         assert first[0]["cache_control"] == {"type": "ephemeral"}
-        assert first[-1]["text"].startswith("<headroom_output_shaping>")
+        assert first[-1]["text"].startswith("<horizon_output_shaping>")
 
     def test_effort_routing_survives_cache_mode(self):
         """The savings that do not touch the cache key must still apply."""
-        from headroom.proxy.output_shaper import OutputShaperSettings, shape_request
+        from horizon.proxy.output_shaper import OutputShaperSettings, shape_request
 
         body = {
             "model": "claude-sonnet-4",

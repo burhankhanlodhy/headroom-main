@@ -24,7 +24,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.proxy.server import ProxyConfig, create_app
 
 
 def _make_cached_proxy_client() -> TestClient:
@@ -121,8 +121,8 @@ def test_openai_different_custom_upstream_not_served_from_cache(monkeypatch) -> 
     calls: list[str] = []
 
     monkeypatch.setattr(
-        "headroom.proxy.handlers.openai._resolve_openai_upstream_base",
-        lambda headers: headers.get("x-headroom-base-url"),
+        "horizon.proxy.handlers.openai._resolve_openai_upstream_base",
+        lambda headers: headers.get("x-horizon-base-url"),
     )
 
     with _make_cached_proxy_client() as client:
@@ -153,12 +153,12 @@ def test_openai_different_custom_upstream_not_served_from_cache(monkeypatch) -> 
 
         first = client.post(
             "/v1/chat/completions",
-            headers={**headers, "x-headroom-base-url": "https://gateway-a.example"},
+            headers={**headers, "x-horizon-base-url": "https://gateway-a.example"},
             json=body,
         )
         second = client.post(
             "/v1/chat/completions",
-            headers={**headers, "x-headroom-base-url": "https://gateway-b.example"},
+            headers={**headers, "x-horizon-base-url": "https://gateway-b.example"},
             json=body,
         )
 

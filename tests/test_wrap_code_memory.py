@@ -15,12 +15,12 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli import wrap
+from horizon.cli import wrap
 
 
 def _clean_env() -> dict[str, str]:
     env = dict(os.environ)
-    env.pop("HEADROOM_CODE_MEMORY", None)
+    env.pop("HORIZON_CODE_MEMORY", None)
     return env
 
 
@@ -31,7 +31,7 @@ def test_default_is_serena() -> None:
 
 def test_selector_env_wins() -> None:
     for val in (wrap._CODE_MEMORY_SERENA, wrap._CODE_MEMORY_NONE):
-        with patch.dict(os.environ, {"HEADROOM_CODE_MEMORY": val}):
+        with patch.dict(os.environ, {"HORIZON_CODE_MEMORY": val}):
             # selector beats any legacy flag
             assert wrap._resolve_code_memory({"serena": True, "no_serena": True}) == val
 
@@ -46,9 +46,9 @@ def test_deprecated_flags_map_into_selector() -> None:
 
 
 def test_retired_tokensave_selector_maps_to_serena() -> None:
-    # An explicit HEADROOM_CODE_MEMORY=tokensave (or --code-memory tokensave from
+    # An explicit HORIZON_CODE_MEMORY=tokensave (or --code-memory tokensave from
     # an old script) degrades gracefully to Serena instead of erroring.
-    with patch.dict(os.environ, {"HEADROOM_CODE_MEMORY": "tokensave"}):
+    with patch.dict(os.environ, {"HORIZON_CODE_MEMORY": "tokensave"}):
         assert wrap._resolve_code_memory({}) == wrap._CODE_MEMORY_SERENA
 
 
@@ -65,14 +65,14 @@ def test_serena_dashboard_disabled_flips_existing_config(tmp_path, monkeypatch) 
     assert "web_dashboard: true" in text  # other keys preserved
 
 
-def test_serena_config_is_never_created_by_headroom(tmp_path, monkeypatch) -> None:
-    """Headroom must NOT pre-empt Serena's own config bootstrap (#2674).
+def test_serena_config_is_never_created_by_horizon(tmp_path, monkeypatch) -> None:
+    """Horizon must NOT pre-empt Serena's own config bootstrap (#2674).
 
     This is the exact invariant, and it is the reason the outage happened.
     Verified against Serena 1.6.2.dev0 ``serena/config/serena_config.py``: Serena
     autogenerates a complete config only when the path does not exist; once any
     file is there it validates instead, and a missing ``projects`` key is fatal
-    (``SerenaConfigError``). Headroom used to write a one-key bootstrap file,
+    (``SerenaConfigError``). Horizon used to write a one-key bootstrap file,
     which killed Serena's MCP handshake on every fresh install.
 
     Asserting "we write nothing" is stronger than asserting which keys we write:
@@ -84,11 +84,11 @@ def test_serena_config_is_never_created_by_headroom(tmp_path, monkeypatch) -> No
     wrap._ensure_serena_dashboard_disabled()
 
     cfg = tmp_path / ".serena" / "serena_config.yml"
-    assert not cfg.exists(), "Headroom created a config Serena would have generated itself"
+    assert not cfg.exists(), "Horizon created a config Serena would have generated itself"
 
 
 def test_serena_dashboard_disabled_repairs_config_missing_projects(tmp_path, monkeypatch) -> None:
-    """Backfill ``projects`` into a config an older Headroom already wrote (#2674).
+    """Backfill ``projects`` into a config an older Horizon already wrote (#2674).
 
     Users who ran an affected version have the single-key file on disk, so simply
     not creating new bad files would leave them broken forever.
@@ -167,13 +167,13 @@ def test_serena_config_required_keys_match_serena_source() -> None:
 
 
 def test_invalid_env_raises() -> None:
-    with patch.dict(os.environ, {"HEADROOM_CODE_MEMORY": "bogus"}):
+    with patch.dict(os.environ, {"HORIZON_CODE_MEMORY": "bogus"}):
         try:
             wrap._resolve_code_memory({})
         except click.ClickException:
             pass
         else:  # pragma: no cover
-            raise AssertionError("invalid HEADROOM_CODE_MEMORY should raise ClickException")
+            raise AssertionError("invalid HORIZON_CODE_MEMORY should raise ClickException")
 
 
 def _dispatch_calls(selection: str, extra: dict | None = None) -> list[str]:
@@ -181,7 +181,7 @@ def _dispatch_calls(selection: str, extra: dict | None = None) -> list[str]:
     helpers fire (all mocked)."""
     calls: list[str] = []
     env = _clean_env()
-    env["HEADROOM_CODE_MEMORY"] = selection
+    env["HORIZON_CODE_MEMORY"] = selection
     with (
         patch.dict(os.environ, env, clear=True),
         patch.object(wrap, "_setup_serena_mcp", lambda *a, **k: calls.append("serena")),

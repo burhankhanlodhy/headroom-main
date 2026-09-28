@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.transforms import code_compressor as cc
+from horizon.transforms import code_compressor as cc
 
 
 @pytest.fixture(autouse=True)
@@ -60,7 +60,7 @@ def test_breaker_reopens_after_cooldown(monkeypatch):
 
 
 def test_env_kill_switch(monkeypatch):
-    monkeypatch.setenv("HEADROOM_CODE_SYNTAX_BREAKER", "0")
+    monkeypatch.setenv("HORIZON_CODE_SYNTAX_BREAKER", "0")
     for _ in range(cc._SYNTAX_BREAKER_WINDOW):
         cc._record_syntax_outcome("typescript", False)
     assert not cc._syntax_breaker_open("typescript")

@@ -1,6 +1,6 @@
-"""Tests for HeadroomCallback LiteLLM integration.
+"""Tests for HorizonCallback LiteLLM integration.
 
-Regression for #1114: HeadroomCallback did not inherit CustomLogger, so any
+Regression for #1114: HorizonCallback did not inherit CustomLogger, so any
 hook LiteLLM added post-1.89.x (e.g. async_post_call_success_hook) raised
 AttributeError and crashed the LiteLLM proxy.
 """
@@ -13,30 +13,30 @@ from tests._dotenv import importorskip_no_env_leak
 
 importorskip_no_env_leak("litellm")
 
-from headroom.integrations.litellm_callback import HeadroomCallback  # noqa: E402
+from horizon.integrations.litellm_callback import HorizonCallback  # noqa: E402
 
 
-class TestHeadroomCallbackCustomLoggerInheritance:
+class TestHorizonCallbackCustomLoggerInheritance:
     def test_instantiates_without_error(self) -> None:
-        cb = HeadroomCallback()
+        cb = HorizonCallback()
         assert cb is not None
 
     def test_has_async_post_call_success_hook(self) -> None:
-        """Regression: AttributeError: 'HeadroomCallback' has no attr 'async_post_call_success_hook'."""
-        cb = HeadroomCallback()
+        """Regression: AttributeError: 'HorizonCallback' has no attr 'async_post_call_success_hook'."""
+        cb = HorizonCallback()
         assert hasattr(cb, "async_post_call_success_hook"), (
             "async_post_call_success_hook must exist (added in litellm 1.89.x)"
         )
 
     def test_async_post_call_success_hook_is_callable(self) -> None:
         """LiteLLM must be able to await the hook without exception."""
-        cb = HeadroomCallback()
+        cb = HorizonCallback()
         hook = cb.async_post_call_success_hook
         assert callable(hook)
 
     def test_async_post_call_success_hook_does_not_raise(self) -> None:
         """Calling the hook (no-op from CustomLogger) must not raise."""
-        cb = HeadroomCallback()
+        cb = HorizonCallback()
 
         async def _run() -> None:
             await cb.async_post_call_success_hook(
@@ -48,10 +48,10 @@ class TestHeadroomCallbackCustomLoggerInheritance:
         asyncio.run(_run())
 
     def test_all_current_litellm_async_hooks_present(self) -> None:
-        """HeadroomCallback must expose every async hook CustomLogger defines."""
+        """HorizonCallback must expose every async hook CustomLogger defines."""
         from litellm.integrations.custom_logger import CustomLogger
 
-        cb = HeadroomCallback()
+        cb = HorizonCallback()
         missing = [
             name
             for name in dir(CustomLogger)
@@ -61,12 +61,12 @@ class TestHeadroomCallbackCustomLoggerInheritance:
 
     def test_async_pre_call_hook_still_works(self) -> None:
         """Inheritance must not break the existing compression hook."""
-        cb = HeadroomCallback()
+        cb = HorizonCallback()
         assert hasattr(cb, "async_pre_call_hook")
         assert callable(cb.async_pre_call_hook)
 
     def test_total_tokens_saved_property(self) -> None:
-        cb = HeadroomCallback()
+        cb = HorizonCallback()
         assert cb.total_tokens_saved == 0
 
 
@@ -117,7 +117,7 @@ class TestAnthropicMessagesRouteCompression:
     def _run(call_type: str, data: dict):
         import asyncio
 
-        cb = HeadroomCallback()
+        cb = HorizonCallback()
         out = asyncio.run(
             cb.async_pre_call_hook(user_api_key_dict={}, cache=None, data=data, call_type=call_type)
         )

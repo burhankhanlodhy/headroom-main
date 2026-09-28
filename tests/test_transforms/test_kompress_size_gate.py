@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.transforms import ContentRouter
-from headroom.transforms.content_router import CompressionStrategy
+from horizon.transforms import ContentRouter
+from horizon.transforms.content_router import CompressionStrategy
 
 
 def test_oversized_input_is_gated_away_from_kompress(monkeypatch):

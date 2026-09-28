@@ -11,8 +11,8 @@ never bleeds across concurrent requests.
 import asyncio
 import contextvars
 
-from headroom import copilot_auth
-from headroom.proxy.outcome import RequestOutcome, emit_request_outcome
+from horizon import copilot_auth
+from horizon.proxy.outcome import RequestOutcome, emit_request_outcome
 
 COPILOT = "https://api.githubcopilot.com"
 

@@ -1,4 +1,4 @@
-"""Tests for headroom.proxy.system_compaction — Layer 3 system-prompt compression.
+"""Tests for horizon.proxy.system_compaction — Layer 3 system-prompt compression.
 
 Verifies that system-prompt compaction:
 - compresses eligible (long) text blocks via a mock ContentRouter
@@ -9,7 +9,7 @@ Verifies that system-prompt compaction:
 
 from __future__ import annotations
 
-from headroom.proxy.system_compaction import (
+from horizon.proxy.system_compaction import (
     compact_system_prompt,
     system_compact_enabled,
     system_compact_min_chars,
@@ -258,21 +258,21 @@ class TestEnvVarHelpers:
     """Tests for env-var configuration helpers."""
 
     def test_system_compact_enabled_default(self, monkeypatch) -> None:
-        monkeypatch.delenv("HEADROOM_SYSTEM_COMPACT", raising=False)
+        monkeypatch.delenv("HORIZON_SYSTEM_COMPACT", raising=False)
         # Force re-read
-        import headroom.proxy.system_compaction as sc
+        import horizon.proxy.system_compaction as sc
 
         # The function reads env directly, so this should work
         assert not sc.system_compact_enabled()
 
     def test_system_compact_enabled_true(self, monkeypatch) -> None:
-        monkeypatch.setenv("HEADROOM_SYSTEM_COMPACT", "1")
+        monkeypatch.setenv("HORIZON_SYSTEM_COMPACT", "1")
         assert system_compact_enabled()
 
     def test_system_compact_min_chars_default(self, monkeypatch) -> None:
-        monkeypatch.delenv("HEADROOM_SYSTEM_COMPACT_MIN_CHARS", raising=False)
+        monkeypatch.delenv("HORIZON_SYSTEM_COMPACT_MIN_CHARS", raising=False)
         assert system_compact_min_chars() == 500
 
     def test_system_compact_min_chars_custom(self, monkeypatch) -> None:
-        monkeypatch.setenv("HEADROOM_SYSTEM_COMPACT_MIN_CHARS", "200")
+        monkeypatch.setenv("HORIZON_SYSTEM_COMPACT_MIN_CHARS", "200")
         assert system_compact_min_chars() == 200

@@ -20,8 +20,8 @@ def test_request_scope_and_project_context_import_without_fastapi() -> None:
 
         builtins.__import__ = import_without_fastapi
 
-        import headroom.proxy.request_scope as request_scope
-        import headroom.proxy.project_context
+        import horizon.proxy.request_scope as request_scope
+        import horizon.proxy.project_context
 
         assert not any(
             name == "fastapi" or name.startswith("fastapi.") for name in sys.modules

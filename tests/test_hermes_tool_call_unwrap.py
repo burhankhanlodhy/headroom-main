@@ -13,12 +13,12 @@ into `ContentRouter._build_tool_name_map` (OpenAI + Anthropic paths).
 
 from __future__ import annotations
 
-from headroom.config import (
+from horizon.config import (
     DEFAULT_EXCLUDE_TOOLS,
     is_tool_excluded,
     unwrap_tool_call_name,
 )
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
 
 # ---------------------------------------------------------------------------
 # Helper unit tests
@@ -138,7 +138,7 @@ def test_build_tool_name_map_anthropic_wrapped() -> None:
                     "type": "tool_use",
                     "id": "toolu_wrapped_1",
                     "name": "tool_call",
-                    "input": {"name": "headroom_retrieve", "arguments": {"hash": "abc"}},
+                    "input": {"name": "horizon_retrieve", "arguments": {"hash": "abc"}},
                 },
                 {
                     "type": "tool_use",
@@ -151,7 +151,7 @@ def test_build_tool_name_map_anthropic_wrapped() -> None:
     ]
     router = _router()
     mapping = router._build_tool_name_map(messages)
-    assert mapping["toolu_wrapped_1"] == "headroom_retrieve", (
+    assert mapping["toolu_wrapped_1"] == "horizon_retrieve", (
         "wrapped tool_call must map to the real tool name"
     )
     assert mapping["toolu_plain_2"] == "Read", "plain tool names must pass through unchanged"

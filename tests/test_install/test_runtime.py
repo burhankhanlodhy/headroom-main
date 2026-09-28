@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from headroom.install.models import DeploymentManifest, InstallPreset
-from headroom.install.runtime import (
+from horizon.install.models import DeploymentManifest, InstallPreset
+from horizon.install.runtime import (
     _clear_pid,
     _deployment_env,
     _mount_source,
@@ -19,7 +19,7 @@ from headroom.install.runtime import (
     _write_pid,
     acquire_runtime_start_lock,
     build_runtime_command,
-    resolve_headroom_command,
+    resolve_horizon_command,
     run_foreground,
     runtime_status,
     start_detached_agent,
@@ -51,9 +51,9 @@ def test_wait_stopped_waits_for_health_endpoint_to_go_down(monkeypatch) -> None:
 
     probe_results = iter([True, True, False])
     sleeps: list[float] = []
-    monkeypatch.setattr("headroom.install.runtime.probe_ready", lambda url: next(probe_results))
+    monkeypatch.setattr("horizon.install.runtime.probe_ready", lambda url: next(probe_results))
     monkeypatch.setattr(
-        "headroom.install.runtime.time.sleep", lambda seconds: sleeps.append(seconds)
+        "horizon.install.runtime.time.sleep", lambda seconds: sleeps.append(seconds)
     )
 
     assert wait_stopped(_wait_stopped_manifest(), timeout_seconds=5) is True
@@ -62,10 +62,10 @@ def test_wait_stopped_waits_for_health_endpoint_to_go_down(monkeypatch) -> None:
 
 def test_wait_stopped_times_out_when_endpoint_keeps_answering(monkeypatch) -> None:
     clock = {"now": 0.0}
-    monkeypatch.setattr("headroom.install.runtime.probe_ready", lambda url: True)
-    monkeypatch.setattr("headroom.install.runtime.time.monotonic", lambda: clock["now"])
+    monkeypatch.setattr("horizon.install.runtime.probe_ready", lambda url: True)
+    monkeypatch.setattr("horizon.install.runtime.time.monotonic", lambda: clock["now"])
     monkeypatch.setattr(
-        "headroom.install.runtime.time.sleep",
+        "horizon.install.runtime.time.sleep",
         lambda seconds: clock.update(now=clock["now"] + seconds),
     )
 
@@ -87,8 +87,8 @@ def test_build_runtime_command_for_docker_includes_deployment_env(
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        image="ghcr.io/headroomlabs-ai/headroom:latest",
-        base_env={"HEADROOM_PORT": "8787"},
+        image="ghcr.io/your-org/horizon:latest",
+        base_env={"HORIZON_PORT": "8787"},
         proxy_args=["--host", "127.0.0.1", "--port", "8787"],
     )
 
@@ -96,14 +96,14 @@ def test_build_runtime_command_for_docker_includes_deployment_env(
 
     joined = " ".join(command)
     assert command[:3] == ["docker", "run", "--rm"]
-    assert "HEADROOM_DEPLOYMENT_PROFILE=default" in joined
-    assert "HEADROOM_DEPLOYMENT_PRESET=persistent-docker" in joined
+    assert "HORIZON_DEPLOYMENT_PROFILE=default" in joined
+    assert "HORIZON_DEPLOYMENT_PRESET=persistent-docker" in joined
     assert "127.0.0.1:8787:8787" in joined
-    assert "ghcr.io/headroomlabs-ai/headroom:latest" in command
-    # Canonical Headroom filesystem contract (issue #175) forwarded into
+    assert "ghcr.io/your-org/horizon:latest" in command
+    # Canonical Horizon filesystem contract (issue #175) forwarded into
     # the container.
-    assert "HEADROOM_WORKSPACE_DIR=/tmp/headroom-home/.headroom" in command
-    assert "HEADROOM_CONFIG_DIR=/tmp/headroom-home/.headroom/config" in command
+    assert "HORIZON_WORKSPACE_DIR=/tmp/horizon-home/.horizon" in command
+    assert "HORIZON_CONFIG_DIR=/tmp/horizon-home/.horizon/config" in command
 
 
 def test_build_runtime_command_preserves_non_ascii_ambient_token(
@@ -111,7 +111,7 @@ def test_build_runtime_command_preserves_non_ascii_ambient_token(
 ) -> None:
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     token = "tökén-安全-🔐"
-    monkeypatch.setenv("HEADROOM_PROXY_TOKEN", token)
+    monkeypatch.setenv("HORIZON_PROXY_TOKEN", token)
     manifest = DeploymentManifest(
         profile="default",
         preset="persistent-docker",
@@ -123,14 +123,14 @@ def test_build_runtime_command_preserves_non_ascii_ambient_token(
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        image="ghcr.io/headroomlabs-ai/headroom:latest",
-        base_env={"HEADROOM_PORT": "8787"},
+        image="ghcr.io/your-org/horizon:latest",
+        base_env={"HORIZON_PORT": "8787"},
         proxy_args=["--host", "127.0.0.1", "--port", "8787"],
     )
 
     command = build_runtime_command(manifest)
 
-    token_env_index = command.index("HEADROOM_PROXY_TOKEN")
+    token_env_index = command.index("HORIZON_PROXY_TOKEN")
     assert command[token_env_index - 1] == "--env"
     assert token not in command
 
@@ -150,9 +150,9 @@ def test_build_runtime_command_preserves_non_ascii_ambient_token(
                 container_env[value] = os.environ[value]
         captured["container_env"] = container_env
 
-    monkeypatch.setattr("headroom.install.runtime.subprocess.run", fake_run)
+    monkeypatch.setattr("horizon.install.runtime.subprocess.run", fake_run)
     start_persistent_docker(manifest)
-    assert captured["container_env"]["HEADROOM_PROXY_TOKEN"] == token
+    assert captured["container_env"]["HORIZON_PROXY_TOKEN"] == token
     assert token not in captured["command"]
 
 
@@ -172,8 +172,8 @@ def test_build_runtime_command_for_docker_includes_gpu_passthrough(
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        image="ghcr.io/chopratejas/headroom:latest",
-        base_env={"HEADROOM_PORT": "8787", "HEADROOM_DOCKER_GPUS": "all"},
+        image="ghcr.io/chopratejas/horizon:latest",
+        base_env={"HORIZON_PORT": "8787", "HORIZON_DOCKER_GPUS": "all"},
         proxy_args=["--host", "127.0.0.1", "--port", "8787"],
     )
 
@@ -187,16 +187,16 @@ def test_build_runtime_command_docker_manifest_env_beats_host_passthrough(
 ) -> None:
     """A manifest value must win over a conflicting host export.
 
-    The manifest pins ``HEADROOM_BACKEND=anthropic``; the host process has a
-    stale ``HEADROOM_BACKEND=anyllm`` exported. Both start with the
-    ``HEADROOM_`` passthrough prefix, so without the dedupe the command emits
-    ``--env HEADROOM_BACKEND=anthropic`` and then a bare ``--env
-    HEADROOM_BACKEND``. Docker resolves duplicate ``--env`` last-wins, so the
+    The manifest pins ``HORIZON_BACKEND=anthropic``; the host process has a
+    stale ``HORIZON_BACKEND=anyllm`` exported. Both start with the
+    ``HORIZON_`` passthrough prefix, so without the dedupe the command emits
+    ``--env HORIZON_BACKEND=anthropic`` and then a bare ``--env
+    HORIZON_BACKEND``. Docker resolves duplicate ``--env`` last-wins, so the
     bare passthrough reads the host value and silently overrides the manifest,
     diverging the container from its deployment config.
     """
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    monkeypatch.setenv("HEADROOM_BACKEND", "anyllm")
+    monkeypatch.setenv("HORIZON_BACKEND", "anyllm")
     manifest = DeploymentManifest(
         profile="default",
         preset="persistent-docker",
@@ -208,19 +208,19 @@ def test_build_runtime_command_docker_manifest_env_beats_host_passthrough(
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        image="ghcr.io/chopratejas/headroom:latest",
-        base_env={"HEADROOM_PORT": "8787", "HEADROOM_BACKEND": "anthropic"},
+        image="ghcr.io/chopratejas/horizon:latest",
+        base_env={"HORIZON_PORT": "8787", "HORIZON_BACKEND": "anthropic"},
         proxy_args=["--host", "127.0.0.1", "--port", "8787"],
     )
 
     command = build_runtime_command(manifest)
 
     # The manifest value is emitted...
-    assert "HEADROOM_BACKEND=anthropic" in command
-    # ...and no bare `--env HEADROOM_BACKEND` follows it to pull in the host
+    assert "HORIZON_BACKEND=anthropic" in command
+    # ...and no bare `--env HORIZON_BACKEND` follows it to pull in the host
     # value. `in` on the list matches the exact token, so the pinned
-    # `HEADROOM_BACKEND=anthropic` element does not count here.
-    assert "HEADROOM_BACKEND" not in command
+    # `HORIZON_BACKEND=anthropic` element does not count here.
+    assert "HORIZON_BACKEND" not in command
 
 
 def test_build_runtime_command_for_docker_matches_wrapper_parity(
@@ -240,14 +240,14 @@ def test_build_runtime_command_for_docker_matches_wrapper_parity(
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        image="ghcr.io/headroomlabs-ai/headroom:latest",
-        base_env={"HEADROOM_PORT": "8787"},
+        image="ghcr.io/your-org/horizon:latest",
+        base_env={"HORIZON_PORT": "8787"},
         proxy_args=["--host", "127.0.0.1", "--port", "8787"],
     )
 
     command = build_runtime_command(manifest)
 
-    assert (tmp_path / ".headroom").is_dir()
+    assert (tmp_path / ".horizon").is_dir()
     assert (tmp_path / ".claude").is_dir()
     assert (tmp_path / ".codex").is_dir()
     assert (tmp_path / ".gemini").is_dir()
@@ -260,10 +260,10 @@ def test_build_runtime_command_for_docker_matches_wrapper_parity(
 def test_build_runtime_command_for_docker_does_not_duplicate_entrypoint(
     monkeypatch, tmp_path: Path
 ) -> None:
-    """The image ENTRYPOINT is already ``["headroom", "proxy"]`` (Dockerfile),
-    so the args appended after the image name must NOT re-add ``headroom proxy``
-    or Docker runs ``headroom proxy headroom proxy ...`` and Click aborts with
-    "Got unexpected extra arguments (headroom proxy)" (issue #833)."""
+    """The image ENTRYPOINT is already ``["horizon", "proxy"]`` (Dockerfile),
+    so the args appended after the image name must NOT re-add ``horizon proxy``
+    or Docker runs ``horizon proxy horizon proxy ...`` and Click aborts with
+    "Got unexpected extra arguments (horizon proxy)" (issue #833)."""
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     manifest = DeploymentManifest(
         profile="default",
@@ -276,8 +276,8 @@ def test_build_runtime_command_for_docker_does_not_duplicate_entrypoint(
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        image="ghcr.io/headroomlabs-ai/headroom:latest",
-        base_env={"HEADROOM_PORT": "8787"},
+        image="ghcr.io/your-org/horizon:latest",
+        base_env={"HORIZON_PORT": "8787"},
         proxy_args=["--host", "127.0.0.1", "--port", "8787", "--backend", "anthropic"],
     )
 
@@ -286,7 +286,7 @@ def test_build_runtime_command_for_docker_does_not_duplicate_entrypoint(
     # Everything after the image name is what Docker appends to the ENTRYPOINT.
     image_idx = command.index(manifest.image)
     container_args = command[image_idx + 1 :]
-    assert "headroom" not in container_args, (
+    assert "horizon" not in container_args, (
         f"container args re-add the ENTRYPOINT — got {container_args}"
     )
     assert "proxy" not in container_args, (
@@ -297,18 +297,18 @@ def test_build_runtime_command_for_docker_does_not_duplicate_entrypoint(
     assert container_args[2:] == ["--port", "8787", "--backend", "anthropic"]
 
 
-def test_resolve_headroom_command_prefers_headroom_binary(monkeypatch) -> None:
+def test_resolve_horizon_command_prefers_horizon_binary(monkeypatch) -> None:
     monkeypatch.setattr(
-        "shutil.which", lambda name: "/usr/bin/headroom" if name == "headroom" else None
+        "shutil.which", lambda name: "/usr/bin/horizon" if name == "horizon" else None
     )
 
-    assert resolve_headroom_command() == ["/usr/bin/headroom"]
+    assert resolve_horizon_command() == ["/usr/bin/horizon"]
 
 
-def test_resolve_headroom_command_falls_back_to_python_module(monkeypatch) -> None:
+def test_resolve_horizon_command_falls_back_to_python_module(monkeypatch) -> None:
     monkeypatch.setattr("shutil.which", lambda name: None)
-    monkeypatch.setattr("headroom.install.runtime.sys.executable", "/usr/bin/python")
-    assert resolve_headroom_command() == ["/usr/bin/python", "-m", "headroom.cli"]
+    monkeypatch.setattr("horizon.install.runtime.sys.executable", "/usr/bin/python")
+    assert resolve_horizon_command() == ["/usr/bin/python", "-m", "horizon.cli"]
 
 
 def test_runtime_env_and_mount_source(monkeypatch) -> None:
@@ -325,27 +325,27 @@ def test_runtime_env_and_mount_source(monkeypatch) -> None:
         backend="anthropic",
         base_env={"EXTRA": "1"},
     )
-    monkeypatch.setattr("headroom.install.runtime.os.environ", {"BASE": "x"})
+    monkeypatch.setattr("horizon.install.runtime.os.environ", {"BASE": "x"})
 
     assert _deployment_env(manifest) == {
-        "HEADROOM_DEPLOYMENT_PROFILE": "default",
-        "HEADROOM_DEPLOYMENT_PRESET": "persistent-service",
-        "HEADROOM_DEPLOYMENT_RUNTIME": "python",
-        "HEADROOM_DEPLOYMENT_SUPERVISOR": "service",
-        "HEADROOM_DEPLOYMENT_SCOPE": "user",
+        "HORIZON_DEPLOYMENT_PROFILE": "default",
+        "HORIZON_DEPLOYMENT_PRESET": "persistent-service",
+        "HORIZON_DEPLOYMENT_RUNTIME": "python",
+        "HORIZON_DEPLOYMENT_SUPERVISOR": "service",
+        "HORIZON_DEPLOYMENT_SCOPE": "user",
     }
     assert _runtime_env(manifest)["BASE"] == "x"
     assert _runtime_env(manifest)["EXTRA"] == "1"
-    assert _runtime_env(manifest)["HEADROOM_DEPLOYMENT_PROFILE"] == "default"
+    assert _runtime_env(manifest)["HORIZON_DEPLOYMENT_PROFILE"] == "default"
 
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", "win32")
-    assert _mount_source("C:\\Users\\me", ".headroom") == "C:\\Users\\me\\.headroom"
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", "linux")
-    assert _mount_source("/home/me", ".headroom") == "/home/me/.headroom"
+    monkeypatch.setattr("horizon.install.runtime.sys.platform", "win32")
+    assert _mount_source("C:\\Users\\me", ".horizon") == "C:\\Users\\me\\.horizon"
+    monkeypatch.setattr("horizon.install.runtime.sys.platform", "linux")
+    assert _mount_source("/home/me", ".horizon") == "/home/me/.horizon"
 
 
 def test_build_runtime_command_python_and_docker_user(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr("headroom.install.runtime.sys.executable", "/usr/bin/python")
+    monkeypatch.setattr("horizon.install.runtime.sys.executable", "/usr/bin/python")
     manifest = DeploymentManifest(
         profile="default",
         preset="persistent-service",
@@ -362,7 +362,7 @@ def test_build_runtime_command_python_and_docker_user(monkeypatch, tmp_path: Pat
     assert build_runtime_command(manifest) == [
         "/usr/bin/python",
         "-m",
-        "headroom.cli",
+        "horizon.cli",
         "proxy",
         "--host",
         "127.0.0.1",
@@ -371,12 +371,12 @@ def test_build_runtime_command_python_and_docker_user(monkeypatch, tmp_path: Pat
     ]
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", "linux")
-    monkeypatch.setattr("headroom.install.runtime.os.getuid", lambda: 1000, raising=False)
-    monkeypatch.setattr("headroom.install.runtime.os.getgid", lambda: 1001, raising=False)
+    monkeypatch.setattr("horizon.install.runtime.sys.platform", "linux")
+    monkeypatch.setattr("horizon.install.runtime.os.getuid", lambda: 1000, raising=False)
+    monkeypatch.setattr("horizon.install.runtime.os.getgid", lambda: 1001, raising=False)
     # Force the Docker path deterministically regardless of the test host's
     # `docker` binary (it might resolve to a podman shim).
-    monkeypatch.setenv("HEADROOM_CONTAINER_RUNTIME", "docker")
+    monkeypatch.setenv("HORIZON_CONTAINER_RUNTIME", "docker")
     docker_manifest = DeploymentManifest(
         profile="default",
         preset="persistent-docker",
@@ -388,8 +388,8 @@ def test_build_runtime_command_python_and_docker_user(monkeypatch, tmp_path: Pat
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        image="ghcr.io/headroomlabs-ai/headroom:latest",
-        base_env={"HEADROOM_PORT": "8787"},
+        image="ghcr.io/your-org/horizon:latest",
+        base_env={"HORIZON_PORT": "8787"},
         proxy_args=["--host", "127.0.0.1", "--port", "8787"],
     )
     command = build_runtime_command(docker_manifest)
@@ -400,7 +400,7 @@ def test_build_runtime_command_python_and_docker_user(monkeypatch, tmp_path: Pat
 
 @pytest.mark.parametrize("platform", ["linux", "darwin", "win32"])
 @pytest.mark.parametrize("uid,gid", [(1000, 1001), (1007, 1013)])
-@pytest.mark.parametrize("image", ["ghcr.io/headroomlabs-ai/headroom:latest", "custom:nonroot"])
+@pytest.mark.parametrize("image", ["ghcr.io/your-org/horizon:latest", "custom:nonroot"])
 def test_build_runtime_command_podman_preserves_host_identity(
     monkeypatch, tmp_path: Path, uid: int, gid: int, image: str, platform: str
 ) -> None:
@@ -410,10 +410,10 @@ def test_build_runtime_command_podman_preserves_host_identity(
     subordinate-ID mapping caused by --user alone (#2804, #3569).
     """
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", platform)
-    monkeypatch.setattr("headroom.install.runtime.os.getuid", lambda: uid, raising=False)
-    monkeypatch.setattr("headroom.install.runtime.os.getgid", lambda: gid, raising=False)
-    monkeypatch.setenv("HEADROOM_CONTAINER_RUNTIME", "podman")
+    monkeypatch.setattr("horizon.install.runtime.sys.platform", platform)
+    monkeypatch.setattr("horizon.install.runtime.os.getuid", lambda: uid, raising=False)
+    monkeypatch.setattr("horizon.install.runtime.os.getgid", lambda: gid, raising=False)
+    monkeypatch.setenv("HORIZON_CONTAINER_RUNTIME", "podman")
     manifest = DeploymentManifest(
         profile="default",
         preset="persistent-docker",
@@ -426,7 +426,7 @@ def test_build_runtime_command_podman_preserves_host_identity(
         host="127.0.0.1",
         backend="anthropic",
         image=image,
-        base_env={"HEADROOM_PORT": "8787"},
+        base_env={"HORIZON_PORT": "8787"},
         proxy_args=["--host", "127.0.0.1", "--port", "8787"],
     )
     command = build_runtime_command(manifest)
@@ -441,7 +441,7 @@ def test_build_runtime_command_podman_preserves_host_identity(
 
 def test_read_pid_handles_invalid_content(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    pid_file = tmp_path / ".headroom" / "deploy" / "default" / "runner.pid"
+    pid_file = tmp_path / ".horizon" / "deploy" / "default" / "runner.pid"
     pid_file.parent.mkdir(parents=True)
     pid_file.write_text("not-a-pid", encoding="utf-8")
 
@@ -473,7 +473,7 @@ def test_runtime_start_lock_is_nonblocking(monkeypatch, tmp_path: Path) -> None:
 def test_runtime_start_lock_blocks_another_process(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     script = (
-        "from headroom.install.runtime import acquire_runtime_start_lock\n"
+        "from horizon.install.runtime import acquire_runtime_start_lock\n"
         "with acquire_runtime_start_lock('default') as acquired:\n"
         "    print(acquired)\n"
     )
@@ -500,12 +500,12 @@ def test_runtime_start_lock_blocks_another_process(monkeypatch, tmp_path: Path) 
 def test_run_foreground_and_detached_helpers(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(
-        "headroom.install.runtime.build_runtime_command", lambda manifest: ["headroom", "proxy"]
+        "horizon.install.runtime.build_runtime_command", lambda manifest: ["horizon", "proxy"]
     )
-    monkeypatch.setattr("headroom.install.runtime._runtime_env", lambda manifest: {"ENV": "1"})
+    monkeypatch.setattr("horizon.install.runtime._runtime_env", lambda manifest: {"ENV": "1"})
     signal_calls: list[int] = []
     monkeypatch.setattr(
-        "headroom.install.runtime.signal.signal", lambda sig, fn: signal_calls.append(sig)
+        "horizon.install.runtime.signal.signal", lambda sig, fn: signal_calls.append(sig)
     )
 
     class FakeProc:
@@ -534,7 +534,7 @@ def test_run_foreground_and_detached_helpers(monkeypatch, tmp_path: Path) -> Non
         popen_calls.append((command, kwargs))
         return fake_proc
 
-    monkeypatch.setattr("headroom.install.runtime.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("horizon.install.runtime.subprocess.Popen", fake_popen)
     manifest = DeploymentManifest(
         profile="default",
         preset="persistent-service",
@@ -548,16 +548,16 @@ def test_run_foreground_and_detached_helpers(monkeypatch, tmp_path: Path) -> Non
         backend="anthropic",
     )
     assert run_foreground(manifest) == 7
-    assert popen_calls[0][0] == ["headroom", "proxy"]
+    assert popen_calls[0][0] == ["horizon", "proxy"]
     assert signal.SIGINT in signal_calls
     assert signal.SIGTERM in signal_calls
     assert _read_pid("default") is None
 
-    monkeypatch.setattr("headroom.install.runtime.resolve_headroom_command", lambda: ["headroom"])
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", "win32")
-    monkeypatch.setattr("headroom.install.runtime.subprocess.CREATE_NO_WINDOW", 4, raising=False)
+    monkeypatch.setattr("horizon.install.runtime.resolve_horizon_command", lambda: ["horizon"])
+    monkeypatch.setattr("horizon.install.runtime.sys.platform", "win32")
+    monkeypatch.setattr("horizon.install.runtime.subprocess.CREATE_NO_WINDOW", 4, raising=False)
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.CREATE_NEW_PROCESS_GROUP", 2, raising=False
+        "horizon.install.runtime.subprocess.CREATE_NEW_PROCESS_GROUP", 2, raising=False
     )
     nt_calls: list[tuple[list[str], dict]] = []
     fake_proc_nt = FakeProc()
@@ -566,16 +566,16 @@ def test_run_foreground_and_detached_helpers(monkeypatch, tmp_path: Path) -> Non
         nt_calls.append((command, kwargs))
         return fake_proc_nt
 
-    monkeypatch.setattr("headroom.install.runtime.subprocess.Popen", fake_popen_nt)
+    monkeypatch.setattr("horizon.install.runtime.subprocess.Popen", fake_popen_nt)
     assert start_detached_agent("demo") is fake_proc_nt
     # DETACHED_PROCESS is not used: it makes CREATE_NO_WINDOW a no-op on
     # Windows, so a detached console child would pop up a visible window.
     assert nt_calls[0][1]["creationflags"] == 4 | 2
 
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", "linux")
+    monkeypatch.setattr("horizon.install.runtime.sys.platform", "linux")
     fake_proc_posix = FakeProc()
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.Popen", lambda command, **kwargs: fake_proc_posix
+        "horizon.install.runtime.subprocess.Popen", lambda command, **kwargs: fake_proc_posix
     )
     assert start_detached_agent("demo") is fake_proc_posix
 
@@ -587,8 +587,8 @@ def test_start_detached_agent_closes_parent_log_fd(monkeypatch, tmp_path: Path) 
     leaks one fd per call and pins the log file open against rotation.
     """
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    monkeypatch.setattr("headroom.install.runtime.resolve_headroom_command", lambda: ["headroom"])
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", "linux")
+    monkeypatch.setattr("horizon.install.runtime.resolve_horizon_command", lambda: ["horizon"])
+    monkeypatch.setattr("horizon.install.runtime.sys.platform", "linux")
 
     captured: dict[str, object] = {}
 
@@ -600,7 +600,7 @@ def test_start_detached_agent_closes_parent_log_fd(monkeypatch, tmp_path: Path) 
         captured["stderr"] = kwargs["stderr"]
         return FakeProc()
 
-    monkeypatch.setattr("headroom.install.runtime.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("horizon.install.runtime.subprocess.Popen", fake_popen)
 
     start_detached_agent("demo")
 
@@ -613,8 +613,8 @@ def test_start_detached_agent_closes_parent_log_fd(monkeypatch, tmp_path: Path) 
 def test_start_detached_agent_closes_log_fd_when_popen_raises(monkeypatch, tmp_path: Path) -> None:
     """A Popen failure must not leak the just-opened log file handle."""
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    monkeypatch.setattr("headroom.install.runtime.resolve_headroom_command", lambda: ["headroom"])
-    monkeypatch.setattr("headroom.install.runtime.sys.platform", "linux")
+    monkeypatch.setattr("horizon.install.runtime.resolve_horizon_command", lambda: ["horizon"])
+    monkeypatch.setattr("horizon.install.runtime.sys.platform", "linux")
 
     captured: dict[str, object] = {}
 
@@ -622,7 +622,7 @@ def test_start_detached_agent_closes_log_fd_when_popen_raises(monkeypatch, tmp_p
         captured["stdout"] = kwargs["stdout"]
         raise OSError("spawn failed")
 
-    monkeypatch.setattr("headroom.install.runtime.subprocess.Popen", boom)
+    monkeypatch.setattr("horizon.install.runtime.subprocess.Popen", boom)
 
     with pytest.raises(OSError, match="spawn failed"):
         start_detached_agent("demo")
@@ -633,11 +633,11 @@ def test_start_detached_agent_closes_log_fd_when_popen_raises(monkeypatch, tmp_p
 def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path) -> None:
     calls: list[list[str]] = []
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.run",
+        "horizon.install.runtime.subprocess.run",
         lambda command, **kwargs: calls.append(command) or type("Result", (), {"stdout": ""})(),
     )
     monkeypatch.setattr(
-        "headroom.install.runtime.build_runtime_command",
+        "horizon.install.runtime.build_runtime_command",
         lambda manifest: [
             "docker",
             "run",
@@ -660,11 +660,11 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        container_name="headroom-default",
+        container_name="horizon-default",
     )
     start_persistent_docker(manifest)
     assert calls == [
-        ["docker", "rm", "-f", "headroom-default"],
+        ["docker", "rm", "-f", "horizon-default"],
         [
             "docker",
             "run",
@@ -672,7 +672,7 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
             "--restart",
             "unless-stopped",
             "--name",
-            "headroom-default",
+            "horizon-default",
             "-p",
             "127.0.0.1:8787:8787",
             "image",
@@ -696,7 +696,7 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
     _write_pid("default", 123)
     killed: list[tuple[int, int]] = []
     monkeypatch.setattr(
-        "headroom.install.runtime.os.kill", lambda pid, sig: killed.append((pid, sig))
+        "horizon.install.runtime.os.kill", lambda pid, sig: killed.append((pid, sig))
     )
     stop_runtime(python_manifest)
     assert killed == [(123, signal.SIGTERM)]
@@ -704,7 +704,7 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
 
     _write_pid("default", 124)
     monkeypatch.setattr(
-        "headroom.install.runtime.os.kill",
+        "horizon.install.runtime.os.kill",
         lambda pid, sig: (_ for _ in ()).throw(OSError("gone")),
     )
     stop_runtime(python_manifest)
@@ -712,14 +712,14 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
 
     probe_results = iter([False, False, True])
     sleeps: list[int] = []
-    monkeypatch.setattr("headroom.install.runtime.probe_ready", lambda url: next(probe_results))
+    monkeypatch.setattr("horizon.install.runtime.probe_ready", lambda url: next(probe_results))
     monkeypatch.setattr(
-        "headroom.install.runtime.time.sleep", lambda seconds: sleeps.append(seconds)
+        "horizon.install.runtime.time.sleep", lambda seconds: sleeps.append(seconds)
     )
     assert wait_ready(python_manifest, timeout_seconds=3) is True
     assert sleeps == [1, 1]
 
-    monkeypatch.setattr("headroom.install.runtime.probe_ready", lambda url: False)
+    monkeypatch.setattr("horizon.install.runtime.probe_ready", lambda url: False)
     sleeps.clear()
     assert wait_ready(python_manifest, timeout_seconds=2) is False
     assert sleeps == [1, 1]
@@ -729,14 +729,14 @@ def test_start_stop_wait_and_runtime_status_branches(monkeypatch, tmp_path: Path
             self.stdout = stdout
 
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.run",
+        "horizon.install.runtime.subprocess.run",
         lambda command, **kwargs: Result(stdout=""),
     )
     assert runtime_status(manifest) == "stopped"
     assert runtime_status(python_manifest) == "stopped"
 
     _write_pid("default", 125)
-    monkeypatch.setattr("headroom.install.runtime.pid_alive", lambda pid: False)
+    monkeypatch.setattr("horizon.install.runtime.pid_alive", lambda pid: False)
     assert runtime_status(python_manifest) == "stopped"
 
 
@@ -753,19 +753,19 @@ def test_stop_runtime_for_docker_stops_and_removes_container(monkeypatch) -> Non
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        container_name="headroom-default",
+        container_name="horizon-default",
     )
 
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.run",
+        "horizon.install.runtime.subprocess.run",
         lambda command, **kwargs: calls.append(command),
     )
 
     stop_runtime(manifest)
 
     assert calls == [
-        ["docker", "stop", "headroom-default"],
-        ["docker", "rm", "-f", "headroom-default"],
+        ["docker", "stop", "horizon-default"],
+        ["docker", "rm", "-f", "horizon-default"],
     ]
 
 
@@ -781,7 +781,7 @@ def test_runtime_status_reads_container_and_pid_state(monkeypatch, tmp_path: Pat
         port=8787,
         host="127.0.0.1",
         backend="anthropic",
-        container_name="headroom-default",
+        container_name="horizon-default",
     )
 
     class Result:
@@ -789,16 +789,16 @@ def test_runtime_status_reads_container_and_pid_state(monkeypatch, tmp_path: Pat
             self.stdout = stdout
 
     monkeypatch.setattr(
-        "headroom.install.runtime.subprocess.run",
-        lambda command, **kwargs: Result(stdout="headroom-default\n"),
+        "horizon.install.runtime.subprocess.run",
+        lambda command, **kwargs: Result(stdout="horizon-default\n"),
     )
     assert runtime_status(docker_manifest) == "running"
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    pid_file = tmp_path / ".headroom" / "deploy" / "default" / "runner.pid"
+    pid_file = tmp_path / ".horizon" / "deploy" / "default" / "runner.pid"
     pid_file.parent.mkdir(parents=True)
     pid_file.write_text("123", encoding="utf-8")
-    monkeypatch.setattr("headroom.install.runtime.pid_alive", lambda pid: True)
+    monkeypatch.setattr("horizon.install.runtime.pid_alive", lambda pid: True)
     python_manifest = DeploymentManifest(
         profile="default",
         preset="persistent-service",
@@ -832,15 +832,15 @@ def _python_service_manifest() -> DeploymentManifest:
 def test_runtime_status_reports_live_pid_without_terminating(monkeypatch, tmp_path: Path) -> None:
     """#1544: status on a live detached PID stays 'running' and never signals it."""
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    pid_file = tmp_path / ".headroom" / "deploy" / "default" / "runner.pid"
+    pid_file = tmp_path / ".horizon" / "deploy" / "default" / "runner.pid"
     pid_file.parent.mkdir(parents=True)
     pid_file.write_text("25212", encoding="utf-8")
 
     def fail_kill(pid: int, sig: int) -> None:
         raise AssertionError(f"status must not signal the live proxy (pid={pid}, sig={sig})")
 
-    monkeypatch.setattr("headroom.install.runtime.os.kill", fail_kill)
-    monkeypatch.setattr("headroom.install.runtime.pid_alive", lambda pid: True)
+    monkeypatch.setattr("horizon.install.runtime.os.kill", fail_kill)
+    monkeypatch.setattr("horizon.install.runtime.pid_alive", lambda pid: True)
 
     assert runtime_status(_python_service_manifest()) == "running"
     assert pid_file.exists()  # status left the deployment untouched
@@ -849,7 +849,7 @@ def test_runtime_status_reports_live_pid_without_terminating(monkeypatch, tmp_pa
 def test_runtime_status_survives_winerror87_systemerror(monkeypatch, tmp_path: Path) -> None:
     """#1544: a WinError 87 SystemError from the liveness probe yields 'stopped', not a crash."""
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    pid_file = tmp_path / ".headroom" / "deploy" / "default" / "runner.pid"
+    pid_file = tmp_path / ".horizon" / "deploy" / "default" / "runner.pid"
     pid_file.parent.mkdir(parents=True)
     pid_file.write_text("25212", encoding="utf-8")
 
@@ -860,7 +860,7 @@ def test_runtime_status_survives_winerror87_systemerror(monkeypatch, tmp_path: P
     monkeypatch.setitem(sys.modules, "psutil", fake_psutil)
     # ...where Windows surfaces WinError 87 as a SystemError, not an OSError.
     monkeypatch.setattr(
-        "headroom._subprocess.os.kill",
+        "horizon._subprocess.os.kill",
         lambda pid, sig: (_ for _ in ()).throw(SystemError("WinError 87")),
     )
 
@@ -871,11 +871,11 @@ class TestRestartCurrentDeployment:
     """detect_current_deployment / restart_current_deployment (settings apply)."""
 
     def _clear_deployment_env(self, monkeypatch) -> None:
-        monkeypatch.delenv("HEADROOM_DEPLOYMENT_PROFILE", raising=False)
-        monkeypatch.delenv("HEADROOM_DEPLOYMENT_PRESET", raising=False)
+        monkeypatch.delenv("HORIZON_DEPLOYMENT_PROFILE", raising=False)
+        monkeypatch.delenv("HORIZON_DEPLOYMENT_PRESET", raising=False)
 
     def test_foreground_when_no_deployment_env(self, monkeypatch) -> None:
-        from headroom.install import runtime as rt
+        from horizon.install import runtime as rt
 
         self._clear_deployment_env(monkeypatch)
         popen_calls: list = []
@@ -892,10 +892,10 @@ class TestRestartCurrentDeployment:
         assert popen_calls == []  # never restarts a foreground proxy
 
     def test_docker_returns_host_command_without_restarting(self, monkeypatch) -> None:
-        from headroom.install import runtime as rt
+        from horizon.install import runtime as rt
 
-        monkeypatch.setenv("HEADROOM_DEPLOYMENT_PROFILE", "default")
-        monkeypatch.setenv("HEADROOM_DEPLOYMENT_PRESET", InstallPreset.PERSISTENT_DOCKER.value)
+        monkeypatch.setenv("HORIZON_DEPLOYMENT_PROFILE", "default")
+        monkeypatch.setenv("HORIZON_DEPLOYMENT_PRESET", InstallPreset.PERSISTENT_DOCKER.value)
         monkeypatch.setattr(rt, "load_manifest", lambda profile: None)
         popen_calls: list = []
         monkeypatch.setattr(rt.subprocess, "Popen", lambda *a, **k: popen_calls.append(a))
@@ -906,22 +906,22 @@ class TestRestartCurrentDeployment:
         result = rt.restart_current_deployment()
         assert result["restarted"] is False
         assert result["mode"] == "docker"
-        assert result["command"] == "headroom install restart --profile default"
+        assert result["command"] == "horizon install restart --profile default"
         assert popen_calls == []  # cannot run docker from inside the container
 
     def test_task_mode_detected_and_not_restarted(self, monkeypatch) -> None:
         """A persistent-task deployment must not be told it's a self-restartable 'service'.
 
-        ``headroom install start/stop/restart`` all reject SupervisorKind.TASK
+        ``horizon install start/stop/restart`` all reject SupervisorKind.TASK
         deployments (see cli/install.py:_reject_task_lifecycle); a detached
-        ``headroom install restart`` against a task manifest would previously
+        ``horizon install restart`` against a task manifest would previously
         fail silently (stdout/stderr to DEVNULL) after the API had already
         returned ``{"restarted": true}``.
         """
-        from headroom.install import runtime as rt
+        from horizon.install import runtime as rt
 
-        monkeypatch.setenv("HEADROOM_DEPLOYMENT_PROFILE", "default")
-        monkeypatch.setenv("HEADROOM_DEPLOYMENT_PRESET", "persistent-task")
+        monkeypatch.setenv("HORIZON_DEPLOYMENT_PROFILE", "default")
+        monkeypatch.setenv("HORIZON_DEPLOYMENT_PRESET", "persistent-task")
         stub = types.SimpleNamespace(profile="default", supervisor_kind="task")
         monkeypatch.setattr(rt, "load_manifest", lambda profile: stub)
         popen_calls: list = []
@@ -934,13 +934,13 @@ class TestRestartCurrentDeployment:
         assert result["restarted"] is False
         assert result["mode"] == "task"
         assert "instruction" in result
-        assert popen_calls == []  # never spawns `headroom install restart` for task deployments
+        assert popen_calls == []  # never spawns `horizon install restart` for task deployments
 
     def test_service_spawns_detached_restart(self, monkeypatch) -> None:
-        from headroom.install import runtime as rt
+        from horizon.install import runtime as rt
 
-        monkeypatch.setenv("HEADROOM_DEPLOYMENT_PROFILE", "default")
-        monkeypatch.setenv("HEADROOM_DEPLOYMENT_PRESET", "persistent-service")
+        monkeypatch.setenv("HORIZON_DEPLOYMENT_PROFILE", "default")
+        monkeypatch.setenv("HORIZON_DEPLOYMENT_PRESET", "persistent-service")
         stub = types.SimpleNamespace(profile="default", supervisor_kind="service")
         monkeypatch.setattr(rt, "load_manifest", lambda profile: stub)
         recorded: dict = {}

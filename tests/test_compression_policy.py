@@ -1,7 +1,7 @@
 """Tests for the Python ``CompressionPolicy`` and its parity with Rust.
 
 The Python module is a hand-mirror of
-``headroom_core::compression_policy::CompressionPolicy``. These tests
+``horizon_core::compression_policy::CompressionPolicy``. These tests
 pin both halves: that the per-mode values are right, and that the
 Python and Rust sides agree on the field map. F2.2 will likely retire
 the hand-mirror via PyO3 — until then, this file is the canary.
@@ -9,15 +9,15 @@ the hand-mirror via PyO3 — until then, this file is the canary.
 F2.2 extends the F2.1 surface with three tuning fields:
 ``volatile_token_threshold``, ``max_lossy_ratio``, ``toin_read_only``.
 Per-mode value tests below mirror the Rust unit tests in
-``crates/headroom-core/src/compression_policy.rs``.
+``crates/horizon-core/src/compression_policy.rs``.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from headroom.proxy.auth_mode import AuthMode
-from headroom.transforms.compression_policy import (
+from horizon.proxy.auth_mode import AuthMode
+from horizon.transforms.compression_policy import (
     CompressionPolicy,
     cache_write_multiplier_for_ttl,
     policy_default_payg,
@@ -27,7 +27,7 @@ from headroom.transforms.compression_policy import (
 
 class TestCompressionPolicyForMode:
     """Per-mode field assertions. Mirrors the Rust unit tests in
-    `crates/headroom-core/src/compression_policy.rs`.
+    `crates/horizon-core/src/compression_policy.rs`.
     """
 
     def test_payg_is_aggressive(self):
@@ -61,7 +61,7 @@ class TestCompressionPolicyForMode:
         assert oauth == payg, (
             "F2.1+F2.2 ship OAuth=PAYG; F2.2-followup will diverge based on telemetry. "
             "If you are reading this assertion failure: also update "
-            "crates/headroom-core/src/compression_policy.rs "
+            "crates/horizon-core/src/compression_policy.rs "
             "::oauth_matches_payg_today, otherwise the Rust + Python "
             "parities silently drift apart."
         )
@@ -134,7 +134,7 @@ class TestRustParityFieldMap:
     """The Python policy must have the same fields as the Rust struct.
 
     The canonical Rust struct lives at
-    ``crates/headroom-core/src/compression_policy.rs``. When you add a
+    ``crates/horizon-core/src/compression_policy.rs``. When you add a
     field there for a future PR, add it here AND update this test.
     Otherwise the parity silently drifts.
     """
@@ -154,8 +154,8 @@ class TestRustParityFieldMap:
         assert actual_fields == expected_fields, (
             f"Python CompressionPolicy fields drifted from Rust. "
             f"Expected exactly {expected_fields}, got {actual_fields}. "
-            f"Update both `headroom/transforms/compression_policy.py` "
-            f"and `crates/headroom-core/src/compression_policy.rs` in "
+            f"Update both `horizon/transforms/compression_policy.py` "
+            f"and `crates/horizon-core/src/compression_policy.rs` in "
             f"the same commit."
         )
 
@@ -164,7 +164,7 @@ class TestNetCostFormula:
     """Net-cost mutation formula (#856) — Rust parity.
 
     Scenario values are golden: the Rust unit tests in
-    ``crates/headroom-core/src/compression_policy.rs`` assert the
+    ``crates/horizon-core/src/compression_policy.rs`` assert the
     identical numbers, so a drift in either side trips the parity pair
     loudly.
     """
@@ -253,7 +253,7 @@ class TestNetCostFormula:
         assert p.break_even_reads(0, 10_000) == 0.0
 
     def test_constants_match_rust(self):
-        from headroom.transforms.compression_policy import (
+        from horizon.transforms.compression_policy import (
             CACHE_READ_MULTIPLIER,
             CACHE_WRITE_MULTIPLIER,
         )

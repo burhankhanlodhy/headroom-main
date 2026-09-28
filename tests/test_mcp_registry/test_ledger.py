@@ -4,12 +4,12 @@ import json
 
 import pytest
 
-import headroom.mcp_registry.ledger as ledger_module
-from headroom.mcp_registry.base import ServerSpec
-from headroom.mcp_registry.ledger import (
+import horizon.mcp_registry.ledger as ledger_module
+from horizon.mcp_registry.base import ServerSpec
+from horizon.mcp_registry.ledger import (
     LedgerMutationError,
     clear_install,
-    headroom_installed_matching,
+    horizon_installed_matching,
     record_install,
     spec_fingerprint,
     validate_ledger_for_mutation,
@@ -24,9 +24,9 @@ def test_ledger_records_and_clears_matching_install(tmp_path):
     ledger = tmp_path / "mcp_installs.json"
     spec = _spec()
     record_install("claude", spec, path=ledger)
-    assert headroom_installed_matching("claude", spec, path=ledger)
+    assert horizon_installed_matching("claude", spec, path=ledger)
     clear_install("claude", "serena", path=ledger)
-    assert not headroom_installed_matching("claude", spec, path=ledger)
+    assert not horizon_installed_matching("claude", spec, path=ledger)
 
 
 def test_spec_fingerprint_is_stable_for_env_order():
@@ -61,7 +61,7 @@ def test_mutation_preflight_accepts_empty_ledger(tmp_path, contents):
 
     ``clear_install`` pops the ``agents`` section once its last entry is removed,
     so a fully-unwrapped ledger is exactly ``{}``. Rejecting it made the next
-    mutation (``headroom mcp adopt``) fail with a bogus "malformed" error.
+    mutation (``horizon mcp adopt``) fail with a bogus "malformed" error.
     """
     ledger = tmp_path / "mcp_installs.json"
     ledger.write_text(contents)
@@ -96,7 +96,7 @@ def test_mutation_preflight_rejects_unreadable_ledger(monkeypatch, tmp_path):
 def test_read_matching_tolerates_corrupt_ledger(tmp_path):
     ledger = tmp_path / "mcp_installs.json"
     ledger.write_text("not json")
-    assert not headroom_installed_matching("claude", _spec(), path=ledger)
+    assert not horizon_installed_matching("claude", _spec(), path=ledger)
 
 
 def test_record_install_recovers_from_corrupt_ledger(tmp_path):
@@ -106,7 +106,7 @@ def test_record_install_recovers_from_corrupt_ledger(tmp_path):
 
     record_install("claude", spec, path=ledger)
 
-    assert headroom_installed_matching("claude", spec, path=ledger)
+    assert horizon_installed_matching("claude", spec, path=ledger)
 
 
 @pytest.mark.parametrize("contents", ['{"agents": null}', '{"agents": {"claude": null}}'])
@@ -116,4 +116,4 @@ def test_record_install_recovers_from_unsafe_ledger_shape(tmp_path, contents):
 
     record_install("claude", _spec(), path=ledger)
 
-    assert headroom_installed_matching("claude", _spec(), path=ledger)
+    assert horizon_installed_matching("claude", _spec(), path=ledger)

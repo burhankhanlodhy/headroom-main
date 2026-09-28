@@ -14,7 +14,7 @@ import hashlib
 
 import pytest
 
-from headroom.transforms import kompress_compressor as kc
+from horizon.transforms import kompress_compressor as kc
 
 
 def test_compress_bails_at_deadline_keeping_tail_verbatim(monkeypatch):
@@ -23,7 +23,7 @@ def test_compress_bails_at_deadline_keeping_tail_verbatim(monkeypatch):
     clock = iter([0.0] + [999.0] * 50)
     monkeypatch.setattr(kc.time, "perf_counter", lambda: next(clock))
     monkeypatch.setattr(kc, "_load_kompress", lambda *a, **k: (object(), object(), "onnx"))
-    monkeypatch.setenv("HEADROOM_COMPRESSION_DEADLINE_MS", "20000")
+    monkeypatch.setenv("HORIZON_COMPRESSION_DEADLINE_MS", "20000")
 
     comp = kc.KompressCompressor(kc.KompressConfig(min_input_words=10))
     monkeypatch.setattr(comp, "_should_batch_single_content", lambda *a, **k: False)
@@ -81,7 +81,7 @@ def test_compress_partial_run_keeps_processed_head_plus_verbatim_tail(
 
     monkeypatch.setattr(kc, "_load_kompress", lambda *a, **k: (_Model(), _Tok(), "onnx"))
     monkeypatch.setattr(kc, "_model_device_type", lambda *a, **k: "cpu")
-    monkeypatch.setenv("HEADROOM_COMPRESSION_DEADLINE_MS", "20000")
+    monkeypatch.setenv("HORIZON_COMPRESSION_DEADLINE_MS", "20000")
 
     comp = kc.KompressCompressor(kc.KompressConfig(min_input_words=10))
     comp.config.chunk_words = n_words // 2  # two chunks
@@ -135,8 +135,8 @@ def _two_block_messages(salt: str = "a") -> list[dict]:
 
 
 def _tokenizer():
-    from headroom.providers import OpenAIProvider
-    from headroom.tokenizer import Tokenizer
+    from horizon.providers import OpenAIProvider
+    from horizon.tokenizer import Tokenizer
 
     provider = OpenAIProvider()
     return Tokenizer(provider.get_token_counter("gpt-4o"), "gpt-4o")
@@ -173,7 +173,7 @@ def test_every_block_of_one_request_draws_down_the_same_deadline(monkeypatch):
     that overruns cannot be preempted, so it opens the timeout-debt quarantine
     and every request queued behind it forwards with no compression at all.
     """
-    from headroom.transforms.content_router import ContentRouter
+    from horizon.transforms.content_router import ContentRouter
 
     router = ContentRouter()
     fake = _RecordingKompress()
@@ -188,7 +188,7 @@ def test_every_block_of_one_request_draws_down_the_same_deadline(monkeypatch):
 
 def test_a_second_request_gets_a_fresh_deadline(monkeypatch):
     """Sharing is per-request: the next request must not inherit a spent budget."""
-    from headroom.transforms.content_router import ContentRouter
+    from horizon.transforms.content_router import ContentRouter
 
     router = ContentRouter()
     fake = _RecordingKompress()
@@ -207,7 +207,7 @@ def test_a_second_request_gets_a_fresh_deadline(monkeypatch):
 def test_a_compressor_that_cannot_take_the_deadline_is_not_handed_one(monkeypatch):
     """``RemoteKompressCompressor.compress()`` has no ``_deadline_started_at``
     parameter, so passing it would raise TypeError and fail compression open."""
-    from headroom.transforms.content_router import ContentRouter
+    from horizon.transforms.content_router import ContentRouter
 
     router = ContentRouter()
     fake = _RecordingKompress()

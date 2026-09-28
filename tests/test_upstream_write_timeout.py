@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.proxy.models import ProxyConfig
-from headroom.proxy.server import _provider_httpx_client_options
+from horizon.proxy.models import ProxyConfig
+from horizon.proxy.server import _provider_httpx_client_options
 
 
 def _timeout(config: ProxyConfig):
@@ -89,7 +89,7 @@ def test_buffered_anthropic_turn_keeps_its_long_read_but_bounded_write(
     otherwise the one path most likely to carry a large body keeps the
     unbounded write.
     """
-    from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
+    from horizon.proxy.handlers.anthropic import AnthropicHandlerMixin
 
     class _Handler(AnthropicHandlerMixin):
         def __init__(self, config: ProxyConfig) -> None:

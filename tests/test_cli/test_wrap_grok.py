@@ -1,4 +1,4 @@
-"""Tests for `headroom wrap grok` command."""
+"""Tests for `horizon wrap grok` command."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from urllib.parse import quote
 import pytest
 from click.testing import CliRunner
 
-from headroom.cli.main import main
-from headroom.providers.grok import PROXY_ENV_KEY
+from horizon.cli.main import main
+from horizon.providers.grok import PROXY_ENV_KEY
 
 
 def _expected_project_prefix() -> str:
@@ -31,10 +31,10 @@ def test_wrap_grok_sets_proxy_env(
     def fake_launch_tool(**kwargs):  # noqa: ANN003
         captured.update(kwargs)
 
-    with patch("headroom.cli.wrap.shutil.which", return_value="grok"):
-        with patch("headroom.cli.wrap._setup_headroom_mcp"):
-            with patch("headroom.cli.wrap._setup_coding_compressor"):
-                with patch("headroom.cli.wrap._launch_tool", side_effect=fake_launch_tool):
+    with patch("horizon.cli.wrap.shutil.which", return_value="grok"):
+        with patch("horizon.cli.wrap._setup_horizon_mcp"):
+            with patch("horizon.cli.wrap._setup_coding_compressor"):
+                with patch("horizon.cli.wrap._launch_tool", side_effect=fake_launch_tool):
                     result = runner.invoke(main, ["wrap", "grok", "--no-mcp", "--", "-p", "hello"])
 
     assert result.exit_code == 0, result.output
@@ -52,9 +52,9 @@ def test_wrap_grok_missing_binary_exits(
 ) -> None:
     monkeypatch.chdir(tmp_path)
 
-    with patch("headroom.cli.wrap.shutil.which", return_value=None):
-        with patch("headroom.cli.wrap._setup_headroom_mcp"):
-            with patch("headroom.cli.wrap._setup_coding_compressor"):
+    with patch("horizon.cli.wrap.shutil.which", return_value=None):
+        with patch("horizon.cli.wrap._setup_horizon_mcp"):
+            with patch("horizon.cli.wrap._setup_coding_compressor"):
                 result = runner.invoke(main, ["wrap", "grok", "--no-mcp"])
 
     assert result.exit_code == 1

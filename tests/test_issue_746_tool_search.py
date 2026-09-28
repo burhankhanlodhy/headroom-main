@@ -2,7 +2,7 @@
 
 Covers the two halves of the fix:
 
-* ``headroom wrap claude`` injects ``ENABLE_TOOL_SEARCH`` into the launched
+* ``horizon wrap claude`` injects ``ENABLE_TOOL_SEARCH`` into the launched
   Claude Code environment (with correct precedence / validation), and
 * the proxy detects a Claude Code request that is *not* deferring tools and
   emits a single actionable hint for users who run ``claude`` manually.
@@ -12,13 +12,13 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.cli.wrap import (
+from horizon.cli.wrap import (
     _TOOL_SEARCH_DEFAULT,
     _TOOL_SEARCH_ENV,
     _configure_tool_search_env,
     _normalize_tool_search_mode,
 )
-from headroom.proxy.helpers import (
+from horizon.proxy.helpers import (
     claude_code_tool_search_inactive,
     format_tool_search_disabled_hint,
     reset_tool_search_hint_state,
@@ -172,7 +172,7 @@ def test_hint_slot_fires_once() -> None:
 # Server-side Tool Search injection for plain-API clients (opencode)
 # ---------------------------------------------------------------------------
 
-from headroom.proxy.helpers import (  # noqa: E402
+from horizon.proxy.helpers import (  # noqa: E402
     _TOOL_SEARCH_DEFAULT_NAME,
     _TOOL_SEARCH_DEFAULT_TYPE,
     _TOOL_SEARCH_MIN_TOOLS,
@@ -261,7 +261,7 @@ def test_non_dict_and_typed_tools_stay_resident() -> None:
     assert len(typed) == 1 and typed[0].get("defer_loading") is None
 
 
-def test_third_party_upstream_strips_first_party_tool_search_from_headroom_issue_2526() -> None:
+def test_third_party_upstream_strips_first_party_tool_search_from_horizon_issue_2526() -> None:
     tools = [
         {"type": "tool_search_tool_regex_20251119", "name": "tool_search_tool_regex"},
         {"name": "Bash", "description": "run a command", "input_schema": {}},
@@ -396,7 +396,7 @@ def test_core_tools_match_leading_underscore_namespace() -> None:
 # tools". The repair drops blocks a request cannot support.
 # ---------------------------------------------------------------------------
 
-from headroom.proxy.helpers import (  # noqa: E402
+from horizon.proxy.helpers import (  # noqa: E402
     _CLIENT_TOOL_REF_PLACEHOLDER,
     strip_unsupported_tool_search_blocks,
 )
@@ -659,7 +659,7 @@ def _transcript_with_search_tool_regex_reference() -> list[dict]:
 )
 def test_inject_deferral_exits_early_on_typeless_tool_search_name(name: str) -> None:
     # A client that sends tool_search_tool_regex without a ``type`` field should
-    # be treated as already using tool search (name-prefix guard), so Headroom
+    # be treated as already using tool search (name-prefix guard), so Horizon
     # must not inject a second search tool on top of it.
     typeless_search = {"name": name, "input_schema": {}}
     tools = _tools(20) + [typeless_search]
@@ -767,7 +767,7 @@ def test_repair_does_not_move_signed_thinking_blocks() -> None:
     # False, and select_outbound_body forwarded the client's ORIGINAL bytes --
     # discarding the repair, so upstream 400'd on the very reference we found.
     # Repairing in place must leave the thinking fingerprint byte-identical.
-    from headroom.proxy.body_forwarding import thinking_block_fingerprint
+    from horizon.proxy.body_forwarding import thinking_block_fingerprint
 
     transcript = [
         {"role": "user", "content": [{"type": "text", "text": "go"}]},

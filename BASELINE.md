@@ -1,14 +1,14 @@
 # Baseline Verification Record
 
-Recorded before any pruning or rebranding, on the untouched Headroom tree
+Recorded before any pruning or rebranding, on the untouched Horizon tree
 (commit `af8ff2d`). Every later gate compares against these numbers.
 
 ## Environment
 
 - Windows 11, Python 3.12.0, Node v24.15.0
 - Rust: rustup 1.29.1, toolchain `1.95.0` (MSVC default; Visual Studio 2022 Build Tools with VC.Tools.x86.x64 installed for this machine)
-- Install: `pip install -e ".[proxy]"` into `.venv` (maturin builds `headroom._core`)
-- Import smoke: `import headroom; import headroom._core` -> OK (`headroom/_core.pyd`)
+- Install: `pip install -e ".[proxy]"` into `.venv` (maturin builds `horizon._core`)
+- Import smoke: `import horizon; import horizon._core` -> OK (`horizon/_core.pyd`)
 
 ## Test baseline
 
@@ -30,5 +30,5 @@ failures** relative to this set (same single failure tolerated).
 
 ## CLI smoke
 
-`python -m headroom.cli --help` renders the command tree (usage: Manage
+`python -m horizon.cli --help` renders the command tree (usage: Manage
 memories, run the optimization proxy, and analyze metrics).

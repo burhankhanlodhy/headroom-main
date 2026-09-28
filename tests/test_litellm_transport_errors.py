@@ -14,10 +14,10 @@ importorskip_no_env_leak("litellm")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.backends.anyllm import AnyLLMBackend  # noqa: E402
-from headroom.backends.base import BackendResponse  # noqa: E402
-from headroom.backends.litellm import LiteLLMBackend  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.backends.anyllm import AnyLLMBackend  # noqa: E402
+from horizon.backends.base import BackendResponse  # noqa: E402
+from horizon.backends.litellm import LiteLLMBackend  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 _BODY = {
     "model": "claude-sonnet-4-20250514",
@@ -29,11 +29,11 @@ _BODY = {
 async def test_send_message_names_transport_error_without_message() -> None:
     with (
         patch(
-            "headroom.backends.litellm.acompletion",
+            "horizon.backends.litellm.acompletion",
             new_callable=AsyncMock,
             side_effect=httpx.ReadError(""),
         ),
-        patch("headroom.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
+        patch("horizon.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
     ):
         backend = LiteLLMBackend(provider="bedrock", region="us-east-1")
         result = await backend.send_message(_BODY, {})
@@ -47,11 +47,11 @@ async def test_send_message_names_transport_error_without_message() -> None:
 async def test_stream_message_names_transport_error_without_message() -> None:
     with (
         patch(
-            "headroom.backends.litellm.acompletion",
+            "horizon.backends.litellm.acompletion",
             new_callable=AsyncMock,
             side_effect=httpx.ReadTimeout(""),
         ),
-        patch("headroom.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
+        patch("horizon.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
     ):
         backend = LiteLLMBackend(provider="bedrock", region="us-east-1")
         events = [event async for event in backend.stream_message(_BODY, {})]
@@ -66,7 +66,7 @@ async def test_anyllm_backend_names_transport_error_without_message() -> None:
     fake_llm = MagicMock()
     fake_llm.acompletion = AsyncMock(side_effect=httpx.ReadError(""))
 
-    with patch("headroom.backends.anyllm.AnyLLM.create", return_value=fake_llm):
+    with patch("horizon.backends.anyllm.AnyLLM.create", return_value=fake_llm):
         backend = AnyLLMBackend(provider="anthropic")
         result = await backend.send_message(_BODY, {})
 
@@ -81,7 +81,7 @@ async def test_anyllm_stream_backend_names_transport_error_without_message() -> 
     fake_llm = MagicMock()
     fake_llm.acompletion = AsyncMock(side_effect=httpx.ReadTimeout(""))
 
-    with patch("headroom.backends.anyllm.AnyLLM.create", return_value=fake_llm):
+    with patch("horizon.backends.anyllm.AnyLLM.create", return_value=fake_llm):
         backend = AnyLLMBackend(provider="anthropic")
         events = [event async for event in backend.stream_message(_BODY, {})]
 
@@ -94,11 +94,11 @@ async def test_openai_backend_boundaries_name_transport_errors_without_message()
     pytest.importorskip("any_llm")
     with (
         patch(
-            "headroom.backends.anyllm.AnyLLM.create",
+            "horizon.backends.anyllm.AnyLLM.create",
             return_value=MagicMock(acompletion=AsyncMock(side_effect=httpx.ReadError(""))),
         ),
         patch(
-            "headroom.backends.litellm.acompletion",
+            "horizon.backends.litellm.acompletion",
             new_callable=AsyncMock,
             side_effect=httpx.ReadTimeout(""),
         ),
@@ -119,11 +119,11 @@ async def test_openai_stream_boundaries_name_transport_errors_without_message() 
     pytest.importorskip("any_llm")
     with (
         patch(
-            "headroom.backends.anyllm.AnyLLM.create",
+            "horizon.backends.anyllm.AnyLLM.create",
             return_value=MagicMock(acompletion=AsyncMock(side_effect=httpx.ReadError(""))),
         ),
         patch(
-            "headroom.backends.litellm.acompletion",
+            "horizon.backends.litellm.acompletion",
             new_callable=AsyncMock,
             side_effect=httpx.ReadTimeout(""),
         ),
@@ -177,7 +177,7 @@ def _messages_request(*, stream: bool) -> dict:
 
 def test_anthropic_proxy_names_nonstream_transport_error_without_message() -> None:
     backend = _erroring_anthropic_backend()
-    with patch("headroom.proxy.server.AnyLLMBackend", return_value=backend):
+    with patch("horizon.proxy.server.AnyLLMBackend", return_value=backend):
         app = create_app(_proxy_config())
         with TestClient(app) as client:
             response = client.post(
@@ -192,7 +192,7 @@ def test_anthropic_proxy_names_nonstream_transport_error_without_message() -> No
 
 def test_bedrock_stream_names_transport_error_without_message() -> None:
     backend = _erroring_anthropic_backend()
-    with patch("headroom.proxy.server.AnyLLMBackend", return_value=backend):
+    with patch("horizon.proxy.server.AnyLLMBackend", return_value=backend):
         app = create_app(_proxy_config())
         with TestClient(app) as client:
             response = client.post(

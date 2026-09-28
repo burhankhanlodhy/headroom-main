@@ -14,15 +14,15 @@ import json
 
 import pytest
 
-from headroom.providers import OpenAIProvider
-from headroom.tokenizer import Tokenizer
-from headroom.transforms.content_router import (
+from horizon.providers import OpenAIProvider
+from horizon.tokenizer import Tokenizer
+from horizon.transforms.content_router import (
     ContentRouter,
     ContentRouterConfig,
     _bash_command_is_search,
     _bash_program,
 )
-from headroom.transforms.lossless_compaction import search_unheading
+from horizon.transforms.lossless_compaction import search_unheading
 
 SEARCH = frozenset({"grep", "egrep", "fgrep", "rg", "ripgrep", "ag", "ack"})
 GREP = "".join(
@@ -46,7 +46,7 @@ def tokenizer():
     "command",
     [
         "grep -rn foo .",
-        "rtk grep def headroom/transforms",  # the user's token-proxy wrapper
+        "rtk grep def horizon/transforms",  # the user's token-proxy wrapper
         "rg --heading pattern src/",
         "git grep -n TODO",
         "sudo grep root /etc/passwd",
@@ -64,7 +64,7 @@ def test_detects_search_commands(command):
 @pytest.mark.parametrize(
     "command",
     [
-        "cat headroom/server.py",
+        "cat horizon/server.py",
         "cargo test",
         "pytest tests/ -x",
         "git diff HEAD~1",  # diff, NOT search
@@ -132,14 +132,14 @@ def test_openai_bash_grep_folds_and_recovers(tokenizer):
 
 
 def test_anthropic_bash_rtk_grep_folds_and_recovers(tokenizer):
-    out, transforms = _anthropic("rtk grep foo headroom/", GREP, tokenizer)
+    out, transforms = _anthropic("rtk grep foo horizon/", GREP, tokenizer)
     assert "router:bash:lossless_search" in transforms
     assert search_unheading(out) == GREP
 
 
 def test_non_search_bash_command_not_folded(tokenizer):
     # `cat` is not a search — must NOT take the bash-search fold.
-    _out, transforms = _openai("cat headroom/server.py", GREP, tokenizer)
+    _out, transforms = _openai("cat horizon/server.py", GREP, tokenizer)
     assert "router:bash:lossless_search" not in transforms
 
 
@@ -152,13 +152,13 @@ def test_source_output_from_search_command_untouched(tokenizer):
 
 
 # ---- path-listing fold (find/ls -1/rg -l): fold repeated parent dirs ----
-from headroom.transforms.lossless_compaction import (
+from horizon.transforms.lossless_compaction import (
     compact_lossless as _cl,
 )
-from headroom.transforms.lossless_compaction import (
+from horizon.transforms.lossless_compaction import (
     path_heading as _ph,
 )
-from headroom.transforms.lossless_compaction import (
+from horizon.transforms.lossless_compaction import (
     path_unheading as _puh,
 )
 
@@ -189,18 +189,18 @@ def test_path_fold_mixed_content_roundtrips_or_passes_through():
     assert _puh(_ph(c)) == c or _cl(c, "paths") == c
 
 
-# ---- EXPERIMENT: HEADROOM_EXPERIMENTAL_READ_KEEP_RATIO (light Kompress on reads) ----
+# ---- EXPERIMENT: HORIZON_EXPERIMENTAL_READ_KEEP_RATIO (light Kompress on reads) ----
 def test_experimental_read_keep_ratio_flag_and_gating(monkeypatch):
-    from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+    from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
 
     # OFF by default -> verbatim (helper returns None, no compression attempted)
-    monkeypatch.delenv("HEADROOM_EXPERIMENTAL_READ_KEEP_RATIO", raising=False)
+    monkeypatch.delenv("HORIZON_EXPERIMENTAL_READ_KEEP_RATIO", raising=False)
     r_off = ContentRouter(ContentRouterConfig())
     assert r_off._exp_read_keep_ratio == 0.0
     assert r_off._experimental_compress_read("x" * 500) is None
 
     # ON -> calls Kompress at the ratio; keeps result only if it actually shrank
-    monkeypatch.setenv("HEADROOM_EXPERIMENTAL_READ_KEEP_RATIO", "0.9")
+    monkeypatch.setenv("HORIZON_EXPERIMENTAL_READ_KEEP_RATIO", "0.9")
     r_on = ContentRouter(ContentRouterConfig())
     assert r_on._exp_read_keep_ratio == 0.9
     seen = {}
@@ -224,7 +224,7 @@ def test_experimental_read_keep_ratio_flag_and_gating(monkeypatch):
 
 
 # --- directory-prefix fold: grep -rn across many distinct files ---
-from headroom.transforms.lossless_compaction import (  # noqa: E402
+from horizon.transforms.lossless_compaction import (  # noqa: E402
     compact_lossless,
     search_dir_heading,
     search_dir_unheading,
@@ -236,12 +236,12 @@ def test_search_dir_fold_factors_directory_across_distinct_files() -> None:
     # the file-heading fold saves nothing but the shared directory repeats on
     # every row. The dir fold factors it out — byte-losslessly.
     grep = (
-        "\n".join(f"headroom/proxy/mod_{i:02d}.py:{i + 1}:    x = compress(p)" for i in range(12))
+        "\n".join(f"horizon/proxy/mod_{i:02d}.py:{i + 1}:    x = compress(p)" for i in range(12))
         + "\n"
     )
     folded = compact_lossless(grep, "search")
     assert len(folded) < len(grep)  # actually shrank (0% before this fold)
-    assert "headroom/proxy/" in folded  # directory factored to a header line
+    assert "horizon/proxy/" in folded  # directory factored to a header line
     assert search_dir_unheading(folded) == grep  # exact byte round-trip
     assert search_dir_unheading(search_dir_heading(grep)) == grep
 
@@ -259,7 +259,7 @@ def test_search_dir_fold_roundtrips_mixed_and_passthrough() -> None:
 def test_search_file_fold_still_wins_for_many_matches_one_file() -> None:
     # Many matches in ONE file: the file fold is smaller, and compact_lossless
     # keeps whichever candidate round-trips and is smallest.
-    grep = "\n".join(f"headroom/proxy/server.py:{i}:    line {i}" for i in range(1, 40)) + "\n"
+    grep = "\n".join(f"horizon/proxy/server.py:{i}:    line {i}" for i in range(1, 40)) + "\n"
     out = compact_lossless(grep, "search")
     assert len(out) < len(grep)
     assert search_unheading(out) == grep

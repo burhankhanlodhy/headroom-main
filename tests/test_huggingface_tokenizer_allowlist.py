@@ -21,8 +21,8 @@ from typing import Any
 
 import pytest
 
-from headroom.tokenizers import huggingface as hf_mod
-from headroom.tokenizers.huggingface import (
+from horizon.tokenizers import huggingface as hf_mod
+from horizon.tokenizers.huggingface import (
     MODEL_TO_TOKENIZER,
     HuggingFaceTokenizer,
     _load_tokenizer,
@@ -30,7 +30,7 @@ from headroom.tokenizers.huggingface import (
 )
 
 # A repository id an attacker could plausibly stand up and then request by name.
-CRAFTED = "attacker-controlled/headroom-rce-poc"
+CRAFTED = "attacker-controlled/horizon-rce-poc"
 
 SHIPPED_REPOS = frozenset(MODEL_TO_TOKENIZER.values())
 
@@ -116,7 +116,7 @@ def test_loader_refuses_unallowlisted_repo_without_touching_the_hub(
         raise AssertionError(f"Hub lookup attempted for {name!r}")
 
     _install_fake_transformers(monkeypatch, fake_from_pretrained)
-    monkeypatch.setenv("HEADROOM_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "5")
+    monkeypatch.setenv("HORIZON_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "5")
 
     assert _load_tokenizer(CRAFTED) is None
     assert _load_tokenizer("meta-llama/Meta-Llama-3-8B-but-not-really") is None
@@ -157,7 +157,7 @@ def test_remote_code_disabled_on_cache_and_network_paths(
         return _FakeTokenizer()
 
     _install_fake_transformers(monkeypatch, fake_from_pretrained)
-    monkeypatch.setenv("HEADROOM_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "5")
+    monkeypatch.setenv("HORIZON_HF_TOKENIZER_LOAD_TIMEOUT_SECS", "5")
 
     assert _load_tokenizer("Qwen/Qwen2.5-7B") is not None
     assert len(calls) == 2, "expected the cache-only attempt then the bounded network one"

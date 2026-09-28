@@ -6,16 +6,16 @@ import json
 
 import pytest
 
-from headroom import OpenAIProvider, Tokenizer
-from headroom.ccr.tool_injection import CCR_TOOL_NAME
-from headroom.config import SmartCrusherConfig
+from horizon import OpenAIProvider, Tokenizer
+from horizon.ccr.tool_injection import CCR_TOOL_NAME
+from horizon.config import SmartCrusherConfig
 
 try:
-    from headroom._core import SmartCrusher as _RustSmartCrusher  # noqa: F401
+    from horizon._core import SmartCrusher as _RustSmartCrusher  # noqa: F401
 except ImportError:
-    pytest.skip("headroom._core not built", allow_module_level=True)
+    pytest.skip("horizon._core not built", allow_module_level=True)
 
-from headroom.transforms.smart_crusher import SmartCrusher
+from horizon.transforms.smart_crusher import SmartCrusher
 
 
 def _big_content() -> str:
@@ -44,7 +44,7 @@ def _apply_for_tool(tool_name: str):
 
 @pytest.mark.parametrize(
     "tool_name",
-    ["mcp__Headroom__headroom_retrieve", "mcp_Headroom_headroom_retrieve"],
+    ["mcp__Horizon__horizon_retrieve", "mcp_Horizon_horizon_retrieve"],
 )
 def test_qualified_ccr_retrieval_result_is_preserved(tool_name: str) -> None:
     original, result = _apply_for_tool(tool_name)
@@ -54,7 +54,7 @@ def test_qualified_ccr_retrieval_result_is_preserved(tool_name: str) -> None:
 
 
 def test_near_match_ccr_tool_name_still_compresses() -> None:
-    original, result = _apply_for_tool("mcp__Headroom__headroom_retrieve_extra")
+    original, result = _apply_for_tool("mcp__Horizon__horizon_retrieve_extra")
 
     assert result.messages[1]["content"] != original or result.tokens_after < result.tokens_before
 
@@ -91,8 +91,8 @@ def _apply_anthropic_for_tool(tool_name: str):
 @pytest.mark.parametrize(
     "tool_name",
     [
-        "mcp__Headroom__headroom_retrieve",
-        "mcp_Headroom_headroom_retrieve",
+        "mcp__Horizon__horizon_retrieve",
+        "mcp_Horizon_horizon_retrieve",
         CCR_TOOL_NAME,
     ],
 )
@@ -105,35 +105,35 @@ def test_qualified_ccr_tool_result_block_is_preserved(tool_name: str) -> None:
 
 @pytest.mark.parametrize(
     "tool_name",
-    ["mcp__Headroom__headroom_retrieve", "mcp_Headroom_headroom_retrieve", CCR_TOOL_NAME],
+    ["mcp__Horizon__horizon_retrieve", "mcp_Horizon_horizon_retrieve", CCR_TOOL_NAME],
 )
 def test_mcp_compressor_preserves_qualified_ccr_output(tool_name: str) -> None:
-    """`HeadroomMCPCompressor.compress` is the production entry point issue #2656 names.
+    """`HorizonMCPCompressor.compress` is the production entry point issue #2656 names.
 
     It drives `SmartCrusher.apply` with a `role=tool` message, so the guard has to
     hold through that wrapper and not only on a directly built message list.
     """
-    from headroom.integrations.mcp.server import HeadroomMCPCompressor
+    from horizon.integrations.mcp.server import HorizonMCPCompressor
 
     content = json.dumps({"results": [{"id": i, "value": "x" * 40} for i in range(80)]})
-    result = HeadroomMCPCompressor().compress(content, tool_name=tool_name)
+    result = HorizonMCPCompressor().compress(content, tool_name=tool_name)
 
     assert result.compressed_content == content
 
 
 def test_mcp_compressor_still_compresses_a_near_match_name() -> None:
-    from headroom.integrations.mcp.server import HeadroomMCPCompressor
+    from horizon.integrations.mcp.server import HorizonMCPCompressor
 
     content = json.dumps({"results": [{"id": i, "value": "x" * 40} for i in range(80)]})
-    result = HeadroomMCPCompressor().compress(
-        content, tool_name="mcp__Headroom__headroom_retrieve_extra"
+    result = HorizonMCPCompressor().compress(
+        content, tool_name="mcp__Horizon__horizon_retrieve_extra"
     )
 
     assert result.compressed_content != content
 
 
 def test_near_match_ccr_tool_result_block_still_compresses() -> None:
-    original, result = _apply_anthropic_for_tool("mcp__Headroom__headroom_retrieve_extra")
+    original, result = _apply_anthropic_for_tool("mcp__Horizon__horizon_retrieve_extra")
 
     assert (
         result.messages[1]["content"][0]["content"] != original

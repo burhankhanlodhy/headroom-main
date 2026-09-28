@@ -16,7 +16,7 @@ content-based detection.
 
 import pytest
 
-from headroom.transforms.code_compressor import CodeLanguage, coerce_language
+from horizon.transforms.code_compressor import CodeLanguage, coerce_language
 
 
 @pytest.mark.parametrize(
@@ -61,7 +61,7 @@ def test_coerce_language_unknown_returns_unknown_not_valueerror(value):
 
 def test_compress_with_alias_language_does_not_raise():
     """The direct API path must not raise on a common alias."""
-    from headroom.transforms.code_compressor import CodeAwareCompressor
+    from horizon.transforms.code_compressor import CodeAwareCompressor
 
     code = "function add(a, b) {\n  return a + b;\n}\n"
     compressor = CodeAwareCompressor()

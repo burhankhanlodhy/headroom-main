@@ -5,18 +5,18 @@ import pytest
 
 class TestAnthropicModelSanitization:
     def test_sanitize_model_id_removes_ansi_escape_sequences(self):
-        from headroom.providers.anthropic import sanitize_anthropic_model_id
+        from horizon.providers.anthropic import sanitize_anthropic_model_id
 
         assert sanitize_anthropic_model_id("claude-opus-4-8\x1b[1m") == "claude-opus-4-8"
 
     def test_sanitize_model_id_removes_displayed_style_suffix(self):
-        from headroom.providers.anthropic import sanitize_anthropic_model_id
+        from horizon.providers.anthropic import sanitize_anthropic_model_id
 
         assert sanitize_anthropic_model_id("claude-opus-4-8[1m]") == "claude-opus-4-8"
         assert sanitize_anthropic_model_id("glm-5.2[1m]") == "glm-5.2"
 
     def test_sanitize_model_metadata_cleans_nested_model_ids(self):
-        from headroom.providers.anthropic import sanitize_anthropic_model_metadata
+        from horizon.providers.anthropic import sanitize_anthropic_model_metadata
 
         payload = {
             "data": [
@@ -46,19 +46,19 @@ class TestContext1MSuffix:
 
     @pytest.fixture
     def provider(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         return AnthropicProvider()
 
     def test_1m_suffix_is_detected(self):
-        from headroom.providers.anthropic import has_context_1m_suffix
+        from horizon.providers.anthropic import has_context_1m_suffix
 
         assert has_context_1m_suffix("claude-sonnet-4-5[1m]")
         assert has_context_1m_suffix("claude-sonnet-4-5[1m][1m]")
         assert not has_context_1m_suffix("claude-sonnet-4-5")
 
     def test_ansi_artifacts_are_not_mistaken_for_a_tier_request(self):
-        from headroom.providers.anthropic import has_context_1m_suffix
+        from horizon.providers.anthropic import has_context_1m_suffix
 
         # A dangling reset, a compound style, and a real escape sequence are
         # terminal noise -- none of them means "give me 1M".
@@ -82,7 +82,7 @@ class TestContext1MSuffix:
 
     def test_wire_model_id_still_drops_the_suffix(self):
         # Upstream rejects `[1m]`; the tier fix must not regress #2027.
-        from headroom.providers.anthropic import sanitize_anthropic_model_id
+        from horizon.providers.anthropic import sanitize_anthropic_model_id
 
         assert sanitize_anthropic_model_id("claude-sonnet-4-5[1m]") == "claude-sonnet-4-5"
 
@@ -93,19 +93,19 @@ class TestLongContextPricing:
     On the Sonnet 4 / 4.5 family a prompt over 200K re-prices the *whole*
     request -- input, output and cache alike -- at input 2x, output 1.5x,
     cache 2x. Both the LiteLLM path and the manual fallback must apply it, or
-    Headroom under-reports the cost of exactly the sessions `[1m]` unlocks.
+    Horizon under-reports the cost of exactly the sessions `[1m]` unlocks.
     """
 
     @pytest.fixture
     def provider(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         return AnthropicProvider()
 
     @pytest.fixture
     def manual_provider(self, monkeypatch):
         """Provider with the LiteLLM path disabled, exercising the fallback."""
-        import headroom.providers.anthropic as anthropic_module
+        import horizon.providers.anthropic as anthropic_module
 
         monkeypatch.setattr(anthropic_module, "estimate_cost_from_tokens", lambda *a, **k: None)
         return anthropic_module.AnthropicProvider()
@@ -163,18 +163,18 @@ class TestLiteLLMCostHelper:
     """
 
     def test_returns_none_for_unknown_model(self):
-        from headroom.pricing.litellm_pricing import estimate_cost_from_tokens
+        from horizon.pricing.litellm_pricing import estimate_cost_from_tokens
 
         assert estimate_cost_from_tokens("no-such-model-xyz", 1000, 1000) is None
 
     def test_prices_a_known_model(self):
-        from headroom.pricing.litellm_pricing import estimate_cost_from_tokens
+        from horizon.pricing.litellm_pricing import estimate_cost_from_tokens
 
         # gpt-4o: $2.50/1M in, $10/1M out -> 100K in + 5K out = $0.30
         assert estimate_cost_from_tokens("gpt-4o", 100_000, 5_000) == pytest.approx(0.30, rel=1e-4)
 
     def test_input_tokens_are_cache_inclusive(self):
-        from headroom.pricing.litellm_pricing import estimate_cost_from_tokens
+        from horizon.pricing.litellm_pricing import estimate_cost_from_tokens
 
         # The cached portion is a subset of input_tokens, not additional to it,
         # so a fully-cached prompt costs strictly less than an uncached one.
@@ -186,7 +186,7 @@ class TestLiteLLMCostHelper:
 class TestAnthropicTokenCounting:
     @pytest.fixture
     def anthropic_provider(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         return AnthropicProvider()
 
@@ -223,7 +223,7 @@ class TestAnthropicTokenCounting:
 class TestAnthropicModelLimits:
     @pytest.fixture
     def anthropic_provider(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         return AnthropicProvider()
 
@@ -259,7 +259,7 @@ class TestAnthropicModelLimits:
 class TestAnthropicCostEstimation:
     @pytest.fixture
     def anthropic_provider(self):
-        from headroom.providers.anthropic import AnthropicProvider
+        from horizon.providers.anthropic import AnthropicProvider
 
         return AnthropicProvider()
 

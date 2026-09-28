@@ -14,8 +14,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from headroom.proxy.system_compaction import _compact_system_blocks
-from headroom.proxy.tool_schema_compaction import compact_tool_descriptions, compact_tools
+from horizon.proxy.system_compaction import _compact_system_blocks
+from horizon.proxy.tool_schema_compaction import compact_tool_descriptions, compact_tools
 
 
 def _text(chars: int, seed: str = "x") -> str:

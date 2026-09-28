@@ -7,7 +7,7 @@ LiteLLM does not know every model -- but it must not outrank the live source.
 
 Resolution order (mirroring `get_context_limit`, so limits and prices agree):
 
-1. explicit user config (`HEADROOM_MODEL_LIMITS` / `models.json`)
+1. explicit user config (`HORIZON_MODEL_LIMITS` / `models.json`)
 2. LiteLLM
 3. built-in table -> family pattern -> unknown default
 """
@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.pricing.litellm_model_resolution import unwrapped_model_forms
-from headroom.providers.openai import OpenAIProvider
+from horizon.pricing.litellm_model_resolution import unwrapped_model_forms
+from horizon.providers.openai import OpenAIProvider
 
 litellm = pytest.importorskip("litellm")
 
@@ -74,7 +74,7 @@ def test_falls_back_to_the_builtin_table_without_litellm(monkeypatch: pytest.Mon
     Pinned because the fallback is exactly where the table's correctness still
     matters -- it is the only thing those installs see.
     """
-    import headroom.pricing.litellm_pricing as lp
+    import horizon.pricing.litellm_pricing as lp
 
     monkeypatch.setattr(lp, "LITELLM_AVAILABLE", False)
 

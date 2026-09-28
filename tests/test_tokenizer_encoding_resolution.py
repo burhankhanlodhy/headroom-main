@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.tokenizers import get_tokenizer
-from headroom.tokenizers.registry import TokenizerRegistry
-from headroom.tokenizers.tiktoken_counter import get_encoding_for_model
+from horizon.tokenizers import get_tokenizer
+from horizon.tokenizers.registry import TokenizerRegistry
+from horizon.tokenizers.tiktoken_counter import get_encoding_for_model
 
 CJK = "这是一个测试文档，用于验证分词器的差异。" * 30
 

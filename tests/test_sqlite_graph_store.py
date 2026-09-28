@@ -18,12 +18,12 @@ import tempfile
 
 import pytest
 
-from headroom.memory.adapters.graph_models import (
+from horizon.memory.adapters.graph_models import (
     Entity,
     Relationship,
     RelationshipDirection,
 )
-from headroom.memory.adapters.sqlite_graph import SQLiteGraphStore
+from horizon.memory.adapters.sqlite_graph import SQLiteGraphStore
 
 
 class TestSQLiteGraphStoreEntityOperations:
@@ -858,7 +858,7 @@ class TestSQLiteGraphStoreMemoryTrackerIntegration:
     @pytest.mark.asyncio
     async def test_memory_tracker_registration(self, store):
         """Test registering SQLiteGraphStore with MemoryTracker."""
-        from headroom.memory.tracker import MemoryTracker
+        from horizon.memory.tracker import MemoryTracker
 
         tracker = MemoryTracker.get()
 
@@ -934,7 +934,7 @@ class TestSQLiteGraphStoreMemoryTrackerIntegration:
     @pytest.mark.asyncio
     async def test_memory_report_includes_sqlite_graph(self, store):
         """Test that MemoryTracker report includes SQLiteGraphStore stats."""
-        from headroom.memory.tracker import MemoryTracker
+        from horizon.memory.tracker import MemoryTracker
 
         tracker = MemoryTracker.get()
 

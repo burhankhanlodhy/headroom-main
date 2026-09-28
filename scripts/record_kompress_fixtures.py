@@ -27,7 +27,7 @@ def main() -> int:
         print(f"kompress not patched: {statuses.get('kompress')}", file=sys.stderr)
         return 1
 
-    from headroom.transforms.kompress_compressor import (
+    from horizon.transforms.kompress_compressor import (
         KompressCompressor,
         KompressConfig,
     )

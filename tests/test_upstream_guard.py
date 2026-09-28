@@ -18,9 +18,9 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from headroom.providers.proxy_targets import select_passthrough_base_url
-from headroom.proxy.server import ProxyConfig, create_app
-from headroom.proxy.upstream_guard import is_safe_upstream_url
+from horizon.providers.proxy_targets import select_passthrough_base_url
+from horizon.proxy.server import ProxyConfig, create_app
+from horizon.proxy.upstream_guard import is_safe_upstream_url
 
 
 @pytest.mark.parametrize(
@@ -89,7 +89,7 @@ def test_dns_failure_is_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_allowlist_mode(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HEADROOM_ALLOWED_BASE_URLS", "api.internal.example, https://llm.corp:8443")
+    monkeypatch.setenv("HORIZON_ALLOWED_BASE_URLS", "api.internal.example, https://llm.corp:8443")
     # Allowlisted hosts pass — including internal ones the operator opted into,
     # without a DNS lookup.
     assert is_safe_upstream_url("https://api.internal.example/v1") is True
@@ -109,7 +109,7 @@ def test_allowlist_mode(monkeypatch: pytest.MonkeyPatch) -> None:
 # The tests above cover `is_safe_upstream_url` in isolation. They passed while
 # `/v1/alpha/search` still forwarded to any caller-named host, because nothing
 # asserted the guard was actually *reached*. `select_passthrough_base_url`
-# returns the `x-headroom-base-url` value whenever an `api-key` header is
+# returns the `x-horizon-base-url` value whenever an `api-key` header is
 # present -- both attacker-supplied -- so every caller of it is a sink.
 # ---------------------------------------------------------------------------
 
@@ -178,7 +178,7 @@ def test_alpha_search_rejects_a_caller_named_loopback_upstream() -> None:
             headers={
                 "api-key": "attacker-supplied",
                 "Authorization": "Bearer client-token",
-                "x-headroom-base-url": internal.url,
+                "x-horizon-base-url": internal.url,
             },
             json={"query": "x"},
         )
@@ -213,7 +213,7 @@ def test_no_route_forwards_to_a_loopback_upstream() -> None:
     with _InternalService() as internal, TestClient(app) as client:
         for method, path in sorted(probes):
             for unlock in ({"api-key": "x"}, {"x-goog-api-key": "x"}):
-                headers = {**unlock, "x-headroom-base-url": internal.url}
+                headers = {**unlock, "x-horizon-base-url": internal.url}
                 try:
                     client.request(method, path, headers=headers, json={"q": "x"})
                 except Exception:  # noqa: BLE001 - route errors are not the subject
@@ -237,7 +237,7 @@ class _StubProxy:
 
 
 def test_passthrough_base_url_ignores_an_unsafe_azure_override() -> None:
-    headers = {"api-key": "x", "x-headroom-base-url": "http://169.254.169.254"}
+    headers = {"api-key": "x", "x-horizon-base-url": "http://169.254.169.254"}
 
     resolved = select_passthrough_base_url(_StubProxy(), headers)
 
@@ -255,7 +255,7 @@ def test_passthrough_base_url_still_honours_a_safe_azure_override(
     monkeypatch.setattr(socket, "getaddrinfo", public_resolution)
     headers = {
         "api-key": "x",
-        "x-headroom-base-url": "https://my-resource.openai.azure.com/",
+        "x-horizon-base-url": "https://my-resource.openai.azure.com/",
     }
 
     resolved = select_passthrough_base_url(_StubProxy(), headers)
@@ -267,8 +267,8 @@ def test_operator_allowlist_still_permits_an_internal_azure_endpoint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """On-prem/split-horizon deployments opt in explicitly rather than being stuck."""
-    monkeypatch.setenv("HEADROOM_ALLOWED_BASE_URLS", "gateway.internal")
-    headers = {"api-key": "x", "x-headroom-base-url": "https://gateway.internal/v1"}
+    monkeypatch.setenv("HORIZON_ALLOWED_BASE_URLS", "gateway.internal")
+    headers = {"api-key": "x", "x-horizon-base-url": "https://gateway.internal/v1"}
 
     assert select_passthrough_base_url(_StubProxy(), headers) == "https://gateway.internal/v1"
 
@@ -286,7 +286,7 @@ def test_slow_resolution_is_bounded_and_fails_closed(monkeypatch: pytest.MonkeyP
         _time.sleep(5.0)
         return [(None, None, None, None, ("8.8.8.8", 443))]
 
-    monkeypatch.setenv("HEADROOM_UPSTREAM_RESOLVE_TIMEOUT_S", "0.25")
+    monkeypatch.setenv("HORIZON_UPSTREAM_RESOLVE_TIMEOUT_S", "0.25")
     monkeypatch.setattr(socket, "getaddrinfo", slow_resolution)
 
     started = _time.perf_counter()
@@ -299,7 +299,7 @@ def test_slow_resolution_is_bounded_and_fails_closed(monkeypatch: pytest.MonkeyP
 
 async def test_async_guard_matches_the_sync_policy() -> None:
     """The off-loop wrapper must not diverge from the blocking form."""
-    from headroom.proxy.upstream_guard import is_safe_upstream_url_async
+    from horizon.proxy.upstream_guard import is_safe_upstream_url_async
 
     assert await is_safe_upstream_url_async("http://127.0.0.1/") is False
     assert await is_safe_upstream_url_async("http://169.254.169.254/") is False
@@ -320,7 +320,7 @@ async def test_async_guard_matches_the_sync_policy() -> None:
 
 
 # A path no route claims, so it lands on the catch-all passthrough -- the sink
-# that forwards to `x-headroom-base-url` verbatim once the guard has cleared it.
+# that forwards to `x-horizon-base-url` verbatim once the guard has cleared it.
 _PROBE_PATH = "/v1/rebind-probe"
 
 
@@ -380,7 +380,7 @@ def test_rebinding_after_the_check_cannot_move_the_forward_to_loopback(
         try:
             response = client.post(
                 _PROBE_PATH,
-                headers={"x-headroom-base-url": f"http://rebind.example:{internal.port}"},
+                headers={"x-horizon-base-url": f"http://rebind.example:{internal.port}"},
                 json={"query": "x"},
             )
             status, text = response.status_code, response.text
@@ -492,7 +492,7 @@ def _tls_rebinding_app(
     address is accepted, and faking it this way keeps the upstream on 127.0.0.1
     instead of requiring real egress to a genuinely public address.
     """
-    from headroom.proxy import upstream_guard
+    from horizon.proxy import upstream_guard
 
     monkeypatch.setattr(socket, "getaddrinfo", resolver)
     monkeypatch.setattr(upstream_guard, "_is_internal_address", lambda _ip: False)
@@ -520,7 +520,7 @@ def test_pinned_connection_presents_the_original_hostname_to_tls(
             try:
                 status = client.post(
                     _PROBE_PATH,
-                    headers={"x-headroom-base-url": f"https://pinned.example:{upstream.port}"},
+                    headers={"x-horizon-base-url": f"https://pinned.example:{upstream.port}"},
                     json={"query": "x"},
                 ).status_code
             except Exception as exc:  # noqa: BLE001
@@ -554,7 +554,7 @@ def test_pinning_does_not_disable_certificate_hostname_verification(
             try:
                 status = client.post(
                     _PROBE_PATH,
-                    headers={"x-headroom-base-url": f"https://pinned.example:{upstream.port}"},
+                    headers={"x-horizon-base-url": f"https://pinned.example:{upstream.port}"},
                     json={"query": "x"},
                 ).status_code
             except Exception:  # noqa: BLE001 - a refused handshake is the pass
@@ -566,7 +566,7 @@ def test_pinning_does_not_disable_certificate_hostname_verification(
 
 def test_a_check_pins_every_address_it_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
     """All of them, in resolver order -- see the IPv6-fallback note on the pin."""
-    from headroom.proxy import upstream_guard
+    from horizon.proxy import upstream_guard
 
     def two_answers(*args: object, **kwargs: object) -> list[object]:
         return [
@@ -591,7 +591,7 @@ def test_a_rejected_or_allowlisted_destination_pins_nothing(
     by name without resolving at all -- pinning either would be recording a
     verdict that was not reached.
     """
-    from headroom.proxy import upstream_guard
+    from horizon.proxy import upstream_guard
 
     def internal_answer(*args: object, **kwargs: object) -> list[object]:
         return [(None, None, None, None, ("10.1.2.3", 443))]
@@ -602,7 +602,7 @@ def test_a_rejected_or_allowlisted_destination_pins_nothing(
     assert is_safe_upstream_url("https://rejected.example/v1") is False
     assert upstream_guard.validated_addresses("rejected.example") is None
 
-    monkeypatch.setenv("HEADROOM_ALLOWED_BASE_URLS", "gateway.internal")
+    monkeypatch.setenv("HORIZON_ALLOWED_BASE_URLS", "gateway.internal")
     assert is_safe_upstream_url("https://gateway.internal/v1") is True
     assert upstream_guard.validated_addresses("gateway.internal") is None
 
@@ -616,7 +616,7 @@ def test_an_expired_pin_still_marks_the_destination_as_guarded(
     that was never checked, and "never checked" resolves by name. Keeping the
     record is what lets the connect path deny instead.
     """
-    from headroom.proxy import upstream_guard
+    from horizon.proxy import upstream_guard
 
     def public_answer(*args: object, **kwargs: object) -> list[object]:
         return [(None, None, None, None, ("8.8.8.8", 443))]
@@ -645,7 +645,7 @@ def test_a_pin_is_scoped_to_the_request_that_asked(monkeypatch: pytest.MonkeyPat
     """
     import contextvars
 
-    from headroom.proxy import upstream_guard
+    from horizon.proxy import upstream_guard
 
     def public_answer(*args: object, **kwargs: object) -> list[object]:
         return [(None, None, None, None, ("8.8.8.8", 443))]
@@ -668,7 +668,7 @@ def test_the_pin_scope_is_bounded_and_overflow_rejects(monkeypatch: pytest.Monke
     validation while leaving the connection to resolve the name itself, which is
     the failure mode this whole module exists to remove.
     """
-    from headroom.proxy import upstream_guard
+    from horizon.proxy import upstream_guard
 
     def public_answer(*args: object, **kwargs: object) -> list[object]:
         return [(None, None, None, None, ("8.8.8.8", 443))]
@@ -707,7 +707,7 @@ class _RecordingBackend(httpcore.AsyncNetworkBackend):
 
 
 async def _connect(host: str) -> tuple[_RecordingBackend, object | None, Exception | None]:
-    from headroom.proxy.upstream_pinning import PinnedAddressBackend
+    from horizon.proxy.upstream_pinning import PinnedAddressBackend
 
     inner = _RecordingBackend()
     backend = PinnedAddressBackend(inner)
@@ -729,8 +729,8 @@ async def test_a_pin_expiring_before_the_socket_opens_denies_the_connection(
     module prevents. Denial is the only safe answer; the caller can retry, which
     re-checks and re-pins.
     """
-    from headroom.proxy import upstream_guard
-    from headroom.proxy.upstream_pinning import UnpinnableUpstreamError
+    from horizon.proxy import upstream_guard
+    from horizon.proxy.upstream_pinning import UnpinnableUpstreamError
 
     def public_answer(*args: object, **kwargs: object) -> list[object]:
         return [(None, None, None, None, ("8.8.8.8", 443))]
@@ -759,7 +759,7 @@ async def test_a_live_pin_dials_the_address_and_an_unguarded_host_dials_the_name
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The two states either side of the denial, so the denial is not blanket."""
-    from headroom.proxy import upstream_guard
+    from horizon.proxy import upstream_guard
 
     def public_answer(*args: object, **kwargs: object) -> list[object]:
         return [(None, None, None, None, ("8.8.8.8", 443))]
@@ -810,8 +810,8 @@ async def test_a_guarded_upstream_through_a_proxy_is_refused(
     honest answer is a refusal rather than a forward on a verdict nothing
     enforces.
     """
-    from headroom.proxy import upstream_guard
-    from headroom.proxy.upstream_pinning import (
+    from horizon.proxy import upstream_guard
+    from horizon.proxy.upstream_pinning import (
         GuardedUpstreamRefusingTransport,
         UnpinnableUpstreamError,
         install_upstream_pinning,
@@ -856,8 +856,8 @@ async def test_a_proxied_client_still_pins_its_direct_transport(
     pinned path -- and the refusal above applies only to what actually routes
     via the proxy.
     """
-    from headroom.proxy import upstream_guard
-    from headroom.proxy.upstream_pinning import (
+    from horizon.proxy import upstream_guard
+    from horizon.proxy.upstream_pinning import (
         GuardedUpstreamRefusingTransport,
         PinnedAddressBackend,
         install_upstream_pinning,

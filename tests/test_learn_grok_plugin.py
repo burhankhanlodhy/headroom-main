@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 
-from headroom.learn.plugins.grok import GrokPlugin
+from horizon.learn.plugins.grok import GrokPlugin
 
 
 def test_grok_plugin_detects_updates_jsonl(tmp_path: Path) -> None:

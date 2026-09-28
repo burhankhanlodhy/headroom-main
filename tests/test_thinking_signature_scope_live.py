@@ -1,7 +1,7 @@
 """Live probe: what does Anthropic's thinking-block ``signature`` actually cover?
 
 This test is the empirical foundation for the #3124 relaxation. That change lets
-Headroom forward its compression edits on a request that carries signed thinking
+Horizon forward its compression edits on a request that carries signed thinking
 blocks, instead of discarding every edit (the #2254 blanket lock, which cost
 ~34% of Claude Code requests all of their savings). It is only correct if the
 signature seals *the thinking block*, not the surrounding request.
@@ -40,7 +40,7 @@ pytestmark = [
 
 apply_dotenv = autouse_apply_env(_env)
 
-MODEL = os.environ.get("HEADROOM_LIVE_THINKING_MODEL", "claude-sonnet-4-6")
+MODEL = os.environ.get("HORIZON_LIVE_THINKING_MODEL", "claude-sonnet-4-6")
 
 TOOLS: list[dict[str, Any]] = [
     {
@@ -166,7 +166,7 @@ def test_exact_replay_is_accepted(signed_turn):
 
 
 def test_compressing_a_tool_result_is_accepted(signed_turn):
-    """The mutation Headroom actually makes on Claude Code traffic."""
+    """The mutation Horizon actually makes on Claude Code traffic."""
     body = copy.deepcopy(signed_turn["body"])
     block = body["messages"][2]["content"][0]
     body["messages"][2]["content"][0] = {**block, "content": "62F foggy"}

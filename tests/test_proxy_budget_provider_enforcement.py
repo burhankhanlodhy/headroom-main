@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.proxy.server import ProxyConfig, create_app
 
 
 def _budget_exhausted_app():  # noqa: ANN202

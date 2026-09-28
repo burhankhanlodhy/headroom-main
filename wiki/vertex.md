@@ -1,8 +1,8 @@
 # Vertex AI
 
-Headroom supports Google Cloud Vertex AI publisher endpoints through the proxy
+Horizon supports Google Cloud Vertex AI publisher endpoints through the proxy
 passthrough surface. Configure the proxy with a regional Vertex base URL, then
-send normal Vertex REST requests through Headroom.
+send normal Vertex REST requests through Horizon.
 
 Google documents Gemini generation on Vertex with `generateContent` and
 `streamGenerateContent`, and the request body uses the Vertex/Gemini `contents`
@@ -23,7 +23,7 @@ attached service accounts in that order. See:
 Set the Vertex regional host explicitly:
 
 ```bash
-headroom proxy --vertex-api-url https://us-central1-aiplatform.googleapis.com
+horizon proxy --vertex-api-url https://us-central1-aiplatform.googleapis.com
 ```
 
 The same setting is available through `VERTEX_TARGET_API_URL`.
@@ -57,7 +57,7 @@ Supported passthrough actions:
 
 ## Anthropic Publisher On Vertex
 
-Headroom also forwards Anthropic publisher calls on Vertex:
+Horizon also forwards Anthropic publisher calls on Vertex:
 
 - `rawPredict`
 - `streamRawPredict`
@@ -66,16 +66,16 @@ The Python proxy preserves caller-supplied Google bearer auth. The native Rust
 proxy path additionally resolves GCP ADC and injects the bearer token for the
 Anthropic publisher route.
 
-## Claude Code with Headroom compression (validated)
+## Claude Code with Horizon compression (validated)
 
-To run **Claude Code** against Claude-on-Vertex **with Headroom compressing the
+To run **Claude Code** against Claude-on-Vertex **with Horizon compressing the
 context**, use the dedicated, tested runbook:
 
-➡️ **[Claude Code + Vertex + Headroom](https://docs.headroomlabs.ai/docs/claude-code-vertex)**
+➡️ **[Claude Code + Vertex + Horizon](https://docs.horizon.invalid/docs/claude-code-vertex)**
 
 Short version: run Claude Code in **normal Anthropic mode** (`ANTHROPIC_BASE_URL`
 → the proxy) and start the proxy with `--backend litellm-vertex_ai --region <loc>
---code-aware`; Headroom holds the GCP ADC creds and calls Vertex.
+--code-aware`; Horizon holds the GCP ADC creds and calls Vertex.
 
 > ⚠️ Do **not** put Claude Code into Vertex mode and point `ANTHROPIC_VERTEX_BASE_URL`
 > at the proxy. Claude Code's client-side model probe rejects any non-Google Vertex

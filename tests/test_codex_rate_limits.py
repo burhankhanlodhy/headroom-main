@@ -1,12 +1,12 @@
-"""Unit tests for headroom.subscription.codex_rate_limits."""
+"""Unit tests for horizon.subscription.codex_rate_limits."""
 
 from __future__ import annotations
 
 import asyncio
 import time
 
-import headroom.subscription.codex_rate_limits as crl
-from headroom.subscription.codex_rate_limits import (
+import horizon.subscription.codex_rate_limits as crl
+from horizon.subscription.codex_rate_limits import (
     CodexRateLimitState,
     CodexRateLimitWindow,
     _build_usage_headers,

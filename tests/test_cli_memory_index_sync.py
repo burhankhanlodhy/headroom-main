@@ -1,6 +1,6 @@
 """Tests for memory CLI index synchronization (issue #2856).
 
-Verifies that headroom memory delete/prune/purge/edit remove stale entries
+Verifies that horizon memory delete/prune/purge/edit remove stale entries
 from the FTS5 and vector search indexes, not just from the primary store.
 
 Vector index tests require sqlite-vec and are skipped when it is not installed.
@@ -21,22 +21,22 @@ import numpy as np
 import pytest
 from click.testing import CliRunner
 
-import headroom.cli.memory as memory_cli
-from headroom.cli.main import main
-from headroom.cli.memory import (
+import horizon.cli.memory as memory_cli
+from horizon.cli.main import main
+from horizon.cli.memory import (
     _clear_all_search_indexes,
     _remove_from_search_indexes,
 )
-from headroom.memory.adapters.fts5 import FTS5TextIndex
-from headroom.memory.adapters.sqlite import SQLiteMemoryStore
-from headroom.memory.models import Memory
+from horizon.memory.adapters.fts5 import FTS5TextIndex
+from horizon.memory.adapters.sqlite import SQLiteMemoryStore
+from horizon.memory.models import Memory
 
 # ---------------------------------------------------------------------------
 # sqlite-vec availability guard
 # ---------------------------------------------------------------------------
 
 try:
-    from headroom.memory.adapters.sqlite_vector import (
+    from horizon.memory.adapters.sqlite_vector import (
         SQLiteVectorIndex,
         is_sqlite_vec_available,
     )

@@ -247,8 +247,8 @@ class TestWorkerConfiguration:
         assert config.workers is None or config.workers == 1
 
     def test_run_server_uses_import_string_for_multiple_workers(self, monkeypatch):
-        from headroom.proxy.models import ProxyConfig
-        from headroom.proxy.server import _MULTI_WORKER_CONFIG_ENV, run_server
+        from horizon.proxy.models import ProxyConfig
+        from horizon.proxy.server import _MULTI_WORKER_CONFIG_ENV, run_server
 
         captured = {}
         config = ProxyConfig(
@@ -265,10 +265,10 @@ class TestWorkerConfiguration:
         monkeypatch.delenv(_MULTI_WORKER_CONFIG_ENV, raising=False)
 
         try:
-            with patch("headroom.proxy.server.uvicorn.run", fake_run):
+            with patch("horizon.proxy.server.uvicorn.run", fake_run):
                 run_server(config, workers=4, limit_concurrency=250)
 
-            assert captured["app"] == "headroom.proxy.server:create_app_from_env"
+            assert captured["app"] == "horizon.proxy.server:create_app_from_env"
             assert captured["kwargs"]["workers"] == 4
             assert captured["kwargs"]["limit_concurrency"] == 250
             assert captured["kwargs"]["factory"] is True
@@ -282,7 +282,7 @@ class TestWorkerConfiguration:
             # run_server sets this via raw os.environ. Pop it directly rather
             # than via monkeypatch.delenv: delenv records the current (JSON)
             # value and re-restores it on teardown, leaking the config into
-            # later tests (e.g. _proxy_config_from_env then ignores HEADROOM_*).
+            # later tests (e.g. _proxy_config_from_env then ignores HORIZON_*).
             os.environ.pop(_MULTI_WORKER_CONFIG_ENV, None)
 
     def test_run_server_uses_selector_loop_on_windows(self, monkeypatch):
@@ -291,8 +291,8 @@ class TestWorkerConfiguration:
         import uvicorn
         from uvicorn.config import Config
 
-        from headroom.proxy import server as server_mod
-        from headroom.proxy.models import ProxyConfig
+        from horizon.proxy import server as server_mod
+        from horizon.proxy.models import ProxyConfig
 
         captured = {}
         policy_calls: list[Any] = []
@@ -326,7 +326,7 @@ class TestWorkerConfiguration:
             raising=False,
         )
 
-        with patch("headroom.proxy.server.uvicorn.run", fake_run):
+        with patch("horizon.proxy.server.uvicorn.run", fake_run):
             server_mod.run_server(ProxyConfig(), print_banner=False)
 
         assert captured["app"] == "app"
@@ -337,7 +337,7 @@ class TestWorkerConfiguration:
         captured.clear()
         policy_calls.clear()
 
-        with patch("headroom.proxy.server.uvicorn.run", fake_run):
+        with patch("horizon.proxy.server.uvicorn.run", fake_run):
             server_mod.run_server(ProxyConfig(), print_banner=False)
 
         assert "loop" not in captured["kwargs"]
@@ -346,8 +346,8 @@ class TestWorkerConfiguration:
         _ = uvicorn  # keep import for parity with runtime module path
 
     def test_run_server_keeps_default_loop_off_windows(self, monkeypatch):
-        from headroom.proxy import server as server_mod
-        from headroom.proxy.models import ProxyConfig
+        from horizon.proxy import server as server_mod
+        from horizon.proxy.models import ProxyConfig
 
         captured = {}
 
@@ -357,7 +357,7 @@ class TestWorkerConfiguration:
         monkeypatch.setattr(server_mod.sys, "platform", "linux")
         monkeypatch.setattr(server_mod, "create_app", lambda config: "app")
 
-        with patch("headroom.proxy.server.uvicorn.run", fake_run):
+        with patch("horizon.proxy.server.uvicorn.run", fake_run):
             server_mod.run_server(ProxyConfig(), print_banner=False)
 
         assert "loop" not in captured["kwargs"]
@@ -367,8 +367,8 @@ class TestProviderHttpClientOptions:
     """Provider HTTPX options should keep proxy settings scoped to provider clients."""
 
     def test_default_http2_preserved_without_proxy(self):
-        from headroom.proxy.models import ProxyConfig
-        from headroom.proxy.server import _provider_httpx_client_options
+        from horizon.proxy.models import ProxyConfig
+        from horizon.proxy.server import _provider_httpx_client_options
 
         http2, kwargs = _provider_httpx_client_options(ProxyConfig(http2=True), verify=True)
 
@@ -376,8 +376,8 @@ class TestProviderHttpClientOptions:
         assert "proxy" not in kwargs
 
     def test_http_proxy_sets_proxy_and_forces_http1(self):
-        from headroom.proxy.models import ProxyConfig
-        from headroom.proxy.server import _provider_httpx_client_options
+        from horizon.proxy.models import ProxyConfig
+        from horizon.proxy.server import _provider_httpx_client_options
 
         http2, kwargs = _provider_httpx_client_options(
             ProxyConfig(http2=True, http_proxy="http://proxy.local:8080"),

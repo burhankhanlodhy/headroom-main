@@ -6,8 +6,8 @@ import asyncio
 
 import pytest
 
-import headroom.cli.proxy as proxy_cli
-from headroom.proxy import malloc_trim
+import horizon.cli.proxy as proxy_cli
+from horizon.proxy import malloc_trim
 
 
 class _ExecCalled(Exception):
@@ -26,8 +26,8 @@ def _fake_execv(recorder: dict):
 @pytest.fixture(autouse=True)
 def _clean_malloc_env(monkeypatch):
     for var in (
-        "HEADROOM_MALLOC_TUNING",
-        "_HEADROOM_MALLOC_TUNED",
+        "HORIZON_MALLOC_TUNING",
+        "_HORIZON_MALLOC_TUNED",
         "MallocAggressiveMadvise",
         "MallocLargeCache",
     ):
@@ -47,7 +47,7 @@ def test_reexec_noop_off_darwin(monkeypatch):
 
 def test_reexec_respects_opt_out(monkeypatch):
     monkeypatch.setattr(proxy_cli.sys, "platform", "darwin")
-    monkeypatch.setenv("HEADROOM_MALLOC_TUNING", "0")
+    monkeypatch.setenv("HORIZON_MALLOC_TUNING", "0")
     rec: dict = {}
     monkeypatch.setattr(proxy_cli.os, "execv", _fake_execv(rec))
     proxy_cli._reexec_with_malloc_tuning()
@@ -56,7 +56,7 @@ def test_reexec_respects_opt_out(monkeypatch):
 
 def test_reexec_guard_prevents_loop(monkeypatch):
     monkeypatch.setattr(proxy_cli.sys, "platform", "darwin")
-    monkeypatch.setenv("_HEADROOM_MALLOC_TUNED", "1")
+    monkeypatch.setenv("_HORIZON_MALLOC_TUNED", "1")
     rec: dict = {}
     monkeypatch.setattr(proxy_cli.os, "execv", _fake_execv(rec))
     proxy_cli._reexec_with_malloc_tuning()
@@ -66,9 +66,9 @@ def test_reexec_guard_prevents_loop(monkeypatch):
 def test_reexec_skips_when_operator_already_set_vars(monkeypatch):
     monkeypatch.setattr(proxy_cli.sys, "platform", "darwin")
     # A real CLI launch, like the sibling exec test below: the tuning path is
-    # only reachable when this process is the Headroom CLI entrypoint, and
+    # only reachable when this process is the Horizon CLI entrypoint, and
     # under pytest argv[0] is pytest's own.
-    monkeypatch.setattr(proxy_cli.sys, "argv", ["headroom", "proxy"])
+    monkeypatch.setattr(proxy_cli.sys, "argv", ["horizon", "proxy"])
     monkeypatch.setenv("MallocAggressiveMadvise", "1")
     monkeypatch.setenv("MallocLargeCache", "0")
     rec: dict = {}
@@ -76,13 +76,13 @@ def test_reexec_skips_when_operator_already_set_vars(monkeypatch):
     proxy_cli._reexec_with_malloc_tuning()
     # No re-exec (vars present), but the guard is still stamped.
     assert rec == {}
-    assert proxy_cli.os.environ.get("_HEADROOM_MALLOC_TUNED") == "1"
+    assert proxy_cli.os.environ.get("_HORIZON_MALLOC_TUNED") == "1"
 
 
 def test_reexec_sets_vars_and_execs_once(monkeypatch):
     monkeypatch.setattr(proxy_cli.sys, "platform", "darwin")
     monkeypatch.setattr(proxy_cli.sys, "executable", "/usr/bin/python3")
-    monkeypatch.setattr(proxy_cli.sys, "argv", ["headroom", "proxy", "--port", "8787"])
+    monkeypatch.setattr(proxy_cli.sys, "argv", ["horizon", "proxy", "--port", "8787"])
     rec: dict = {}
     monkeypatch.setattr(proxy_cli.os, "execv", _fake_execv(rec))
 
@@ -92,10 +92,10 @@ def test_reexec_sets_vars_and_execs_once(monkeypatch):
     # The tuning knobs and the loop guard are exported to the replacement process.
     assert proxy_cli.os.environ["MallocAggressiveMadvise"] == "1"
     assert proxy_cli.os.environ["MallocLargeCache"] == "0"
-    assert proxy_cli.os.environ["_HEADROOM_MALLOC_TUNED"] == "1"
-    # Re-exec normalizes to `python -m headroom.cli <args>`, preserving the PID.
+    assert proxy_cli.os.environ["_HORIZON_MALLOC_TUNED"] == "1"
+    # Re-exec normalizes to `python -m horizon.cli <args>`, preserving the PID.
     assert rec["path"] == "/usr/bin/python3"
-    assert rec["argv"] == ["/usr/bin/python3", "-m", "headroom.cli", "proxy", "--port", "8787"]
+    assert rec["argv"] == ["/usr/bin/python3", "-m", "horizon.cli", "proxy", "--port", "8787"]
 
 
 # --------------------------------------------------------------------------- #
@@ -280,7 +280,7 @@ def test_proxy_config_malloc_trim_default_is_scoped_to_platforms_with_a_trim_cal
     # Default-on on macOS and glibc Linux, the two platforms with a trim call
     # and a documented RSS ratchet; elsewhere the periodic task is a no-op, so
     # the default stays off rather than scheduling wakeups for nothing.
-    from headroom.proxy import models
+    from horizon.proxy import models
 
     monkeypatch.setattr(models.sys, "platform", "darwin")
     assert models.ProxyConfig().periodic_malloc_trim_enabled is True
@@ -300,7 +300,7 @@ def test_proxy_config_malloc_trim_default_is_scoped_to_platforms_with_a_trim_cal
     [("darwin", True), ("linux", True), ("win32", False)],
 )
 def test_cli_proxy_uses_the_same_trim_default_as_the_dataclass(monkeypatch, platform, expected):
-    # `headroom proxy` builds its ProxyConfig field by field, so it can only
+    # `horizon proxy` builds its ProxyConfig field by field, so it can only
     # inherit the platform scope by calling the shared default: a literal here
     # (as `sys.platform == "darwin"` was) silently overrides the dataclass for
     # every CLI-launched proxy. Covers the third entry point; the server's
@@ -309,16 +309,16 @@ def test_cli_proxy_uses_the_same_trim_default_as_the_dataclass(monkeypatch, plat
     pytest.importorskip("fastapi")
     from click.testing import CliRunner
 
-    from headroom.cli.main import main
+    from horizon.cli.main import main
 
     monkeypatch.setattr(proxy_cli.sys, "platform", platform)
-    monkeypatch.delenv("HEADROOM_MALLOC_TRIM", raising=False)
+    monkeypatch.delenv("HORIZON_MALLOC_TRIM", raising=False)
     captured: dict = {}
 
     def fake_run_server(config, **kwargs):  # noqa: ANN001
         captured["config"] = config
 
-    monkeypatch.setattr("headroom.proxy.server.run_server", fake_run_server)
+    monkeypatch.setattr("horizon.proxy.server.run_server", fake_run_server)
     result = CliRunner().invoke(main, ["proxy"], catch_exceptions=False)
 
     assert result.exit_code == 0, result.output
@@ -330,16 +330,16 @@ def test_cli_proxy_trim_env_opt_out_still_wins(monkeypatch):
     pytest.importorskip("fastapi")
     from click.testing import CliRunner
 
-    from headroom.cli.main import main
+    from horizon.cli.main import main
 
     monkeypatch.setattr(proxy_cli.sys, "platform", "linux")
-    monkeypatch.setenv("HEADROOM_MALLOC_TRIM", "0")
+    monkeypatch.setenv("HORIZON_MALLOC_TRIM", "0")
     captured: dict = {}
 
     def fake_run_server(config, **kwargs):  # noqa: ANN001
         captured["config"] = config
 
-    monkeypatch.setattr("headroom.proxy.server.run_server", fake_run_server)
+    monkeypatch.setattr("horizon.proxy.server.run_server", fake_run_server)
     result = CliRunner().invoke(main, ["proxy"], catch_exceptions=False)
 
     assert result.exit_code == 0, result.output

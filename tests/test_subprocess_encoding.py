@@ -9,7 +9,7 @@ codec can't decode byte ...`` (seen in user proxy logs). These tests pin the
 
 import subprocess
 
-from headroom.proxy.interceptors import astgrep
+from horizon.proxy.interceptors import astgrep
 
 
 def _capture_run(captured, returncode=0, stdout='{"summary": {}}'):

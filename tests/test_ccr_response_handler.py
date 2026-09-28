@@ -12,18 +12,18 @@ import json
 
 import pytest
 
-from headroom.cache.compression_store import (
+from horizon.cache.compression_store import (
     get_compression_store,
     reset_compression_store,
 )
-from headroom.ccr.response_handler import (
+from horizon.ccr.response_handler import (
     CCRResponseHandler,
     CCRToolCall,
     CCRToolResult,
     ResponseHandlerConfig,
     StreamingCCRBuffer,
 )
-from headroom.ccr.tool_injection import CCR_TOOL_NAME
+from horizon.ccr.tool_injection import CCR_TOOL_NAME
 
 
 class TestCCRToolCallDetection:
@@ -447,7 +447,7 @@ class TestCCRResponseHandling:
         async def failing_api_call(messages, tools):
             raise Exception("")  # empty str(e), non-empty repr()
 
-        with caplog.at_level("ERROR", logger="headroom.ccr.response_handler"):
+        with caplog.at_level("ERROR", logger="horizon.ccr.response_handler"):
             result = await handler.handle_response(
                 initial_response,
                 [{"role": "user", "content": "Get me the data"}],

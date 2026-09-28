@@ -10,9 +10,9 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.proxy import runtime_env  # noqa: E402
-from headroom.proxy.loopback_guard import require_loopback  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.proxy import runtime_env  # noqa: E402
+from horizon.proxy.loopback_guard import require_loopback  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -57,10 +57,10 @@ async def _ok_response(
 
 
 def test_http_responses_output_shaper_rewrites_and_labels(monkeypatch):
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
-    monkeypatch.setenv("HEADROOM_ROLLOUT_CHANNEL", "beta")
-    monkeypatch.setenv("HEADROOM_VERBOSITY_LEVEL", "2")
-    monkeypatch.delenv("HEADROOM_OUTPUT_HOLDOUT", raising=False)
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
+    monkeypatch.setenv("HORIZON_ROLLOUT_CHANNEL", "beta")
+    monkeypatch.setenv("HORIZON_VERBOSITY_LEVEL", "2")
+    monkeypatch.delenv("HORIZON_OUTPUT_HOLDOUT", raising=False)
     captured: dict[str, Any] = {}
     outcomes: list[Any] = []
 
@@ -100,7 +100,7 @@ def test_http_responses_output_shaper_rewrites_and_labels(monkeypatch):
 
     assert response.status_code == 200
     sent = captured["body"]
-    assert "<headroom_output_shaping>" in sent["instructions"]
+    assert "<horizon_output_shaping>" in sent["instructions"]
     # Steering is the only lever; request params pass through untouched.
     assert sent["reasoning"]["effort"] == "xhigh"
     assert sent["text"]["verbosity"] == "medium", "client value passes through"
@@ -112,8 +112,8 @@ def test_http_responses_output_shaper_rewrites_and_labels(monkeypatch):
 
 
 def test_http_responses_output_shaper_respects_bypass(monkeypatch):
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
-    monkeypatch.setenv("HEADROOM_ROLLOUT_CHANNEL", "beta")
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
+    monkeypatch.setenv("HORIZON_ROLLOUT_CHANNEL", "beta")
     captured: dict[str, Any] = {}
     payload = {"model": "gpt-5", "input": "hi"}
 
@@ -130,7 +130,7 @@ def test_http_responses_output_shaper_respects_bypass(monkeypatch):
             "/v1/responses",
             headers={
                 "authorization": "Bearer test-key",
-                "x-headroom-bypass": "true",
+                "x-horizon-bypass": "true",
             },
             json=payload,
         )
@@ -140,9 +140,9 @@ def test_http_responses_output_shaper_respects_bypass(monkeypatch):
 
 
 def test_http_responses_output_shaper_holdout_labels_without_rewrite(monkeypatch):
-    monkeypatch.setenv("HEADROOM_OUTPUT_SHAPER", "1")
-    monkeypatch.setenv("HEADROOM_ROLLOUT_CHANNEL", "beta")
-    monkeypatch.setenv("HEADROOM_OUTPUT_HOLDOUT", "1")
+    monkeypatch.setenv("HORIZON_OUTPUT_SHAPER", "1")
+    monkeypatch.setenv("HORIZON_ROLLOUT_CHANNEL", "beta")
+    monkeypatch.setenv("HORIZON_OUTPUT_HOLDOUT", "1")
     captured: dict[str, Any] = {}
     outcomes: list[Any] = []
     payload = {"model": "gpt-5", "input": "hi"}
@@ -175,8 +175,8 @@ def test_http_responses_output_shaper_holdout_labels_without_rewrite(monkeypatch
 
 def test_http_output_shaper_hot_reload_changes_the_running_request_path(monkeypatch):
     """The admin endpoint must not report success while traffic stays unchanged."""
-    monkeypatch.setenv("HEADROOM_ROLLOUT_CHANNEL", "beta")
-    monkeypatch.delenv("HEADROOM_OUTPUT_SHAPER", raising=False)
+    monkeypatch.setenv("HORIZON_ROLLOUT_CHANNEL", "beta")
+    monkeypatch.delenv("HORIZON_OUTPUT_SHAPER", raising=False)
     payload = {
         "model": "gpt-5",
         "input": [{"type": "function_call_output", "call_id": "call_1", "output": "ok"}],
@@ -196,14 +196,14 @@ def test_http_output_shaper_hot_reload_changes_the_running_request_path(monkeypa
         first = client.post(
             "/v1/responses", headers={"authorization": "Bearer test-key"}, json=payload
         )
-        update = client.post("/admin/runtime-env", json={"HEADROOM_OUTPUT_SHAPER": "1"})
+        update = client.post("/admin/runtime-env", json={"HORIZON_OUTPUT_SHAPER": "1"})
         second = client.post(
             "/v1/responses", headers={"authorization": "Bearer test-key"}, json=payload
         )
 
     assert first.status_code == second.status_code == update.status_code == 200
     assert sent[0] == payload
-    assert "<headroom_output_shaping>" in sent[1]["instructions"]
+    assert "<horizon_output_shaping>" in sent[1]["instructions"]
     decision = next(
         item
         for item in update.json()["rollout"]["features"]

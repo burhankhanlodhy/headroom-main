@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from headroom.proxy.output_verbosity_policy import (
+from horizon.proxy.output_verbosity_policy import (
     STEERING_SENTINEL,
     STEERING_SUFFIX,
     replace_or_append_steering_block,

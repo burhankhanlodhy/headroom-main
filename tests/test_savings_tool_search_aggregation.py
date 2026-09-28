@@ -1,14 +1,14 @@
 """Tool-search / deferral savings must aggregate into Metrics and surface in the
 reporting sinks — not live only in per-request tags (which every sink reading
 metrics.* structurally missed: session summary, cost summary, all-layers total,
-`headroom perf --json`)."""
+`horizon perf --json`)."""
 
 from __future__ import annotations
 
 import asyncio
 
-from headroom.perf.analyzer import PerfRecord, PerfReport, build_perf_summary
-from headroom.proxy.prometheus_metrics import PrometheusMetrics
+from horizon.perf.analyzer import PerfRecord, PerfReport, build_perf_summary
+from horizon.proxy.prometheus_metrics import PrometheusMetrics
 
 
 def test_metrics_accumulates_tool_search_saved_apart_from_message() -> None:

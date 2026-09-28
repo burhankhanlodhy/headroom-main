@@ -16,7 +16,7 @@ port lacked the equivalent guard; this change adds it there.
 
 from __future__ import annotations
 
-from headroom.transforms.content_detector import (
+from horizon.transforms.content_detector import (
     ContentType,
     _is_search_result_line,
     detect_content_type,

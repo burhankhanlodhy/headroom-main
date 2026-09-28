@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.providers.claude import (
+from horizon.providers.claude import (
     CONTEXT_1M_SUFFIX,
     DEFAULT_1M_MODEL,
     DEFAULT_API_URL,
-    HEADROOM_1M_MODEL_ENV,
+    HORIZON_1M_MODEL_ENV,
     proxy_base_url,
     resolve_1m_model,
 )
@@ -34,9 +34,9 @@ def test_resolve_1m_model_contract_is_provider_owned(
     expected: str,
 ) -> None:
     if fallback is None:
-        monkeypatch.delenv(HEADROOM_1M_MODEL_ENV, raising=False)
+        monkeypatch.delenv(HORIZON_1M_MODEL_ENV, raising=False)
     else:
-        monkeypatch.setenv(HEADROOM_1M_MODEL_ENV, fallback)
+        monkeypatch.setenv(HORIZON_1M_MODEL_ENV, fallback)
 
     assert resolve_1m_model(current) == expected
     assert resolve_1m_model(expected) == expected

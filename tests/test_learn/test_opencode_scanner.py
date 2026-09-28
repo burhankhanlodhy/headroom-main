@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-import headroom.learn.plugins.opencode as opencode_module
-from headroom.learn.models import ErrorCategory
-from headroom.learn.plugins.opencode import OpenCodePlugin
-from headroom.learn.registry import get_registry, reset_registry
-from headroom.learn.writer import CodexWriter
+import horizon.learn.plugins.opencode as opencode_module
+from horizon.learn.models import ErrorCategory
+from horizon.learn.plugins.opencode import OpenCodePlugin
+from horizon.learn.registry import get_registry, reset_registry
+from horizon.learn.writer import CodexWriter
 
 
 def _create_opencode_db(
@@ -21,7 +21,7 @@ def _create_opencode_db(
     project_path: Path,
     *,
     project_id: str = "project-1",
-    project_name: str = "Headroom",
+    project_name: str = "Horizon",
     session_id: str = "session-1",
     tool_command: str = "pytest",
 ) -> None:
@@ -117,7 +117,7 @@ def test_opencode_plugin_explicit_path_discovers_projects_and_scans_tool_failure
 
     projects = plugin.discover_projects()
     assert len(projects) == 1
-    assert projects[0].name == "Headroom"
+    assert projects[0].name == "Horizon"
     assert projects[0].project_path == project_path
     assert projects[0].context_file == project_path / "AGENTS.md"
 

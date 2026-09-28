@@ -24,9 +24,9 @@ from unittest.mock import MagicMock
 import anyio
 from fastapi import Request
 
-from headroom.config import TransformResult
-from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
-from headroom.proxy.models import ProxyConfig
+from horizon.config import TransformResult
+from horizon.proxy.handlers.anthropic import AnthropicHandlerMixin
+from horizon.proxy.models import ProxyConfig
 
 _COMPRESSED_TEXT = "compressed tool output"
 
@@ -195,7 +195,7 @@ _TOOL_RESULT_MESSAGE = {
 
 
 def test_cache_mode_cold_start_compresses_full_request(monkeypatch):
-    import headroom.tokenizers as _tk
+    import horizon.tokenizers as _tk
 
     monkeypatch.setattr(_tk, "get_tokenizer", lambda model: _DummyTokenizer())
 
@@ -215,7 +215,7 @@ def test_cache_mode_cold_start_compresses_full_request(monkeypatch):
 
 
 def test_cache_mode_prefix_mismatch_passes_through_with_tag(monkeypatch):
-    import headroom.tokenizers as _tk
+    import horizon.tokenizers as _tk
 
     monkeypatch.setattr(_tk, "get_tokenizer", lambda model: _DummyTokenizer())
 

@@ -6,7 +6,7 @@ third-party data. BerriAI prunes retired models from it: on 2026-09-23
 failing with ``KeyError: 'input_cost_per_token'`` — on every open pull request
 at once, with no change on our side.
 
-The model id in those tests is incidental. They assert that Headroom's cost
+The model id in those tests is incidental. They assert that Horizon's cost
 arithmetic agrees with litellm's numbers, not that any particular model is
 priced correctly, so the fix is to stop naming a specific release and instead
 ask for *a* model carrying the fields the test needs.

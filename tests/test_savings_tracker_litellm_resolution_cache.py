@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import types
 
-from headroom.proxy import savings_tracker as st
+from horizon.proxy import savings_tracker as st
 
 
 def _fake_litellm_always_unresolvable(probe_calls: dict[str, int]) -> types.SimpleNamespace:

@@ -1,5 +1,5 @@
-from headroom.transforms.content_detector import ContentType
-from headroom.transforms.mixed_content import (
+from horizon.transforms.content_detector import ContentType
+from horizon.transforms.mixed_content import (
     _extract_json_block,
     is_mixed_content,
     split_into_sections,

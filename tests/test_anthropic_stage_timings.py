@@ -11,8 +11,8 @@ import anyio
 import pytest
 from fastapi import Request
 
-from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
-from headroom.proxy.models import ProxyConfig
+from horizon.proxy.handlers.anthropic import AnthropicHandlerMixin
+from horizon.proxy.models import ProxyConfig
 
 
 class _DummyTokenizer:
@@ -180,7 +180,7 @@ class _CapturingHandler(logging.Handler):
 
 @pytest.fixture
 def stage_log_capture():
-    target = logging.getLogger("headroom.proxy")
+    target = logging.getLogger("horizon.proxy")
     handler = _CapturingHandler()
     previous_level = target.level
     target.addHandler(handler)
@@ -212,7 +212,7 @@ def test_anthropic_http_happy_path_emits_stage_timings(stage_log_capture):
     handler = _DummyAnthropicHandler()
 
     # Force tokenizer to a stub.
-    import headroom.tokenizers as _tk
+    import horizon.tokenizers as _tk
 
     orig_get = _tk.get_tokenizer
     _tk.get_tokenizer = lambda model: _DummyTokenizer()
@@ -278,7 +278,7 @@ def test_anthropic_no_optimize_preserves_client_tool_order():
     )
     handler = _DummyAnthropicHandler()
 
-    import headroom.tokenizers as _tk
+    import horizon.tokenizers as _tk
 
     orig_get = _tk.get_tokenizer
     _tk.get_tokenizer = lambda model: _DummyTokenizer()
@@ -312,7 +312,7 @@ def test_anthropic_third_party_upstream_strips_tool_search_tools():
     )
     handler = _DummyAnthropicHandler()
 
-    import headroom.tokenizers as _tk
+    import horizon.tokenizers as _tk
 
     orig_get = _tk.get_tokenizer
     _tk.get_tokenizer = lambda model: _DummyTokenizer()
@@ -391,7 +391,7 @@ def test_anthropic_direct_path_repairs_typeless_tool_search_regression():
     )
     handler = _DummyAnthropicHandler()
 
-    import headroom.tokenizers as _tk
+    import horizon.tokenizers as _tk
 
     orig_get = _tk.get_tokenizer
     _tk.get_tokenizer = lambda model: _DummyTokenizer()
@@ -402,7 +402,7 @@ def test_anthropic_direct_path_repairs_typeless_tool_search_regression():
 
     assert response.status_code == 200
     _, _, _, forwarded_body = handler.captured
-    # The client-owned typeless entry suppresses Headroom's typed search-tool
+    # The client-owned typeless entry suppresses Horizon's typed search-tool
     # injection, and the tools array remains byte-for-byte equivalent.
     assert forwarded_body["tools"] == tools
     assert not any(tool.get("type") for tool in forwarded_body["tools"])
@@ -460,7 +460,7 @@ def test_anthropic_http_request_and_session_ids_present(stage_log_capture):
     )
     handler = _DummyAnthropicHandler()
 
-    import headroom.tokenizers as _tk
+    import horizon.tokenizers as _tk
 
     orig_get = _tk.get_tokenizer
     _tk.get_tokenizer = lambda model: _DummyTokenizer()

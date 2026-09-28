@@ -1,4 +1,4 @@
-"""Regression tests for #1126 — `headroom wrap` instruction injection must read
+"""Regression tests for #1126 — `horizon wrap` instruction injection must read
 and write user instruction files as UTF-8, so non-ASCII prose (typographic
 quotes, em-dashes) does not crash on a cp1252 (Windows) locale.
 
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from headroom.cli.wrap import _MEMORY_AGENTS_MARKER, _inject_memory_agents_md
+from horizon.cli.wrap import _MEMORY_AGENTS_MARKER, _inject_memory_agents_md
 
 # (inject_fn, marker) for the prose injectors that shared the bug.
 INJECTORS = [

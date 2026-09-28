@@ -1,6 +1,6 @@
 """Provider token counters must price every content block, not just ``text``.
 
-Each counter in ``headroom/providers/`` had grown its own shortened content-block
+Each counter in ``horizon/providers/`` had grown its own shortened content-block
 walker handling only the shapes its provider was expected to send. Everything else
 fell through and contributed nothing. Measured on one 6,800-char block
 (``count_messages`` of a single-block message, so 7-8 is message overhead alone):
@@ -31,9 +31,9 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.providers.anthropic import AnthropicProvider
-from headroom.providers.openai import OpenAIProvider
-from headroom.tokenizers.base import count_content_blocks
+from horizon.providers.anthropic import AnthropicProvider
+from horizon.providers.openai import OpenAIProvider
+from horizon.tokenizers.base import count_content_blocks
 
 _BIG = "x " * 3400  # ~6,800 chars
 

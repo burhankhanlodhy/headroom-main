@@ -13,9 +13,9 @@ import inspect
 
 import pytest
 
-from headroom.proxy import image_isolation
-from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
-from headroom.proxy.handlers.openai import OpenAIHandlerMixin
+from horizon.proxy import image_isolation
+from horizon.proxy.handlers.anthropic import AnthropicHandlerMixin
+from horizon.proxy.handlers.openai import OpenAIHandlerMixin
 
 
 @pytest.fixture(autouse=True)

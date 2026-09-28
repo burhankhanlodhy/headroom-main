@@ -12,7 +12,7 @@ built-in gateway contract, installed exactly as a third party would.
               the turn's ``fail_open_fields``.
 * I-FIRST   - the first registered claimant wins; the built-in gateway
               contract still claims ``gateway`` bodies on the same app.
-* I-OFF     - ``HEADROOM_GATEWAY_CONTRACT=0`` builds an app with no gateway
+* I-OFF     - ``HORIZON_GATEWAY_CONTRACT=0`` builds an app with no gateway
               contract: a ``gateway`` block is ignored, the response route is
               absent, and the seam is empty.
 """
@@ -24,7 +24,7 @@ from typing import Any
 
 import pytest
 
-from headroom.proxy.compress_turn import (
+from horizon.proxy.compress_turn import (
     CompressTurnError,
     FinishedTurn,
     register_compress_turn_extension,
@@ -102,8 +102,8 @@ class EchoContract:
 
 
 @pytest.fixture
-def echo(headroom_client):
-    proxy = headroom_client.app.state.proxy
+def echo(horizon_client):
+    proxy = horizon_client.app.state.proxy
     ext = EchoContract()
     register_compress_turn_extension(proxy, ext)
     yield ext
@@ -116,18 +116,18 @@ def _body(**extra: Any) -> dict[str, Any]:
     return out
 
 
-def test_built_in_gateway_contract_is_registered_through_the_seam(headroom_client) -> None:
-    proxy = headroom_client.app.state.proxy
+def test_built_in_gateway_contract_is_registered_through_the_seam(horizon_client) -> None:
+    proxy = horizon_client.app.state.proxy
     names = [getattr(e, "name", None) for e in registered_compress_turn_extensions(proxy)]
     assert names == ["gateway_turn_contract"]
     assert proxy.gateway_turns is not None
 
 
 def test_claimed_body_runs_every_moment_and_owns_the_outcome(
-    headroom_client, outcome_spy, echo
+    horizon_client, outcome_spy, echo
 ) -> None:
-    outcomes = outcome_spy(headroom_client)
-    resp = compress(headroom_client, _body(contract="echo"))
+    outcomes = outcome_spy(horizon_client)
+    resp = compress(horizon_client, _body(contract="echo"))
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["echo"]["model"] == "claude-sonnet-4-5"
@@ -143,36 +143,36 @@ def test_claimed_body_runs_every_moment_and_owns_the_outcome(
     assert turn.committed[0].tags.get("echo_prepared") is True
 
 
-def test_claimed_session_body_transforms_once_after_replay(headroom_client, echo) -> None:
+def test_claimed_session_body_transforms_once_after_replay(horizon_client, echo) -> None:
     body = _body(contract="echo", config={"session_id": "echo-session"})
-    first = compress(headroom_client, body).json()
+    first = compress(horizon_client, body).json()
     grown = dict(body)
     grown["messages"] = list(body["messages"]) + [
         {"role": "assistant", "content": "answer 0"},
         {"role": "user", "content": "follow-up 0"},
     ]
-    second = compress(headroom_client, grown).json()
+    second = compress(horizon_client, grown).json()
     assert first["session"]["id"] == second["session"]["id"] == "echo-session"
     assert [t.transform_calls for t in echo.turns] == [1, 1]
     assert second["echo"]["model"] == "claude-sonnet-4-5"
 
 
-def test_finish_can_replace_the_returned_messages(headroom_client, echo) -> None:
+def test_finish_can_replace_the_returned_messages(horizon_client, echo) -> None:
     echo.replace_messages = True
-    data = compress(headroom_client, _body(contract="echo")).json()
+    data = compress(horizon_client, _body(contract="echo")).json()
     assert data["messages"] == [{"role": "user", "content": "replaced by echo"}]
 
 
-def test_unclaimed_body_is_legacy(headroom_client, outcome_spy, echo) -> None:
-    outcomes = outcome_spy(headroom_client)
-    data = compress(headroom_client, _body()).json()
+def test_unclaimed_body_is_legacy(horizon_client, outcome_spy, echo) -> None:
+    outcomes = outcome_spy(horizon_client)
+    data = compress(horizon_client, _body()).json()
     assert "echo" not in data and "body" not in data
     assert echo.turns == []
     assert len(outcomes) == 1
 
 
-def test_begin_error_is_400(headroom_client, echo) -> None:
-    resp = compress(headroom_client, _body(contract="echo", contract_opts="nope"))
+def test_begin_error_is_400(horizon_client, echo) -> None:
+    resp = compress(horizon_client, _body(contract="echo", contract_opts="nope"))
     assert resp.status_code == 400
     assert resp.json()["error"] == {
         "type": "invalid_request",
@@ -180,36 +180,36 @@ def test_begin_error_is_400(headroom_client, echo) -> None:
     }
 
 
-def test_fail_open_answers_carry_the_turns_fields(headroom_client, echo, monkeypatch) -> None:
+def test_fail_open_answers_carry_the_turns_fields(horizon_client, echo, monkeypatch) -> None:
     bypass = compress(
-        headroom_client, _body(contract="echo"), headers={"x-headroom-bypass": "true"}
+        horizon_client, _body(contract="echo"), headers={"x-horizon-bypass": "true"}
     ).json()
     assert bypass["echo"] == {"fail_open": True, "n": len(anthropic_tool_history())}
 
-    empty = compress(headroom_client, _body(contract="echo", messages=[])).json()
+    empty = compress(horizon_client, _body(contract="echo", messages=[])).json()
     assert empty["echo"] == {"fail_open": True, "n": 0}
 
     from unittest.mock import AsyncMock
 
-    proxy = headroom_client.app.state.proxy
+    proxy = horizon_client.app.state.proxy
     monkeypatch.setattr(proxy, "_run_compression_in_executor", AsyncMock(side_effect=TimeoutError))
-    timed_out = compress(headroom_client, _body(contract="echo")).json()
+    timed_out = compress(horizon_client, _body(contract="echo")).json()
     assert timed_out["compression_skipped"] is True
     assert timed_out["echo"]["fail_open"] is True
 
 
-def test_first_claimant_wins_and_gateway_still_claims_its_bodies(headroom_client, echo) -> None:
+def test_first_claimant_wins_and_gateway_still_claims_its_bodies(horizon_client, echo) -> None:
     # The built-in contract was registered first (at create_app), so a body
     # carrying BOTH markers goes to it and the echo contract never sees it.
-    data = compress(headroom_client, _body(contract="echo", gateway={})).json()
+    data = compress(horizon_client, _body(contract="echo", gateway={})).json()
     assert "body" in data and "turn_id" in data
     assert "echo" not in data
     assert echo.turns == []
 
 
-def test_contract_disabled_by_env(make_headroom_client, monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_GATEWAY_CONTRACT", "0")
-    client = make_headroom_client()
+def test_contract_disabled_by_env(make_horizon_client, monkeypatch) -> None:
+    monkeypatch.setenv("HORIZON_GATEWAY_CONTRACT", "0")
+    client = make_horizon_client()
     proxy = client.app.state.proxy
     assert registered_compress_turn_extensions(proxy) == []
     assert proxy.gateway_turns is None

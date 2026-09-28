@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 from click.testing import CliRunner
 
-from headroom.agent_savings import (
+from horizon.agent_savings import (
     AGENT_90_PROFILE,
     DEFAULT_PROFILE,
     apply_agent_savings_env_defaults,
@@ -18,22 +18,22 @@ from headroom.agent_savings import (
     proxy_pipeline_kwargs,
     with_target_savings,
 )
-from headroom.cli import wrap as wrap_module
-from headroom.cli.main import main
-from headroom.compress import CompressConfig, compress
-from headroom.proxy.models import ProxyConfig
-from headroom.transforms.compression_units import (
+from horizon.cli import wrap as wrap_module
+from horizon.cli.main import main
+from horizon.compress import CompressConfig, compress
+from horizon.proxy.models import ProxyConfig
+from horizon.transforms.compression_units import (
     CompressionUnit,
     compress_unit_with_router,
 )
-from headroom.transforms.content_router import (
+from horizon.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
     RouterCompressionResult,
 )
 
-compress_module = import_module("headroom.compress")
+compress_module = import_module("horizon.compress")
 
 
 def test_agent_90_profile_sets_accuracy_preserving_compress_config() -> None:
@@ -54,16 +54,16 @@ def test_agent_90_profile_exports_cross_agent_proxy_env() -> None:
 
     env = profile.proxy_env()
 
-    assert env["HEADROOM_MODE"] == "token"
-    assert env["HEADROOM_SAVINGS_PROFILE"] == "agent-90"
-    assert env["HEADROOM_SAVINGS_TARGET"] == "0.90"
-    assert env["HEADROOM_TARGET_RATIO"] == "0.10"
-    assert env["HEADROOM_COMPRESS_USER_MESSAGES"] == "1"
-    assert env["HEADROOM_COMPRESS_SYSTEM_MESSAGES"] == "1"
-    assert env["HEADROOM_MAX_ITEMS"] == "8"
-    assert env["HEADROOM_SMART_CRUSHER_COMPACTION"] == "0"
-    assert env["HEADROOM_FORCE_KOMPRESS"] == "1"
-    assert env["HEADROOM_ACCURACY_GUARD"] == "strict"
+    assert env["HORIZON_MODE"] == "token"
+    assert env["HORIZON_SAVINGS_PROFILE"] == "agent-90"
+    assert env["HORIZON_SAVINGS_TARGET"] == "0.90"
+    assert env["HORIZON_TARGET_RATIO"] == "0.10"
+    assert env["HORIZON_COMPRESS_USER_MESSAGES"] == "1"
+    assert env["HORIZON_COMPRESS_SYSTEM_MESSAGES"] == "1"
+    assert env["HORIZON_MAX_ITEMS"] == "8"
+    assert env["HORIZON_SMART_CRUSHER_COMPACTION"] == "0"
+    assert env["HORIZON_FORCE_KOMPRESS"] == "1"
+    assert env["HORIZON_ACCURACY_GUARD"] == "strict"
 
 
 def test_coding_persona_compresses_recent_delta_and_stays_visible() -> None:
@@ -71,23 +71,23 @@ def test_coding_persona_compresses_recent_delta_and_stays_visible() -> None:
 
     env = profile.proxy_env()
 
-    assert env["HEADROOM_SAVINGS_PROFILE"] == "coding"
-    assert env["HEADROOM_MODE"] == "cache"  # delta-only compression at ~0 prefix-cache busts
-    assert env["HEADROOM_PROTECT_RECENT"] == "0"  # reads guarded by type, not position
-    assert env["HEADROOM_MIN_TOKENS"] == "10"  # low → even modest deltas are eligible
+    assert env["HORIZON_SAVINGS_PROFILE"] == "coding"
+    assert env["HORIZON_MODE"] == "cache"  # delta-only compression at ~0 prefix-cache busts
+    assert env["HORIZON_PROTECT_RECENT"] == "0"  # reads guarded by type, not position
+    assert env["HORIZON_MIN_TOKENS"] == "10"  # low → even modest deltas are eligible
     # Cache mode compresses the newest observation delta → compress_user must be ON.
-    assert env["HEADROOM_COMPRESS_USER_MESSAGES"] == "1"
-    assert env["HEADROOM_COMPRESS_SYSTEM_MESSAGES"] == "0"  # system prompt is the hottest cache
-    assert env["HEADROOM_ACCURACY_GUARD"] == "strict"
-    assert "HEADROOM_TARGET_RATIO" not in env  # unset → Kompress / ambient default decides
+    assert env["HORIZON_COMPRESS_USER_MESSAGES"] == "1"
+    assert env["HORIZON_COMPRESS_SYSTEM_MESSAGES"] == "0"  # system prompt is the hottest cache
+    assert env["HORIZON_ACCURACY_GUARD"] == "strict"
+    assert "HORIZON_TARGET_RATIO" not in env  # unset → Kompress / ambient default decides
     # Coding posture toggles seeded through the profile.
-    assert env["HEADROOM_TOOL_SEARCH"] == "1"
-    assert env["HEADROOM_DEDUPE"] == "1"
-    assert env["HEADROOM_LOSSLESS_THEN_LOSSY"] == "1"
-    assert env["HEADROOM_PROTECT_READS"] == "1"
-    assert env["HEADROOM_CODE_AWARE_ENABLED"] == "1"
-    assert env["HEADROOM_LOSSLESS"] == "0"  # lossy enabled (CCR keeps it recoverable)
-    assert env["HEADROOM_MIN_CHARS_FOR_BLOCK"] == "25"
+    assert env["HORIZON_TOOL_SEARCH"] == "1"
+    assert env["HORIZON_DEDUPE"] == "1"
+    assert env["HORIZON_LOSSLESS_THEN_LOSSY"] == "1"
+    assert env["HORIZON_PROTECT_READS"] == "1"
+    assert env["HORIZON_CODE_AWARE_ENABLED"] == "1"
+    assert env["HORIZON_LOSSLESS"] == "0"  # lossy enabled (CCR keeps it recoverable)
+    assert env["HORIZON_MIN_CHARS_FOR_BLOCK"] == "25"
 
 
 def test_coding_profile_couples_zero_protect_recent_with_type_read_guard() -> None:
@@ -111,12 +111,12 @@ def test_coding_profile_couples_zero_protect_recent_with_type_read_guard() -> No
     assert profile.protect_reads is True
 
     env = profile.proxy_env()
-    assert env["HEADROOM_PROTECT_RECENT"] == "0"
-    assert env["HEADROOM_PROTECT_READS"] == "1"
+    assert env["HORIZON_PROTECT_RECENT"] == "0"
+    assert env["HORIZON_PROTECT_READS"] == "1"
     # Lossy compression is on, but CCR keeps compressed deltas recoverable, and
     # cache mode compresses only the newest delta (frozen prefix stays byte-stable).
-    assert env["HEADROOM_LOSSLESS"] == "0"
-    assert env["HEADROOM_MODE"] == "cache"
+    assert env["HORIZON_LOSSLESS"] == "0"
+    assert env["HORIZON_MODE"] == "cache"
 
 
 def test_general_persona_has_no_positional_code_protection() -> None:
@@ -124,9 +124,9 @@ def test_general_persona_has_no_positional_code_protection() -> None:
 
     env = profile.proxy_env()
 
-    assert env["HEADROOM_PROTECT_RECENT"] == "0"
-    assert env["HEADROOM_MIN_TOKENS"] == "25"
-    assert "HEADROOM_TARGET_RATIO" not in env
+    assert env["HORIZON_PROTECT_RECENT"] == "0"
+    assert env["HORIZON_MIN_TOKENS"] == "25"
+    assert "HORIZON_TARGET_RATIO" not in env
 
 
 def test_personas_omit_target_ratio_in_pipeline_kwargs() -> None:
@@ -159,16 +159,16 @@ def test_persona_apply_profile_leaves_target_ratio_untouched() -> None:
 
 def test_agent_savings_env_defaults_preserve_user_overrides() -> None:
     env = {
-        "HEADROOM_TARGET_RATIO": "0.25",
-        "HEADROOM_MAX_ITEMS": "12",
+        "HORIZON_TARGET_RATIO": "0.25",
+        "HORIZON_MAX_ITEMS": "12",
     }
 
     apply_agent_savings_env_defaults(env, AGENT_90_PROFILE)
 
-    assert env["HEADROOM_SAVINGS_PROFILE"] == "agent-90"
-    assert env["HEADROOM_TARGET_RATIO"] == "0.25"
-    assert env["HEADROOM_MAX_ITEMS"] == "12"
-    assert env["HEADROOM_SMART_CRUSHER_COMPACTION"] == "0"
+    assert env["HORIZON_SAVINGS_PROFILE"] == "agent-90"
+    assert env["HORIZON_TARGET_RATIO"] == "0.25"
+    assert env["HORIZON_MAX_ITEMS"] == "12"
+    assert env["HORIZON_SMART_CRUSHER_COMPACTION"] == "0"
 
 
 def test_unknown_agent_savings_profile_falls_back_to_default(
@@ -182,7 +182,7 @@ def test_unknown_agent_savings_profile_falls_back_to_default(
     # interchangeable: balanced flips cache->token mode, turns cross-turn dedup
     # and tool-search off, stops compressing user messages, and raises the
     # message floor 25x (250 vs 10) and the block floor 20x (500 vs 25). A typo
-    # in HEADROOM_SAVINGS_PROFILE used to silently reconfigure the entire proxy
+    # in HORIZON_SAVINGS_PROFILE used to silently reconfigure the entire proxy
     # into that posture, which is strictly worse than behaving as if the
     # variable were unset.
     with caplog.at_level(logging.WARNING):
@@ -208,9 +208,9 @@ def test_agent_savings_cli_renders_shell_exports() -> None:
     result = CliRunner().invoke(main, ["agent-savings", "--profile", "agent-90"])
 
     assert result.exit_code == 0
-    assert 'export HEADROOM_SAVINGS_PROFILE="agent-90"' in result.output
-    assert 'export HEADROOM_SAVINGS_TARGET="0.90"' in result.output
-    assert 'export HEADROOM_ACCURACY_GUARD="strict"' in result.output
+    assert 'export HORIZON_SAVINGS_PROFILE="agent-90"' in result.output
+    assert 'export HORIZON_SAVINGS_TARGET="0.90"' in result.output
+    assert 'export HORIZON_ACCURACY_GUARD="strict"' in result.output
 
 
 def test_agent_savings_cli_renders_json() -> None:
@@ -220,7 +220,7 @@ def test_agent_savings_cli_renders_json() -> None:
     )
 
     assert result.exit_code == 0
-    assert '"HEADROOM_TARGET_RATIO": "0.10"' in result.output
+    assert '"HORIZON_TARGET_RATIO": "0.10"' in result.output
 
 
 def test_compress_applies_agent_savings_profile_to_pipeline(monkeypatch) -> None:
@@ -291,7 +291,7 @@ def test_compress_savings_profile_does_not_mutate_supplied_config(monkeypatch) -
 
 def test_force_kompress_falls_back_to_structural_compression_when_cold(monkeypatch):
     """A cold forced-ML profile must not hide safe content routing."""
-    import headroom.transforms.content_router as router_mod
+    import horizon.transforms.content_router as router_mod
 
     router = ContentRouter(ContentRouterConfig())
     compressor = SimpleNamespace(is_ready=lambda: False, ensure_background_load=MagicMock())
@@ -319,17 +319,17 @@ def test_force_kompress_falls_back_to_structural_compression_when_cold(monkeypat
 
 
 def test_wrap_agent_savings_profile_is_opt_in(monkeypatch) -> None:
-    monkeypatch.delenv("HEADROOM_SAVINGS_PROFILE", raising=False)
+    monkeypatch.delenv("HORIZON_SAVINGS_PROFILE", raising=False)
 
     assert wrap_module._wrap_agent_savings_profile("codex") is None
 
-    monkeypatch.setenv("HEADROOM_SAVINGS_PROFILE", AGENT_90_PROFILE)
+    monkeypatch.setenv("HORIZON_SAVINGS_PROFILE", AGENT_90_PROFILE)
 
     assert wrap_module._wrap_agent_savings_profile("codex") == AGENT_90_PROFILE
 
 
 def test_agent_savings_config_mismatches_requires_explicit_profile(monkeypatch) -> None:
-    monkeypatch.delenv("HEADROOM_SAVINGS_PROFILE", raising=False)
+    monkeypatch.delenv("HORIZON_SAVINGS_PROFILE", raising=False)
 
     assert wrap_module._agent_savings_config_mismatches({}, "claude") == []
 
@@ -347,7 +347,7 @@ def test_start_proxy_does_not_inject_agent_savings_by_default(monkeypatch, tmp_p
         captured_env.update(kwargs["env"])
         return Proc()
 
-    monkeypatch.delenv("HEADROOM_SAVINGS_PROFILE", raising=False)
+    monkeypatch.delenv("HORIZON_SAVINGS_PROFILE", raising=False)
     monkeypatch.setattr(wrap_module.subprocess, "Popen", popen)
     monkeypatch.setattr(wrap_module.time, "sleep", lambda seconds: None)
     monkeypatch.setattr(wrap_module, "_check_proxy", lambda port: True)
@@ -355,8 +355,8 @@ def test_start_proxy_does_not_inject_agent_savings_by_default(monkeypatch, tmp_p
 
     wrap_module._start_proxy(8787, agent_type="codex")
 
-    assert "HEADROOM_SAVINGS_PROFILE" not in captured_env
-    assert "HEADROOM_TARGET_RATIO" not in captured_env
+    assert "HORIZON_SAVINGS_PROFILE" not in captured_env
+    assert "HORIZON_TARGET_RATIO" not in captured_env
 
 
 def test_start_proxy_injects_explicit_agent_savings_profile(monkeypatch, tmp_path) -> None:
@@ -372,7 +372,7 @@ def test_start_proxy_injects_explicit_agent_savings_profile(monkeypatch, tmp_pat
         captured_env.update(kwargs["env"])
         return Proc()
 
-    monkeypatch.setenv("HEADROOM_SAVINGS_PROFILE", AGENT_90_PROFILE)
+    monkeypatch.setenv("HORIZON_SAVINGS_PROFILE", AGENT_90_PROFILE)
     monkeypatch.setattr(wrap_module.subprocess, "Popen", popen)
     monkeypatch.setattr(wrap_module.time, "sleep", lambda seconds: None)
     monkeypatch.setattr(wrap_module, "_check_proxy", lambda port: True)
@@ -380,12 +380,12 @@ def test_start_proxy_injects_explicit_agent_savings_profile(monkeypatch, tmp_pat
 
     wrap_module._start_proxy(8787, agent_type="codex")
 
-    assert captured_env["HEADROOM_SAVINGS_PROFILE"] == AGENT_90_PROFILE
-    assert captured_env["HEADROOM_TARGET_RATIO"] == "0.10"
+    assert captured_env["HORIZON_SAVINGS_PROFILE"] == AGENT_90_PROFILE
+    assert captured_env["HORIZON_TARGET_RATIO"] == "0.10"
 
 
 def test_agent_savings_config_mismatches_returns_specific_labels(monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_SAVINGS_PROFILE", AGENT_90_PROFILE)
+    monkeypatch.setenv("HORIZON_SAVINGS_PROFILE", AGENT_90_PROFILE)
     profile = get_agent_savings_profile(AGENT_90_PROFILE)
     running_config = {
         "savings_profile": profile.name,
@@ -408,7 +408,7 @@ def test_agent_savings_config_mismatches_ignores_non_target_agents() -> None:
 
 
 def test_agent_savings_config_mismatches_accepts_matching_runtime_config(monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_SAVINGS_PROFILE", AGENT_90_PROFILE)
+    monkeypatch.setenv("HORIZON_SAVINGS_PROFILE", AGENT_90_PROFILE)
     profile = get_agent_savings_profile(AGENT_90_PROFILE)
     running_config = {
         "savings_profile": profile.name,
@@ -427,7 +427,7 @@ def test_agent_savings_config_mismatches_accepts_matching_runtime_config(monkeyp
 
 
 def test_agent_savings_config_mismatches_reports_unparseable_values(monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_SAVINGS_PROFILE", AGENT_90_PROFILE)
+    monkeypatch.setenv("HORIZON_SAVINGS_PROFILE", AGENT_90_PROFILE)
     running_config = {
         "savings_profile": None,
         "target_ratio": "not-a-float",
@@ -503,7 +503,7 @@ def test_agent_90_router_uses_ccr_sampling_not_lossless_table() -> None:
 
 
 def test_router_lossless_only_flag_reaches_crusher() -> None:
-    # HEADROOM_LOSSLESS_ONLY=1 sets this field on the proxy router; it
+    # HORIZON_LOSSLESS_ONLY=1 sets this field on the proxy router; it
     # must flow through to the SmartCrusher so a real proxy session runs
     # strict marker-free mode.
     router = ContentRouter(ContentRouterConfig(smart_crusher_lossless_only=True))
@@ -568,11 +568,11 @@ def test_proxy_cli_reads_agent_90_profile_env() -> None:
 
     runner = CliRunner()
     with pytest.MonkeyPatch.context() as mp:
-        mp.setattr("headroom.proxy.server.run_server", mock_run_server)
+        mp.setattr("horizon.proxy.server.run_server", mock_run_server)
         result = runner.invoke(
             main,
             ["proxy"],
-            env={"HEADROOM_SAVINGS_PROFILE": "agent-90"},
+            env={"HORIZON_SAVINGS_PROFILE": "agent-90"},
             catch_exceptions=False,
         )
 
@@ -628,7 +628,7 @@ def test_agent_savings_check_perf_and_accuracy_report_passes(
     monkeypatch,
     tmp_path,
 ) -> None:
-    from headroom.perf import analyzer
+    from horizon.perf import analyzer
 
     monkeypatch.setattr(analyzer, "parse_log_files", lambda last_n_hours: object())
     monkeypatch.setattr(
@@ -660,7 +660,7 @@ def test_agent_savings_accuracy_report_below_threshold_fails(
     monkeypatch,
     tmp_path,
 ) -> None:
-    from headroom.perf import analyzer
+    from horizon.perf import analyzer
 
     monkeypatch.setattr(analyzer, "parse_log_files", lambda last_n_hours: object())
     monkeypatch.setattr(
@@ -688,8 +688,8 @@ def test_agent_savings_accuracy_report_below_threshold_fails(
 
 
 def test_agent_savings_requires_each_agent_to_meet_target(monkeypatch) -> None:
-    from headroom.perf import analyzer
-    from headroom.perf.analyzer import PerfRecord, PerfReport
+    from horizon.perf import analyzer
+    from horizon.perf.analyzer import PerfRecord, PerfReport
 
     report = PerfReport(
         perf_records=[
@@ -741,8 +741,8 @@ def test_agent_savings_requires_each_agent_to_meet_target(monkeypatch) -> None:
 
 
 def test_agent_savings_required_agent_missing_fails(monkeypatch) -> None:
-    from headroom.perf import analyzer
-    from headroom.perf.analyzer import PerfRecord, PerfReport
+    from horizon.perf import analyzer
+    from horizon.perf.analyzer import PerfRecord, PerfReport
 
     report = PerfReport(
         perf_records=[
@@ -819,7 +819,7 @@ def test_agent_savings_smoke_fixture_passes_real_gate(tmp_path) -> None:
             "--accuracy-report",
             str(workspace / "agent-90-eval.json"),
         ],
-        env={"HEADROOM_WORKSPACE_DIR": str(workspace)},
+        env={"HORIZON_WORKSPACE_DIR": str(workspace)},
     )
 
     assert gate_result.exit_code == 0, gate_result.output
@@ -836,7 +836,7 @@ def test_coding_profile_min_chars_block_reaches_router_without_env_seeding(
 
     Every other router pipeline kwarg this function builds travels on the config
     object; ``min_chars_for_block`` alone was populated only from
-    ``HEADROOM_MIN_CHARS_FOR_BLOCK`` (emitted by ``proxy_env()``). A proxy whose
+    ``HORIZON_MIN_CHARS_FOR_BLOCK`` (emitted by ``proxy_env()``). A proxy whose
     config carried ``savings_profile="coding"`` but whose process env was never
     seeded applied every sibling coding knob while this floor silently stayed at
     ``ContentRouterConfig.min_chars_for_block_compression`` (500) instead of the
@@ -847,7 +847,7 @@ def test_coding_profile_min_chars_block_reaches_router_without_env_seeding(
     ContentRouter, ``tool_search`` via the Anthropic handler) never pass through
     this function and remain seed-dependent.
     """
-    monkeypatch.delenv("HEADROOM_MIN_CHARS_FOR_BLOCK", raising=False)
+    monkeypatch.delenv("HORIZON_MIN_CHARS_FOR_BLOCK", raising=False)
 
     class _Config:
         savings_profile = "coding"
@@ -862,7 +862,7 @@ def test_explicit_min_chars_block_env_overrides_the_profile(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """An explicit operator override still wins over the profile value."""
-    monkeypatch.setenv("HEADROOM_MIN_CHARS_FOR_BLOCK", "120")
+    monkeypatch.setenv("HORIZON_MIN_CHARS_FOR_BLOCK", "120")
 
     class _Config:
         savings_profile = "coding"

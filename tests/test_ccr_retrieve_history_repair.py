@@ -1,7 +1,7 @@
-"""Regression tests for the CCR headroom_retrieve history repair (#2814).
+"""Regression tests for the CCR horizon_retrieve history repair (#2814).
 
 A passthrough side-request (prompt-type Stop hook evaluator, /compact) replays a
-transcript whose history contains a ``headroom_retrieve`` tool_use, but the
+transcript whose history contains a ``horizon_retrieve`` tool_use, but the
 request's own ``tools`` array does not declare that tool. Anthropic 400s on the
 dangling reference. The repair neutralizes those history blocks so the 400 is
 structurally impossible, without breaking user/assistant alternation.
@@ -9,8 +9,8 @@ structurally impossible, without breaking user/assistant alternation.
 
 from __future__ import annotations
 
-from headroom.ccr.tool_injection import CCR_TOOL_NAME
-from headroom.proxy.helpers import strip_unsupported_ccr_retrieve_blocks
+from horizon.ccr.tool_injection import CCR_TOOL_NAME
+from horizon.proxy.helpers import strip_unsupported_ccr_retrieve_blocks
 
 
 def _transcript_with_retrieve() -> list[dict]:
@@ -116,4 +116,4 @@ def test_result_falls_back_to_placeholder_without_text() -> None:
     ]
     out, n = strip_unsupported_ccr_retrieve_blocks(messages, tools=[])
     assert n == 2
-    assert out[1]["content"][0] == {"type": "text", "text": "[headroom_retrieve result omitted]"}
+    assert out[1]["content"][0] == {"type": "text", "text": "[horizon_retrieve result omitted]"}

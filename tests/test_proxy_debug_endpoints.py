@@ -13,18 +13,18 @@ pytest.importorskip("httpx")
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from headroom.proxy.debug_introspection import (
+from horizon.proxy.debug_introspection import (
     collect_tasks,
 )
-from headroom.proxy.loopback_guard import (
+from horizon.proxy.loopback_guard import (
     LOOPBACK_HOSTS,
     is_loopback_host,
     is_loopback_host_header,
     require_loopback,
 )
-from headroom.proxy.server import ProxyConfig, create_app
-from headroom.proxy.warmup import WarmupRegistry
-from headroom.proxy.ws_session_registry import (
+from horizon.proxy.server import ProxyConfig, create_app
+from horizon.proxy.warmup import WarmupRegistry
+from horizon.proxy.ws_session_registry import (
     WebSocketSessionRegistry,
     WSSessionHandle,
 )
@@ -39,7 +39,7 @@ def client(monkeypatch):
     # Debug endpoint tests must not depend on live upstream network access.
     # Dedicated health-check tests cover both successful and failed upstream
     # probes in tests/test_proxy_healthchecks.py.
-    monkeypatch.setenv("HEADROOM_SKIP_UPSTREAM_CHECK", "1")
+    monkeypatch.setenv("HORIZON_SKIP_UPSTREAM_CHECK", "1")
     config = ProxyConfig(
         optimize=False,
         cache_enabled=False,
@@ -484,7 +484,7 @@ def _deferred_kompress_client(compressor):
 def _clear_kompress_cache(monkeypatch):
     """Neutralize the process-global ONNX cache the reconciler falls back to."""
     try:
-        from headroom.transforms import kompress_compressor
+        from horizon.transforms import kompress_compressor
     except ImportError:
         return
     monkeypatch.setattr(kompress_compressor, "_kompress_cache", {}, raising=False)

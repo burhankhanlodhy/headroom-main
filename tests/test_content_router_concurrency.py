@@ -1,7 +1,7 @@
 """Regression test for issue #3486: ContentRouter per-request state isolation.
 
 ``ContentRouter`` is instantiated once at proxy startup and shared across
-all concurrent requests (see ``headroom/proxy/server.py``, which dispatches
+all concurrent requests (see ``horizon/proxy/server.py``, which dispatches
 ``pipeline.apply()`` calls onto a real ``ThreadPoolExecutor``). ``apply()``
 stores per-call runtime state -- including the F2.2
 ``self._runtime_compression_policy`` -- as plain, unsynchronized instance
@@ -39,10 +39,10 @@ from typing import Any
 
 import pytest
 
-from headroom.proxy.auth_mode import AuthMode
-from headroom.telemetry.toin import TOINConfig, get_toin, reset_toin
-from headroom.transforms.compression_policy import policy_for_mode
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+from horizon.proxy.auth_mode import AuthMode
+from horizon.telemetry.toin import TOINConfig, get_toin, reset_toin
+from horizon.transforms.compression_policy import policy_for_mode
+from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
 
 
 @pytest.fixture
@@ -58,8 +58,8 @@ def fresh_toin():
 
 @pytest.fixture
 def tokenizer():
-    from headroom.providers import OpenAIProvider
-    from headroom.tokenizer import Tokenizer
+    from horizon.providers import OpenAIProvider
+    from horizon.tokenizer import Tokenizer
 
     provider = OpenAIProvider()
     token_counter = provider.get_token_counter("gpt-4o")
@@ -269,7 +269,7 @@ def test_parallel_fanout_workers_lose_this_requests_runtime_state(tokenizer, mon
     """
     router = ContentRouter(ContentRouterConfig(min_section_tokens=10))
     monkeypatch.setattr(router, "_get_kompress", lambda: _FakeKompress())
-    monkeypatch.setenv("HEADROOM_COMPRESS_WORKERS", "4")
+    monkeypatch.setenv("HORIZON_COMPRESS_WORKERS", "4")
 
     policy = policy_for_mode(AuthMode.SUBSCRIPTION)
     main_thread_ident = threading.get_ident()
@@ -344,7 +344,7 @@ def test_single_pending_task_watchdog_thread_loses_this_requests_runtime_state(
     the request's own runtime overrides either.
 
     Exactly one pending task takes the ``len(pending_tasks) == 1`` branch,
-    where (with the default ``HEADROOM_COMPRESSION_DEADLINE_MS``, which is
+    where (with the default ``HORIZON_COMPRESSION_DEADLINE_MS``, which is
     truthy) ``compress()`` runs inside a bare watchdog ``threading.Thread``
     rather than inline. Same underlying bug as the ThreadPoolExecutor case:
     that thread was never spawned with a copy of the calling thread's
@@ -352,7 +352,7 @@ def test_single_pending_task_watchdog_thread_loses_this_requests_runtime_state(
     """
     router = ContentRouter(ContentRouterConfig(min_section_tokens=10))
     monkeypatch.setattr(router, "_get_kompress", lambda: _FakeKompress())
-    monkeypatch.delenv("HEADROOM_COMPRESSION_DEADLINE_MS", raising=False)
+    monkeypatch.delenv("HORIZON_COMPRESSION_DEADLINE_MS", raising=False)
 
     main_thread_ident = threading.get_ident()
     observed: list[tuple[int, bool, float | None, str | None]] = []
@@ -400,7 +400,7 @@ def test_single_pending_task_watchdog_thread_loses_this_requests_runtime_state(
 # A second, previously-uncaught gotcha found during review: `apply()` sets
 # TWO MORE plain, unsynchronized `self.` attributes at its top --
 # `_protect_read_tool_ids` and `_protect_read_msg_indices` (content_router.py
-# ~4902 / ~4924, gated by HEADROOM_PROTECT_READS) -- the exact same pattern
+# ~4902 / ~4924, gated by HORIZON_PROTECT_READS) -- the exact same pattern
 # #3486 fixed for `_runtime_compression_policy` et al, but these two were
 # never migrated into `_PerRequestRuntimeState`/the ContextVar. They remain
 # vulnerable to the ORIGINAL cross-request race: a second concurrent
@@ -449,7 +449,7 @@ def test_concurrent_apply_calls_leak_read_protection_state_across_requests(token
     different field.
 
     Thread A reads its own file (``a_module.py``) via ``cat`` with
-    ``HEADROOM_PROTECT_READS=1`` and must get that content back byte-exact.
+    ``HORIZON_PROTECT_READS=1`` and must get that content back byte-exact.
     It's paused, via a patched ``_process_content_blocks``, right after
     ``_protect_read_tool_ids`` is set but before it's read. While paused,
     Thread B runs a complete, unrelated ``apply()`` call for a DIFFERENT
@@ -458,7 +458,7 @@ def test_concurrent_apply_calls_leak_read_protection_state_across_requests(token
     tool_use_id no longer matches, so read protection silently fails to
     apply and its file content gets lossy-compressed.
     """
-    monkeypatch.setenv("HEADROOM_PROTECT_READS", "1")
+    monkeypatch.setenv("HORIZON_PROTECT_READS", "1")
 
     # Control: confirm read protection genuinely applies to this exact
     # content/shape on a fresh, non-racing router, so a later "content
@@ -593,7 +593,7 @@ def test_concurrent_apply_calls_with_internal_fanout_do_not_cross_contaminate(
     """
     router = ContentRouter(ContentRouterConfig(min_section_tokens=10))
     monkeypatch.setattr(router, "_get_kompress", lambda: _FakeKompress())
-    monkeypatch.setenv("HEADROOM_COMPRESS_WORKERS", "4")
+    monkeypatch.setenv("HORIZON_COMPRESS_WORKERS", "4")
 
     observed: list[tuple[str, bool, float | None, str | None]] = []
     observed_lock = threading.Lock()

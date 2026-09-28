@@ -13,7 +13,7 @@ import random
 
 import pytest
 
-from headroom.transforms.content_detector import (
+from horizon.transforms.content_detector import (
     ContentType,
     DetectionResult,
     _is_md_separator,
@@ -22,13 +22,13 @@ from headroom.transforms.content_detector import (
     _try_detect_markdown_table,
     detect_content_type,
 )
-from headroom.transforms.content_router import (
+from horizon.transforms.content_router import (
     CompressionStrategy,
     ContentRouter,
     ContentRouterConfig,
     _read_output_should_be_protected,
 )
-from headroom.transforms.tabular_ingest import (
+from horizon.transforms.tabular_ingest import (
     TabularCompressionResult,
     TabularCompressor,
     parse_csv,
@@ -186,7 +186,7 @@ def test_detects_fixed_width_command_output(content: str) -> None:
             id="git_log",
         ),
         pytest.param(
-            "Headroom compresses tool output before it reaches the model, which saves\ntokens on long agent sessions. The router picks a compressor per content\ntype, and plain prose goes to Kompress, an ML model that drops words it\npredicts the reader can do without. That is fine for prose and wrong for\nrecords, where every field matters to whatever command runs next, so the\ndetector has to tell the two apart before anything is dropped at all.",
+            "Horizon compresses tool output before it reaches the model, which saves\ntokens on long agent sessions. The router picks a compressor per content\ntype, and plain prose goes to Kompress, an ML model that drops words it\npredicts the reader can do without. That is fine for prose and wrong for\nrecords, where every field matters to whatever command runs next, so the\ndetector has to tell the two apart before anything is dropped at all.",
             ContentType.PLAIN_TEXT,
             id="wrapped_prose",
         ),
@@ -260,7 +260,7 @@ def test_parse_markdown_table_drops_separator() -> None:
 def test_parse_tabular_rejects_ragged_fixed_width(monkeypatch) -> None:
     # Rows with differing cell counts can't be zipped under the headers
     # without misattributing columns (#1652) — must pass through.
-    import headroom.transforms.tabular_ingest as ti
+    import horizon.transforms.tabular_ingest as ti
 
     monkeypatch.setattr(
         ti,
@@ -276,7 +276,7 @@ def test_parse_tabular_rejects_ragged_fixed_width(monkeypatch) -> None:
 
 
 def test_parse_tabular_rejects_ragged_markdown(monkeypatch) -> None:
-    import headroom.transforms.tabular_ingest as ti
+    import horizon.transforms.tabular_ingest as ti
 
     monkeypatch.setattr(
         ti,
@@ -288,7 +288,7 @@ def test_parse_tabular_rejects_ragged_markdown(monkeypatch) -> None:
 
 
 def test_compress_passes_through_ragged_table(monkeypatch) -> None:
-    import headroom.transforms.tabular_ingest as ti
+    import horizon.transforms.tabular_ingest as ti
 
     monkeypatch.setattr(
         ti,
@@ -356,7 +356,7 @@ def test_parse_fixed_width_too_short_returns_empty() -> None:
 def test_parse_tabular_dispatches_fixed_width(monkeypatch) -> None:
     # Drive the fixed_width dispatch branch directly with a stubbed detection
     # result, independent of the detector's thresholds.
-    import headroom.transforms.tabular_ingest as ti
+    import horizon.transforms.tabular_ingest as ti
 
     monkeypatch.setattr(
         ti,
@@ -370,7 +370,7 @@ def test_parse_tabular_dispatches_fixed_width(monkeypatch) -> None:
 
 
 def test_parse_tabular_rejects_single_column_fixed_width(monkeypatch) -> None:
-    import headroom.transforms.tabular_ingest as ti
+    import horizon.transforms.tabular_ingest as ti
 
     monkeypatch.setattr(
         ti,
@@ -469,7 +469,7 @@ def _record_kompress_calls(monkeypatch) -> list[str]:
         calls.append(content)
         return "x", 1  # would "win" on savings if the router ever called it
 
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "python")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "python")
     monkeypatch.setattr(ContentRouter, "_try_ml_compressor", fake)
     return calls
 
@@ -494,7 +494,7 @@ def test_router_does_not_kompress_a_ragged_csv(monkeypatch) -> None:
 
 
 def test_fixed_width_read_stays_protected(monkeypatch) -> None:
-    monkeypatch.setenv("HEADROOM_DETECT_BACKEND", "python")
+    monkeypatch.setenv("HORIZON_DETECT_BACKEND", "python")
     assert _read_output_should_be_protected(_ls_issue_payload()) is True
     csv = "id,name,city\n" + "\n".join(f"{i},user_{i},city_{i % 5}" for i in range(30))
     assert _read_output_should_be_protected(csv) is False
@@ -511,7 +511,7 @@ def test_rows_to_csv_drops_trailing_empty_rows_and_has_no_dangling_cr() -> None:
     ``,`` rows, and ``csv.writer``'s default ``\\r\\n`` terminator combined with
     ``.strip("\\n")`` left a dangling ``\\r`` — noise fed straight to the LLM.
     """
-    from headroom.transforms.spreadsheet_ingest import _rows_to_csv
+    from horizon.transforms.spreadsheet_ingest import _rows_to_csv
 
     rendered = _rows_to_csv(
         [["Name", "Age"], ["Alice", "30"], [None, None], ["", "  "], [None, None]]
@@ -530,8 +530,8 @@ def test_rows_to_csv_drops_trailing_empty_rows_and_has_no_dangling_cr() -> None:
 def test_load_and_compress_xlsx(tmp_path) -> None:
     import openpyxl
 
-    from headroom import compress_spreadsheet
-    from headroom.transforms.spreadsheet_ingest import load_spreadsheet
+    from horizon import compress_spreadsheet
+    from horizon.transforms.spreadsheet_ingest import load_spreadsheet
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -555,7 +555,7 @@ def test_load_and_compress_xlsx(tmp_path) -> None:
 def test_compress_spreadsheet_empty_workbook_returns_empty(tmp_path) -> None:
     import openpyxl
 
-    from headroom import compress_spreadsheet
+    from horizon import compress_spreadsheet
 
     wb = openpyxl.Workbook()  # one empty sheet, no rows
     path = tmp_path / "empty.xlsx"
@@ -577,7 +577,7 @@ def test_load_xls_renders_cells_like_the_xlsx_loader(tmp_path) -> None:
     xlwt = pytest.importorskip("xlwt")
     pytest.importorskip("xlrd")
 
-    from headroom.transforms.spreadsheet_ingest import load_spreadsheet
+    from horizon.transforms.spreadsheet_ingest import load_spreadsheet
 
     date_style = xlwt.XFStyle()
     date_style.num_format_str = "YYYY-MM-DD"
@@ -607,7 +607,7 @@ def test_load_xls_renders_a_time_only_cell_as_a_time(tmp_path) -> None:
     pytest.importorskip("xlrd")
     openpyxl = pytest.importorskip("openpyxl")
 
-    from headroom.transforms.spreadsheet_ingest import load_spreadsheet
+    from horizon.transforms.spreadsheet_ingest import load_spreadsheet
 
     time_style = xlwt.XFStyle()
     time_style.num_format_str = "HH:MM:SS"
@@ -646,7 +646,7 @@ def test_load_xls_and_xlsx_agree_above_the_exact_integer_range(tmp_path) -> None
     pytest.importorskip("xlrd")
     openpyxl = pytest.importorskip("openpyxl")
 
-    from headroom.transforms.spreadsheet_ingest import load_spreadsheet
+    from horizon.transforms.spreadsheet_ingest import load_spreadsheet
 
     small, big = 12, 1.2345678901234568e17
 
@@ -701,7 +701,7 @@ def test_load_xls_and_xlsx_agree_at_the_exact_integer_boundary(tmp_path) -> None
     pytest.importorskip("xlrd")
     openpyxl = pytest.importorskip("openpyxl")
 
-    from headroom.transforms.spreadsheet_ingest import load_spreadsheet
+    from horizon.transforms.spreadsheet_ingest import load_spreadsheet
 
     boundary = 2**53
     values = [boundary, -boundary, boundary - 2, boundary + 2]
@@ -741,7 +741,7 @@ def test_load_xls_and_xlsx_agree_on_the_same_values(tmp_path) -> None:
     pytest.importorskip("xlrd")
     openpyxl = pytest.importorskip("openpyxl")
 
-    from headroom.transforms.spreadsheet_ingest import load_spreadsheet
+    from horizon.transforms.spreadsheet_ingest import load_spreadsheet
 
     date_style = xlwt.XFStyle()
     date_style.num_format_str = "YYYY-MM-DD"
@@ -785,7 +785,7 @@ def test_xls_cell_converts_exact_whole_numbers_to_int(value: float) -> None:
     """
     xlrd = pytest.importorskip("xlrd")
 
-    from headroom.transforms.spreadsheet_ingest import _xls_cell
+    from horizon.transforms.spreadsheet_ingest import _xls_cell
 
     rendered = _xls_cell(_StubXlsCell(xlrd.XL_CELL_NUMBER, value), 0)
 
@@ -812,7 +812,7 @@ def test_xls_cell_keeps_numbers_past_2_53_as_floats(value: float) -> None:
     """
     xlrd = pytest.importorskip("xlrd")
 
-    from headroom.transforms.spreadsheet_ingest import _xls_cell
+    from horizon.transforms.spreadsheet_ingest import _xls_cell
 
     rendered = _xls_cell(_StubXlsCell(xlrd.XL_CELL_NUMBER, value), 0)
 
@@ -821,7 +821,7 @@ def test_xls_cell_keeps_numbers_past_2_53_as_floats(value: float) -> None:
 
 
 def test_load_spreadsheet_rejects_unknown_extension(tmp_path) -> None:
-    from headroom.transforms.spreadsheet_ingest import load_spreadsheet
+    from horizon.transforms.spreadsheet_ingest import load_spreadsheet
 
     bad = tmp_path / "data.txt"
     bad.write_text("a,b\n1,2\n")
@@ -830,7 +830,7 @@ def test_load_spreadsheet_rejects_unknown_extension(tmp_path) -> None:
 
 
 def test_load_spreadsheet_missing_file(tmp_path) -> None:
-    from headroom.transforms.spreadsheet_ingest import load_spreadsheet
+    from horizon.transforms.spreadsheet_ingest import load_spreadsheet
 
     with pytest.raises(FileNotFoundError):
         load_spreadsheet(tmp_path / "nope.xlsx")

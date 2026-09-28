@@ -1,7 +1,7 @@
 """Budget records must say whether their input count was measured or estimated.
 
 #2713: when a provider response carries no input-token breakdown,
-``record_tokens`` substitutes Headroom's own ``tokens_sent`` for the input
+``record_tokens`` substitutes Horizon's own ``tokens_sent`` for the input
 count. The fallback is right — dropping input cost would under-enforce far
 worse — but the resulting record used to be indistinguishable from a
 provider-measured one, so ``check_budget`` (a hard control) could refuse or
@@ -36,7 +36,7 @@ MODEL = anthropic_pricing_model()
 @pytest.fixture(autouse=True)
 def _reset_warning_dedup():
     """The per-model warn-once set is module-global; keep tests order-independent."""
-    import headroom.proxy.cost as cost_mod
+    import horizon.proxy.cost as cost_mod
 
     cost_mod._warned_estimated_basis_models.clear()
     yield
@@ -44,7 +44,7 @@ def _reset_warning_dedup():
 
 
 def _tracker(**kwargs):
-    from headroom.proxy.server import CostTracker
+    from horizon.proxy.server import CostTracker
 
     return CostTracker(**kwargs)
 
@@ -140,7 +140,7 @@ def test_estimated_basis_warns_once_per_model(caplog):
     """A route that never reports usage must not flood proxy.log (cf. #2504)."""
     ct = _tracker(budget_limit_usd=100.0)
 
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         for _ in range(5):
             ct.record_tokens(MODEL, tokens_saved=0, tokens_sent=10_000, output_tokens=100)
 
@@ -153,7 +153,7 @@ def test_distinct_models_each_warn_once(caplog):
     ct = _tracker(budget_limit_usd=100.0)
     other = "claude-haiku-4-5-20251001"
 
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         for model in (MODEL, MODEL, other, other):
             ct.record_tokens(model, tokens_saved=0, tokens_sent=10_000, output_tokens=100)
 
@@ -165,7 +165,7 @@ def test_distinct_models_each_warn_once(caplog):
 def test_measured_records_do_not_warn(caplog):
     ct = _tracker(budget_limit_usd=100.0)
 
-    with caplog.at_level(logging.WARNING, logger="headroom.proxy"):
+    with caplog.at_level(logging.WARNING, logger="horizon.proxy"):
         ct.record_tokens(
             MODEL, tokens_saved=0, tokens_sent=10_000, uncached_tokens=9_000, output_tokens=100
         )
@@ -262,7 +262,7 @@ def test_denial_detail_names_the_estimated_share():
 
     detail = ct.budget_denial_detail()
     assert "Budget exceeded for daily period" in detail
-    assert "Headroom token estimates" in detail
+    assert "Horizon token estimates" in detail
 
 
 def test_denial_detail_unchanged_for_purely_measured_spend():
@@ -284,16 +284,16 @@ def test_block_denial_is_distinguishable_from_overspend():
 
     detail = ct.budget_denial_detail()
     assert "Budget enforcement blocked" in detail
-    assert "HEADROOM_BUDGET_ESTIMATED_BASIS=block" in detail
+    assert "HORIZON_BUDGET_ESTIMATED_BASIS=block" in detail
 
 
 # ── Policy resolver ──────────────────────────────────────────────────
 
 
 def test_resolver_precedence_and_fallback():
-    from headroom.proxy.budget_basis_policy import resolve_estimated_basis_policy
+    from horizon.proxy.budget_basis_policy import resolve_estimated_basis_policy
 
-    env = {"HEADROOM_BUDGET_ESTIMATED_BASIS": "ignore"}
+    env = {"HORIZON_BUDGET_ESTIMATED_BASIS": "ignore"}
     assert resolve_estimated_basis_policy("block", env) == "block"  # explicit wins
     assert resolve_estimated_basis_policy(None, env) == "ignore"  # env next
     assert resolve_estimated_basis_policy(None, {}) == "count"  # default

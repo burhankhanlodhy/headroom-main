@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.proxy import identity
-from headroom.proxy.identity import resolve_memory_identity, set_identity_resolver
+from horizon.proxy import identity
+from horizon.proxy.identity import resolve_memory_identity, set_identity_resolver
 
 
 class _FakeRequest:
@@ -16,30 +16,30 @@ class _FakeRequest:
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("HEADROOM_PROXY_TOKEN", raising=False)
+    monkeypatch.delenv("HORIZON_PROXY_TOKEN", raising=False)
     set_identity_resolver(None)
     yield
     set_identity_resolver(None)
 
 
 def test_loopback_trusts_header() -> None:
-    req = _FakeRequest({"x-headroom-user-id": "alice"}, "127.0.0.1")
+    req = _FakeRequest({"x-horizon-user-id": "alice"}, "127.0.0.1")
     assert resolve_memory_identity(req) == "alice"
 
 
 def test_non_loopback_ignores_header() -> None:
-    req = _FakeRequest({"x-headroom-user-id": "victim@corp"}, "10.0.0.5")
+    req = _FakeRequest({"x-horizon-user-id": "victim@corp"}, "10.0.0.5")
     assert resolve_memory_identity(req, default="me") == "me"
 
 
 def test_missing_peer_metadata_does_not_trust_header() -> None:
-    req = _FakeRequest({"x-headroom-user-id": "victim@corp"}, None)
+    req = _FakeRequest({"x-horizon-user-id": "victim@corp"}, None)
     assert resolve_memory_identity(req, default="me") == "me"
 
 
 def test_non_loopback_binds_to_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HEADROOM_PROXY_TOKEN", "s3cret")
-    req = _FakeRequest({"x-headroom-user-id": "victim@corp"}, "10.0.0.5")
+    monkeypatch.setenv("HORIZON_PROXY_TOKEN", "s3cret")
+    req = _FakeRequest({"x-horizon-user-id": "victim@corp"}, "10.0.0.5")
     got = resolve_memory_identity(req, default="me")
     assert got.startswith("tok_")
     assert got not in {"victim@corp", "me"}
@@ -48,10 +48,10 @@ def test_non_loopback_binds_to_token(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_legacy_user_id_allowlist_cannot_authorize_remote_claim(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("HEADROOM_USER_ID_ALLOWLIST", "alice,bob")
+    monkeypatch.setenv("HORIZON_USER_ID_ALLOWLIST", "alice,bob")
     assert (
         resolve_memory_identity(
-            _FakeRequest({"x-headroom-user-id": "alice"}, "10.0.0.5"), default="me"
+            _FakeRequest({"x-horizon-user-id": "alice"}, "10.0.0.5"), default="me"
         )
         == "me"
     )
@@ -59,7 +59,7 @@ def test_legacy_user_id_allowlist_cannot_authorize_remote_claim(
 
 def test_custom_resolver_wins() -> None:
     set_identity_resolver(lambda request, *, default: "tenant-42")
-    req = _FakeRequest({"x-headroom-user-id": "whatever"}, "10.0.0.5")
+    req = _FakeRequest({"x-horizon-user-id": "whatever"}, "10.0.0.5")
     assert resolve_memory_identity(req) == "tenant-42"
 
 

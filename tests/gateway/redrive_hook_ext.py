@@ -1,4 +1,4 @@
-"""A minimal re-driving turn hook with the SAME loop shape as headroom-tool-search.
+"""A minimal re-driving turn hook with the SAME loop shape as horizon-tool-search.
 
 Shrink (``on_request``): every tool whose name starts with ``defer_prefix``
 (default ``"deferred_"``) is removed from ``ctx.tools`` and remembered in a
@@ -23,12 +23,12 @@ gateway request half) must skip this hook whenever nothing can re-drive.
 Entry points:
 
 * ``register(**kwargs) -> RedriveHook`` - build + ``register_turn_hook`` (tests).
-* ``install(app, config)`` - the ``headroom.proxy_extension`` entry-point shape.
+* ``install(app, config)`` - the ``horizon.proxy_extension`` entry-point shape.
   The OSS loader discovers extensions through ``importlib.metadata`` entry points
   only, so a subprocess driver (the Kong docker test) that wants this hook in a
   uvicorn process must either register a temporary entry point or start the app
   from Python after calling ``register()``. Env knobs honoured by ``install``:
-  ``HEADROOM_TEST_REDRIVE_PREFIX`` and ``HEADROOM_TEST_REDRIVE_MAX_ROUNDS``.
+  ``HORIZON_TEST_REDRIVE_PREFIX`` and ``HORIZON_TEST_REDRIVE_MAX_ROUNDS``.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Any
 
-from headroom.proxy.turn_hooks import register_turn_hook
+from horizon.proxy.turn_hooks import register_turn_hook
 
 SEARCH_TOOL_NAME = "search_tools"
 SEARCH_TOOL_PARAMETERS: dict[str, Any] = {
@@ -257,10 +257,10 @@ def register(**kwargs: Any) -> RedriveHook:
 
 
 def install(app: Any, config: Any) -> None:
-    """``headroom.proxy_extension`` entry-point shape."""
-    prefix = os.environ.get("HEADROOM_TEST_REDRIVE_PREFIX", "deferred_")
+    """``horizon.proxy_extension`` entry-point shape."""
+    prefix = os.environ.get("HORIZON_TEST_REDRIVE_PREFIX", "deferred_")
     try:
-        rounds = int(os.environ.get("HEADROOM_TEST_REDRIVE_MAX_ROUNDS", "4"))
+        rounds = int(os.environ.get("HORIZON_TEST_REDRIVE_MAX_ROUNDS", "4"))
     except ValueError:
         rounds = 4
     register(defer_prefix=prefix, max_rounds=max(1, rounds))

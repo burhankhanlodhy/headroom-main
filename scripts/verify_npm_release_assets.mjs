@@ -16,14 +16,14 @@ const assetsDir = path.resolve(assetsDirArg);
 
 const packages = [
   {
-    name: "headroom-ai",
-    tarball: `headroom-ai-${version}.tgz`,
+    name: "horizon-ai",
+    tarball: `horizon-ai-${version}.tgz`,
   },
   {
-    name: "headroom-openclaw",
-    tarball: `headroom-openclaw-${version}.tgz`,
+    name: "horizon-openclaw",
+    tarball: `horizon-openclaw-${version}.tgz`,
     dependencies: {
-      "headroom-ai": `^${version}`,
+      "horizon-ai": `^${version}`,
     },
   },
 ];
@@ -39,7 +39,7 @@ function extractDistPackageJson(tarballPath) {
 }
 
 function extractJsonFromTarball(tarballPath, packageJsonPath) {
-  const workdir = mkdtempSync(path.join(tmpdir(), "headroom-npm-asset-"));
+  const workdir = mkdtempSync(path.join(tmpdir(), "horizon-npm-asset-"));
   try {
     const result = spawnSync("tar", ["-xzf", tarballPath, "-C", workdir], {
       encoding: "utf8",
@@ -81,15 +81,15 @@ function runNpm(args, cwd) {
 
 function assertOpenClawExtensionContract(cwd) {
   const smoke = `
-    const mod = await import("headroom-openclaw");
+    const mod = await import("horizon-openclaw");
     if (typeof mod.default?.register !== "function") {
-      throw new Error("headroom-openclaw default export must expose register(api)");
+      throw new Error("horizon-openclaw default export must expose register(api)");
     }
-    if (typeof mod.registerHeadroomPlugin !== "function") {
-      throw new Error("headroom-openclaw must export registerHeadroomPlugin(api)");
+    if (typeof mod.registerHorizonPlugin !== "function") {
+      throw new Error("horizon-openclaw must export registerHorizonPlugin(api)");
     }
-    if (mod.default.register !== mod.registerHeadroomPlugin) {
-      throw new Error("headroom-openclaw default.register must match registerHeadroomPlugin");
+    if (mod.default.register !== mod.registerHorizonPlugin) {
+      throw new Error("horizon-openclaw default.register must match registerHorizonPlugin");
     }
   `;
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", smoke], {
@@ -98,7 +98,7 @@ function assertOpenClawExtensionContract(cwd) {
   });
   if (result.status !== 0) {
     throw new Error(
-      `headroom-openclaw import smoke failed: ${
+      `horizon-openclaw import smoke failed: ${
         result.error?.message || result.stderr || result.stdout || "unknown error"
       }`,
     );
@@ -126,7 +126,7 @@ for (const expected of packages) {
     }
   }
 
-  if (expected.name === "headroom-openclaw") {
+  if (expected.name === "horizon-openclaw") {
     const distPkg = extractDistPackageJson(tarballPath);
     if (distPkg.name !== expected.name) {
       throw new Error(`${expected.tarball} dist package name mismatch: expected ${expected.name}, got ${distPkg.name}`);
@@ -144,7 +144,7 @@ for (const expected of packages) {
   }
 }
 
-const installDir = mkdtempSync(path.join(tmpdir(), "headroom-npm-install-"));
+const installDir = mkdtempSync(path.join(tmpdir(), "horizon-npm-install-"));
 try {
   for (const expected of packages) {
     copyFileSync(tarballPaths.get(expected.name), path.join(installDir, expected.tarball));

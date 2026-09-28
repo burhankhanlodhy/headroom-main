@@ -8,7 +8,7 @@ from pathlib import Path
 import click
 import pytest
 
-from headroom.cli import wrap as wrap_cli
+from horizon.cli import wrap as wrap_cli
 
 
 def _settings(tmp_path: Path) -> Path:
@@ -187,7 +187,7 @@ def test_write_refuses_to_clobber_a_corrupt_file(tmp_path: Path) -> None:
     This previously "recovered" by resetting the payload to ``{}`` and writing
     that back, so a single hand-edited typo (or a transient read error) silently
     destroyed the user's whole settings file — permissions, env and hooks — on
-    every ``headroom wrap claude``. Refusing leaves the file for the user to fix.
+    every ``horizon wrap claude``. Refusing leaves the file for the user to fix.
     """
     path = _settings(tmp_path)
     path.parent.mkdir(parents=True)

@@ -16,7 +16,7 @@ import logging
 
 import pytest
 
-from headroom.proxy.server import (
+from horizon.proxy.server import (
     ProxyConfig,
     _SuppressCancelledErrorFilter,
     create_app,
@@ -107,7 +107,7 @@ def test_run_server_installs_cancelled_error_filter(monkeypatch: pytest.MonkeyPa
     # Intercept uvicorn.run so we don't actually start a server
     monkeypatch.setattr("uvicorn.run", lambda *a, **kw: None)
 
-    from headroom.proxy.server import run_server
+    from horizon.proxy.server import run_server
 
     # `uvicorn.error` is a process-global logger and run_server only installs
     # the filter when one is not already attached. Any earlier test in the
@@ -159,7 +159,7 @@ def test_run_server_passes_timeout_graceful_shutdown(monkeypatch: pytest.MonkeyP
 
     monkeypatch.setattr("uvicorn.run", fake_uvicorn_run)
 
-    from headroom.proxy.server import run_server
+    from horizon.proxy.server import run_server
 
     run_server(ProxyConfig(), print_banner=False)
 
@@ -179,7 +179,7 @@ def test_lifespan_logs_shutdown_event(monkeypatch: pytest.MonkeyPatch) -> None:
 
     caplog cannot capture records from loggers that emit before propagation is
     configured, so this test installs a custom handler directly on
-    ``headroom.proxy`` and checks that handler's records.
+    ``horizon.proxy`` and checks that handler's records.
     """
     # Collect log records manually because caplog propagation is unreliable
     # when the root logger has pre-existing basicConfig handlers.
@@ -189,14 +189,14 @@ def test_lifespan_logs_shutdown_event(monkeypatch: pytest.MonkeyPatch) -> None:
         def emit(self, record: logging.LogRecord) -> None:
             captured.append(record)
 
-    proxy_logger = logging.getLogger("headroom.proxy")
+    proxy_logger = logging.getLogger("horizon.proxy")
     capture_handler = _Capture()
     proxy_logger.addHandler(capture_handler)
 
     try:
         # Prevent sys.exit(78) from _check_rust_core when Rust extension absent
         monkeypatch.setattr(
-            "headroom.proxy.server._check_rust_core", lambda: ("disabled", "test-mock")
+            "horizon.proxy.server._check_rust_core", lambda: ("disabled", "test-mock")
         )
 
         config = ProxyConfig(
@@ -245,7 +245,7 @@ def test_lifespan_shutdown_completes_when_proxy_shutdown_hangs(
         await asyncio.sleep(9999)  # simulate a blocked network call
 
     # Prevent sys.exit(78) from the Rust-core check
-    monkeypatch.setattr("headroom.proxy.server._check_rust_core", lambda: ("disabled", "test-mock"))
+    monkeypatch.setattr("horizon.proxy.server._check_rust_core", lambda: ("disabled", "test-mock"))
 
     config = ProxyConfig(
         optimize=False,
@@ -260,9 +260,9 @@ def test_lifespan_shutdown_completes_when_proxy_shutdown_hangs(
     )
     app = create_app(config)
 
-    import headroom.proxy.server as server_mod
+    import horizon.proxy.server as server_mod
 
-    monkeypatch.setattr(server_mod.HeadroomProxy, "shutdown", lambda self: hanging_stop())
+    monkeypatch.setattr(server_mod.HorizonProxy, "shutdown", lambda self: hanging_stop())
 
     # If the fix is absent this would hang; with the fix it returns quickly.
     import time
@@ -290,7 +290,7 @@ def test_lifespan_shutdown_completes_when_proxy_shutdown_raises(
     async def raising_shutdown() -> None:
         raise RuntimeError("simulated shutdown failure")
 
-    monkeypatch.setattr("headroom.proxy.server._check_rust_core", lambda: ("disabled", "test-mock"))
+    monkeypatch.setattr("horizon.proxy.server._check_rust_core", lambda: ("disabled", "test-mock"))
 
     config = ProxyConfig(
         optimize=False,
@@ -305,9 +305,9 @@ def test_lifespan_shutdown_completes_when_proxy_shutdown_raises(
     )
     app = create_app(config)
 
-    import headroom.proxy.server as server_mod
+    import horizon.proxy.server as server_mod
 
-    monkeypatch.setattr(server_mod.HeadroomProxy, "shutdown", lambda self: raising_shutdown())
+    monkeypatch.setattr(server_mod.HorizonProxy, "shutdown", lambda self: raising_shutdown())
 
     from fastapi.testclient import TestClient
 

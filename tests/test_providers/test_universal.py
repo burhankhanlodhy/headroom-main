@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.providers import (
+from horizon.providers import (
     GoogleProvider,
     LiteLLMProvider,
     ModelCapabilities,
@@ -161,7 +161,7 @@ class TestOpenAICompatibleProvider:
                 return len(text.split())
 
         monkeypatch.setattr(
-            "headroom.providers.openai_compatible.get_tokenizer",
+            "horizon.providers.openai_compatible.get_tokenizer",
             lambda model, backend=None: recorded.append((model, backend)) or DummyTokenizer(),
         )
         provider = OpenAICompatibleProvider(
@@ -184,7 +184,7 @@ class TestOpenAICompatibleProvider:
                 return len(text)
 
         monkeypatch.setattr(
-            "headroom.providers.openai_compatible.get_tokenizer",
+            "horizon.providers.openai_compatible.get_tokenizer",
             lambda model, backend=None: DummyTokenizer(),
         )
         counter = OpenAICompatibleProvider().get_token_counter("demo-model")
@@ -225,7 +225,7 @@ class TestOpenAICompatibleProvider:
                 return len(text)
 
         monkeypatch.setattr(
-            "headroom.providers.openai_compatible.get_tokenizer",
+            "horizon.providers.openai_compatible.get_tokenizer",
             lambda model, backend=None: DummyTokenizer(),
         )
         counter = OpenAICompatibleProvider().get_token_counter("demo-model")
@@ -403,7 +403,7 @@ class TestLiteLLMProvider:
         assert isinstance(result, bool)
 
     def test_unavailable_litellm_paths(self, monkeypatch):
-        import headroom.providers.litellm as litellm_module
+        import horizon.providers.litellm as litellm_module
 
         monkeypatch.setattr(litellm_module, "LITELLM_AVAILABLE", False)
 
@@ -415,7 +415,7 @@ class TestLiteLLMProvider:
             litellm_module.LiteLLMProvider()
 
     def test_litellm_token_counter_fallback_paths(self, monkeypatch):
-        import headroom.providers.litellm as litellm_module
+        import horizon.providers.litellm as litellm_module
 
         class DummyFallback:
             def count_text(self, text: str) -> int:
@@ -438,7 +438,7 @@ class TestLiteLLMProvider:
         assert counter.count_messages([{"content": "one two"}, {"content": "three"}]) == 14
 
     def test_litellm_provider_info_and_cost_fallbacks(self, monkeypatch):
-        import headroom.providers.litellm as litellm_module
+        import horizon.providers.litellm as litellm_module
 
         monkeypatch.setattr(litellm_module, "LITELLM_AVAILABLE", True)
         monkeypatch.setattr(
@@ -471,7 +471,7 @@ class TestLiteLLMProvider:
         assert provider.estimate_cost(1000, 1000, "missing-price") is None
 
     def test_litellm_provider_handles_info_exceptions_and_factory(self, monkeypatch):
-        import headroom.providers.litellm as litellm_module
+        import horizon.providers.litellm as litellm_module
 
         monkeypatch.setattr(litellm_module, "LITELLM_AVAILABLE", True)
         monkeypatch.setattr(
@@ -492,7 +492,7 @@ class TestLiteLLMProvider:
     )
     def test_create_litellm_provider(self):
         """Test creating LiteLLM provider."""
-        from headroom.providers import create_litellm_provider
+        from horizon.providers import create_litellm_provider
 
         provider = create_litellm_provider()
         assert provider.name == "litellm"
@@ -503,7 +503,7 @@ class TestLiteLLMProvider:
     )
     def test_litellm_supports_any_model(self):
         """Test LiteLLM supports any model."""
-        from headroom.providers import create_litellm_provider
+        from horizon.providers import create_litellm_provider
 
         provider = create_litellm_provider()
         assert provider.supports_model("gpt-4o") is True
@@ -516,7 +516,7 @@ class TestLiteLLMProvider:
     )
     def test_litellm_list_providers(self):
         """Test listing LiteLLM providers."""
-        from headroom.providers import LiteLLMProvider
+        from horizon.providers import LiteLLMProvider
 
         providers = LiteLLMProvider.list_supported_providers()
         assert "openai" in providers

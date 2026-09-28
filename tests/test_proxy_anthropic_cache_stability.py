@@ -13,15 +13,15 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
-from headroom.proxy.handlers.anthropic import AnthropicHandlerMixin
-from headroom.proxy.server import ProxyConfig, create_app
+from horizon.proxy.handlers.anthropic import AnthropicHandlerMixin
+from horizon.proxy.server import ProxyConfig, create_app
 
 
 def _force_compression(monkeypatch) -> None:  # noqa: ANN001
     decision = SimpleNamespace(should_compress=True, passthrough_reason=None)
     decision.apply_to_tags = lambda tags: None
     monkeypatch.setattr(
-        "headroom.proxy.handlers.anthropic.CompressionDecision.decide",
+        "horizon.proxy.handlers.anthropic.CompressionDecision.decide",
         lambda **kwargs: decision,
     )
 
@@ -463,7 +463,7 @@ def test_memory_context_avoids_system_mutation_when_prefix_frozen() -> None:
             headers={
                 "x-api-key": "test-key",
                 "anthropic-version": "2023-06-01",
-                "x-headroom-user-id": "u1",
+                "x-horizon-user-id": "u1",
             },
             json={
                 "model": "claude-sonnet-4-6",
@@ -518,7 +518,7 @@ def test_ccr_system_instruction_injection_disabled_when_prefix_frozen(monkeypatc
             def verify_ownership(self, store=None):  # noqa: ANN001
                 return self.detected_hashes
 
-        monkeypatch.setattr("headroom.ccr.CCRToolInjector", _FakeInjector)
+        monkeypatch.setattr("horizon.ccr.CCRToolInjector", _FakeInjector)
 
         async def _fake_retry(method, url, headers, body, stream=False, **kwargs):  # noqa: ANN001
             return httpx.Response(
@@ -588,7 +588,7 @@ def test_ccr_tool_injection_disabled_when_prefix_frozen(monkeypatch) -> None:
             def verify_ownership(self, store=None):  # noqa: ANN001
                 return self.detected_hashes
 
-        monkeypatch.setattr("headroom.ccr.CCRToolInjector", _FakeInjector)
+        monkeypatch.setattr("horizon.ccr.CCRToolInjector", _FakeInjector)
 
         async def _fake_retry(method, url, headers, body, stream=False, **kwargs):  # noqa: ANN001
             return httpx.Response(
@@ -627,7 +627,7 @@ def test_ccr_tool_stays_in_forwarded_tools_across_frozen_transition() -> None:
     """``tools`` identity must survive the ``frozen 0 -> >0`` transition.
 
     ``tools`` is the head of Anthropic's cache key, so adding or removing
-    ``headroom_retrieve`` between turns invalidates 100% of the provider-cached
+    ``horizon_retrieve`` between turns invalidates 100% of the provider-cached
     prefix — in both directions. Turn 1 (cold prefix, fresh markers) injects the
     tool; turn 2 (warm prefix, no *new* markers) must forward the same bytes
     rather than dropping it.
@@ -636,9 +636,9 @@ def test_ccr_tool_stays_in_forwarded_tools_across_frozen_transition() -> None:
     value: unit-testing the old policy in isolation is exactly what let a
     wrong-but-self-consistent decision pass.
     """
-    from headroom.cache.compression_store import get_compression_store, reset_compression_store
-    from headroom.ccr.tool_injection import CCR_TOOL_NAME
-    from headroom.proxy.helpers import (
+    from horizon.cache.compression_store import get_compression_store, reset_compression_store
+    from horizon.ccr.tool_injection import CCR_TOOL_NAME
+    from horizon.proxy.helpers import (
         _reset_session_ccr_tracker_for_test,
         serialize_tool_definition_canonical,
     )
@@ -739,9 +739,9 @@ def test_ccr_tool_stays_in_forwarded_tools_across_frozen_transition() -> None:
     turn1 = _ccr_tools(forwarded[0])
     turn2 = _ccr_tools(forwarded[1])
 
-    assert turn1, "test setup: turn 1 should inject headroom_retrieve on fresh markers"
+    assert turn1, "test setup: turn 1 should inject horizon_retrieve on fresh markers"
     assert turn2, (
-        "headroom_retrieve was dropped from the forwarded tools array once the "
+        "horizon_retrieve was dropped from the forwarded tools array once the "
         "prefix went warm — that removes a tool already inside the cached prefix "
         "and busts 100% of it"
     )
@@ -749,7 +749,7 @@ def test_ccr_tool_stays_in_forwarded_tools_across_frozen_transition() -> None:
     # order compares equal as a dict but busts the cache just as hard.
     assert serialize_tool_definition_canonical(turn1[0]) == serialize_tool_definition_canonical(
         turn2[0]
-    ), "headroom_retrieve was re-serialized rather than replayed byte-for-byte"
+    ), "horizon_retrieve was re-serialized rather than replayed byte-for-byte"
 
 
 def test_previous_turns_always_frozen_only_final_turn_mutable() -> None:
@@ -1014,7 +1014,7 @@ def test_token_mode_does_not_force_freeze_all_previous_turns() -> None:
         )
 
         assert response.status_code == 200
-        # In token_headroom mode, mark_stable_from_messages marks prior turns
+        # In token_horizon mode, mark_stable_from_messages marks prior turns
         # as stable, so frozen count reflects the number of prior-turn messages.
         # The compression cache's compute_frozen_count returns 0 (no cached
         # compressions yet), but mark_stable marks previous turns as frozen

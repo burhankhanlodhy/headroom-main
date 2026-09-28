@@ -1,17 +1,17 @@
-"""Regression tests: ContentRouter must not re-compress headroom_retrieve results.
+"""Regression tests: ContentRouter must not re-compress horizon_retrieve results.
 
 Companion to ``test_smart_crusher_ccr_retrieve_exemption.py`` (issue #1077).
 SmartCrusher.apply() already guards this exact failure mode, but ContentRouter
 — the transform actually registered in the default/proxy pipeline (see
 ``transforms/pipeline.py``) — calls ``SmartCrusher.crush()`` directly, bypassing
-that guard entirely. Without this fix, a ``headroom_retrieve`` tool result sent
+that guard entirely. Without this fix, a ``horizon_retrieve`` tool result sent
 back to the model on the next turn gets swept up by ContentRouter's own
 compression routing like any other large tool output, producing a fresh
 ``<<ccr:hash>>`` marker the agent can never redeem (an unresolvable retrieval
 loop — the original reported bug).
 
-Tests use the fully-qualified MCP tool name (``mcp__headroom__headroom_retrieve``)
-that Claude Code actually sends when connected to `headroom mcp serve` — not the
+Tests use the fully-qualified MCP tool name (``mcp__horizon__horizon_retrieve``)
+that Claude Code actually sends when connected to `horizon mcp serve` — not the
 bare name — since routing the guard through ``is_tool_excluded()`` (alias-aware)
 rather than a bare string comparison is the whole point of the fix.
 """
@@ -20,12 +20,12 @@ from __future__ import annotations
 
 import json
 
-from headroom.transforms.content_router import ContentRouter, ContentRouterConfig
+from horizon.transforms.content_router import ContentRouter, ContentRouterConfig
 
 
 def _get_tokenizer():
-    from headroom.providers import OpenAIProvider
-    from headroom.tokenizer import Tokenizer
+    from horizon.providers import OpenAIProvider
+    from horizon.tokenizer import Tokenizer
 
     provider = OpenAIProvider()
     token_counter = provider.get_token_counter("gpt-4o")
@@ -156,12 +156,12 @@ class TestContentRouterCcrRetrieveExemption:
         router = ContentRouter(ContentRouterConfig(min_section_tokens=10))
         tokenizer = _get_tokenizer()
 
-        messages = _anthropic_messages("mcp__headroom__headroom_retrieve", content)
+        messages = _anthropic_messages("mcp__horizon__horizon_retrieve", content)
         result = router.apply(messages, tokenizer)
 
         tool_result_block = result.messages[1]["content"][0]
         assert tool_result_block["content"] == content, (
-            "headroom_retrieve result was recompressed via ContentRouter "
+            "horizon_retrieve result was recompressed via ContentRouter "
             "(unresolvable retrieval loop)"
         )
         assert "<<ccr:" not in tool_result_block["content"]
@@ -173,7 +173,7 @@ class TestContentRouterCcrRetrieveExemption:
         router = ContentRouter(ContentRouterConfig(min_section_tokens=10))
         tokenizer = _get_tokenizer()
 
-        messages = _openai_messages("mcp__headroom__headroom_retrieve", content)
+        messages = _openai_messages("mcp__horizon__horizon_retrieve", content)
         result = router.apply(messages, tokenizer)
 
         tool_msg = next(m for m in result.messages if m.get("tool_call_id") == "call_ccr_1")
@@ -187,7 +187,7 @@ class TestContentRouterCcrRetrieveExemption:
         router = ContentRouter(ContentRouterConfig(min_section_tokens=10))
         tokenizer = _get_tokenizer()
 
-        messages = _openai_messages("headroom_headroom_retrieve", content)
+        messages = _openai_messages("horizon_horizon_retrieve", content)
         result = router.apply(messages, tokenizer)
 
         tool_msg = next(m for m in result.messages if m.get("tool_call_id") == "call_ccr_1")
@@ -203,7 +203,7 @@ class TestContentRouterCcrRetrieveExemption:
         router = ContentRouter(ContentRouterConfig(min_section_tokens=10))
         tokenizer = _get_tokenizer()
 
-        messages = _anthropic_messages("headroom_retrieve", content)
+        messages = _anthropic_messages("horizon_retrieve", content)
         result = router.apply(messages, tokenizer)
 
         tool_result_block = result.messages[1]["content"][0]
@@ -213,7 +213,7 @@ class TestContentRouterCcrRetrieveExemption:
     def test_unconditional_even_with_empty_exclude_tools(self):
         """The guard is config-independent: even a caller that explicitly
         empties exclude_tools (disabling every default exclusion) must not
-        be able to recompress a headroom_retrieve result. This is the
+        be able to recompress a horizon_retrieve result. This is the
         defense-in-depth half of the fix — config.py's DEFAULT_EXCLUDE_TOOLS/
         DEFAULT_VERBATIM_EXCLUDE_TOOLS additions alone would not survive this
         override, since ContentRouter replaces (not merges) exclude_tools
@@ -224,12 +224,12 @@ class TestContentRouterCcrRetrieveExemption:
         )
         tokenizer = _get_tokenizer()
 
-        messages = _anthropic_messages("mcp__headroom__headroom_retrieve", content)
+        messages = _anthropic_messages("mcp__horizon__horizon_retrieve", content)
         result = router.apply(messages, tokenizer)
 
         tool_result_block = result.messages[1]["content"][0]
         assert tool_result_block["content"] == content, (
-            "headroom_retrieve must stay protected even when exclude_tools is "
+            "horizon_retrieve must stay protected even when exclude_tools is "
             "explicitly emptied — the guard must not depend on config"
         )
         assert "router:excluded:ccr_retrieve" in result.transforms_applied
@@ -257,7 +257,7 @@ class TestContentRouterCcrRetrieveExemption:
         router = ContentRouter(ContentRouterConfig(min_section_tokens=10))
         tokenizer = _get_tokenizer()
 
-        messages = _tool_role_top_level_text_messages("mcp__headroom__headroom_retrieve", content)
+        messages = _tool_role_top_level_text_messages("mcp__horizon__horizon_retrieve", content)
         result = router.apply(messages, tokenizer)
 
         tool_msg = next(m for m in result.messages if m.get("role") == "tool")
@@ -274,7 +274,7 @@ class TestContentRouterCcrRetrieveExemption:
         router = ContentRouter(ContentRouterConfig(min_section_tokens=10))
         tokenizer = _get_tokenizer()
 
-        messages = _legacy_function_messages("headroom_retrieve", content)
+        messages = _legacy_function_messages("horizon_retrieve", content)
         result = router.apply(messages, tokenizer)
 
         fn_msg = next(m for m in result.messages if m.get("role") == "function")
@@ -291,7 +291,7 @@ class TestContentRouterCcrRetrieveExemption:
         router = ContentRouter(ContentRouterConfig(min_section_tokens=10))
         tokenizer = _get_tokenizer()
 
-        messages = _anthropic_list_form_messages("mcp__headroom__headroom_retrieve", content)
+        messages = _anthropic_list_form_messages("mcp__horizon__horizon_retrieve", content)
         result = router.apply(messages, tokenizer)
 
         tool_result_block = result.messages[1]["content"][0]
@@ -299,7 +299,7 @@ class TestContentRouterCcrRetrieveExemption:
         assert "router:excluded:ccr_retrieve" in result.transforms_applied
 
     def test_mixed_retrieve_and_normal_in_one_turn_only_normal_compressed(self):
-        """Per-block precision: a single turn carrying both a headroom_retrieve
+        """Per-block precision: a single turn carrying both a horizon_retrieve
         tool_result and a normal tool_result must protect only the former --
         parity with test_smart_crusher_ccr_retrieve_exemption.py's
         test_mixed_retrieve_and_normal_only_normal_compressed."""
@@ -315,7 +315,7 @@ class TestContentRouterCcrRetrieveExemption:
                     {
                         "type": "tool_use",
                         "id": "toolu_ccr_mixed",
-                        "name": "mcp__headroom__headroom_retrieve",
+                        "name": "mcp__horizon__horizon_retrieve",
                         "input": {"hash": "abc123def456"},
                     },
                     {
@@ -352,7 +352,7 @@ class TestContentRouterCcrRetrieveExemption:
         assert normal_block["content"] != normal_content
         assert "router:excluded:ccr_retrieve" in result.transforms_applied
 
-    def test_small_headroom_retrieve_content_still_marked_excluded(self):
+    def test_small_horizon_retrieve_content_still_marked_excluded(self):
         """The guard is size-independent: even content well below the
         compression floor must still get the router:excluded:ccr_retrieve
         marker, proving the exemption fires unconditionally rather than
@@ -361,7 +361,7 @@ class TestContentRouterCcrRetrieveExemption:
         router = ContentRouter(ContentRouterConfig(min_section_tokens=10))
         tokenizer = _get_tokenizer()
 
-        messages = _anthropic_messages("mcp__headroom__headroom_retrieve", content)
+        messages = _anthropic_messages("mcp__horizon__horizon_retrieve", content)
         result = router.apply(messages, tokenizer)
 
         tool_result_block = result.messages[1]["content"][0]

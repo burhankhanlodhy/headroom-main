@@ -1,6 +1,6 @@
-"""Test OpenAI /v1/chat/completions streaming through headroom proxy backends.
+"""Test OpenAI /v1/chat/completions streaming through horizon proxy backends.
 
-Proves that streaming works end-to-end: client → headroom proxy → backend → OpenAI API.
+Proves that streaming works end-to-end: client → horizon proxy → backend → OpenAI API.
 
 Two test modes:
 1. Real API test (requires OPENAI_API_KEY): hits actual OpenAI with gpt-4o-mini
@@ -21,8 +21,8 @@ httpx = pytest.importorskip("httpx")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.backends.base import BackendResponse  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.backends.base import BackendResponse  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 # =============================================================================
 # Real API test (requires OPENAI_API_KEY)
@@ -184,7 +184,7 @@ class TestOpenAIStreamingMock:
             )
         )
 
-        with patch("headroom.proxy.server.AnyLLMBackend", return_value=mock_backend):
+        with patch("horizon.proxy.server.AnyLLMBackend", return_value=mock_backend):
             app = create_app(config)
 
             with TestClient(app) as client:
@@ -242,7 +242,7 @@ class TestOpenAIStreamingMock:
             )
         )
 
-        with patch("headroom.proxy.server.AnyLLMBackend", return_value=mock_backend):
+        with patch("horizon.proxy.server.AnyLLMBackend", return_value=mock_backend):
             app = create_app(config)
 
             with TestClient(app) as client:
@@ -279,8 +279,8 @@ class TestOpenAIStreamingMock:
             )
 
         with (
-            patch("headroom.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
-            patch("headroom.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp,
+            patch("horizon.backends.litellm._fetch_bedrock_inference_profiles", return_value={}),
+            patch("horizon.backends.litellm.acompletion", new_callable=AsyncMock) as mock_acomp,
         ):
             mock_acomp.return_value = fake_stream()
             app = create_app(config)

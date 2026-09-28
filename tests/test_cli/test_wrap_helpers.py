@@ -24,9 +24,9 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from headroom import paths as paths_mod
-from headroom.cli import wrap as wrap_mod
-from headroom.cli.main import main
+from horizon import paths as paths_mod
+from horizon.cli import wrap as wrap_mod
+from horizon.cli.main import main
 
 # ---------------------------------------------------------------------------
 # _print_wrap_banner — centering math + box drawing.
@@ -72,7 +72,7 @@ def test_print_wrap_banner_box_is_inner_width_chars_wide(agent: str) -> None:
     # The middle line has the centered title.
     assert title_line.startswith("  ║")
     assert title_line.endswith("║")
-    assert f"HEADROOM WRAP: {agent.upper()}" in title_line
+    assert f"HORIZON WRAP: {agent.upper()}" in title_line
 
 
 def test_print_wrap_banner_title_is_centered_or_near_centered() -> None:
@@ -86,7 +86,7 @@ def test_print_wrap_banner_title_is_centered_or_near_centered() -> None:
     inner = title_line[3:-1]
     assert len(inner) == wrap_mod._WRAP_BANNER_INNER_WIDTH
 
-    title = "HEADROOM WRAP: CLINE"
+    title = "HORIZON WRAP: CLINE"
     pad_left = len(inner) - len(inner.lstrip(" "))
     pad_right = len(inner) - len(inner.rstrip(" "))
     assert inner.strip() == title
@@ -195,7 +195,7 @@ def test_run_proxy_only_watcher_calls_setup_lines_callback(
     assert inv.exit_code == 1
     assert callback_calls == [None]
     # Banner is part of the helper's contract.
-    assert "HEADROOM WRAP: CLINE" in inv.output
+    assert "HORIZON WRAP: CLINE" in inv.output
     # The "proxy exited unexpectedly" message is the documented exit branch.
     assert "Proxy process exited unexpectedly." in inv.output
 
@@ -360,12 +360,12 @@ def test_run_proxy_only_watcher_calls_cleanup_on_finally(
 
 # ---------------------------------------------------------------------------
 # _project_name_from_cwd / _apply_project_header_env — per-project savings
-# header injection for `headroom wrap claude` (issue: per-project savings).
+# header injection for `horizon wrap claude` (issue: per-project savings).
 # ---------------------------------------------------------------------------
 
 
 class TestApplyProjectHeaderEnv:
-    """X-Headroom-Project injection into ANTHROPIC_CUSTOM_HEADERS."""
+    """X-Horizon-Project injection into ANTHROPIC_CUSTOM_HEADERS."""
 
     def test_sets_header_from_cwd_basename(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -377,7 +377,7 @@ class TestApplyProjectHeaderEnv:
         env: dict[str, str] = {}
         wrap_mod._apply_project_header_env(env)
 
-        assert env["ANTHROPIC_CUSTOM_HEADERS"] == "X-Headroom-Project: my-project"
+        assert env["ANTHROPIC_CUSTOM_HEADERS"] == "X-Horizon-Project: my-project"
 
     def test_appends_to_existing_custom_headers(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -391,16 +391,16 @@ class TestApplyProjectHeaderEnv:
 
         # User header preserved verbatim, ours appended on a new line.
         assert env["ANTHROPIC_CUSTOM_HEADERS"] == (
-            "X-Custom-Trace: abc123\nX-Headroom-Project: proj"
+            "X-Custom-Trace: abc123\nX-Horizon-Project: proj"
         )
 
     @pytest.mark.parametrize(
         "user_value",
         [
-            "X-Headroom-Project: their-name",
-            "x-headroom-project: their-name",
-            "X-HEADROOM-PROJECT: their-name",
-            "X-Other: 1\nx-Headroom-Project: their-name",
+            "X-Horizon-Project: their-name",
+            "x-horizon-project: their-name",
+            "X-HORIZON-PROJECT: their-name",
+            "X-Other: 1\nx-Horizon-Project: their-name",
         ],
     )
     def test_existing_project_header_wins_case_insensitive(
@@ -422,8 +422,8 @@ class TestApplyProjectHeaderEnv:
     @pytest.mark.parametrize(
         "user_value",
         [
-            "X-Headroom-Project-Id: other",
-            "X-Trace: mentions x-headroom-project in the value",
+            "X-Horizon-Project-Id: other",
+            "X-Trace: mentions x-horizon-project in the value",
         ],
     )
     def test_similar_header_names_do_not_suppress_injection(
@@ -440,7 +440,7 @@ class TestApplyProjectHeaderEnv:
         wrap_mod._apply_project_header_env(env)
 
         # Only an exact header-name match counts as a user override.
-        assert env["ANTHROPIC_CUSTOM_HEADERS"] == (f"{user_value}\nX-Headroom-Project: proj")
+        assert env["ANTHROPIC_CUSTOM_HEADERS"] == (f"{user_value}\nX-Horizon-Project: proj")
 
     def test_empty_cwd_name_sets_nothing(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A degenerate cwd (e.g. filesystem root → empty basename) is a no-op."""
@@ -462,11 +462,11 @@ class TestApplyProjectHeaderEnv:
     def test_project_name_from_cwd_returns_basename(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        project_dir = tmp_path / "vibe-headroom"
+        project_dir = tmp_path / "vibe-horizon"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
 
-        assert wrap_mod._project_name_from_cwd() == "vibe-headroom"
+        assert wrap_mod._project_name_from_cwd() == "vibe-horizon"
 
     def test_non_ascii_cwd_name_is_percent_encoded(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -488,7 +488,7 @@ class TestApplyProjectHeaderEnv:
     def test_non_ascii_cwd_header_is_ascii_safe(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """X-Headroom-Project header value must be ASCII when cwd has non-ASCII chars."""
+        """X-Horizon-Project header value must be ASCII when cwd has non-ASCII chars."""
         project_dir = tmp_path / "test-中文-项目"
         project_dir.mkdir()
         monkeypatch.chdir(project_dir)
@@ -497,7 +497,7 @@ class TestApplyProjectHeaderEnv:
         wrap_mod._apply_project_header_env(env)
 
         header_value = env["ANTHROPIC_CUSTOM_HEADERS"]
-        assert header_value.startswith("X-Headroom-Project: ")
+        assert header_value.startswith("X-Horizon-Project: ")
         header_value.encode("ascii")  # raises UnicodeEncodeError if non-ASCII
 
 
@@ -802,42 +802,42 @@ def test_resolve_1m_model_falls_back_to_default_when_unset(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """With no model selected, fall back to the built-in default carrying [1m]."""
-    monkeypatch.delenv("HEADROOM_1M_MODEL", raising=False)
+    monkeypatch.delenv("HORIZON_1M_MODEL", raising=False)
     expected = f"{wrap_mod._DEFAULT_1M_MODEL}[1m]"
     assert wrap_mod._resolve_1m_model(None) == expected
     assert wrap_mod._resolve_1m_model("  ") == expected
 
 
 def test_resolve_1m_model_env_overrides_builtin_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    """HEADROOM_1M_MODEL overrides the built-in fallback so --1m can track new
+    """HORIZON_1M_MODEL overrides the built-in fallback so --1m can track new
     Opus releases without a code change or pinning ANTHROPIC_MODEL (#2937)."""
-    monkeypatch.setenv("HEADROOM_1M_MODEL", "claude-opus-9")
+    monkeypatch.setenv("HORIZON_1M_MODEL", "claude-opus-9")
     assert wrap_mod._resolve_1m_model(None) == "claude-opus-9[1m]"
 
 
 def test_resolve_1m_model_current_wins_over_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """An explicit ANTHROPIC_MODEL still wins; HEADROOM_1M_MODEL is only the
+    """An explicit ANTHROPIC_MODEL still wins; HORIZON_1M_MODEL is only the
     fallback default when nothing else is selected."""
-    monkeypatch.setenv("HEADROOM_1M_MODEL", "claude-opus-9")
+    monkeypatch.setenv("HORIZON_1M_MODEL", "claude-opus-9")
     assert wrap_mod._resolve_1m_model("claude-sonnet-5") == "claude-sonnet-5[1m]"
 
 
 def test_resolve_1m_model_env_idempotent_on_suffixed_value(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A HEADROOM_1M_MODEL that already carries [1m] is not double-suffixed."""
-    monkeypatch.setenv("HEADROOM_1M_MODEL", "claude-opus-9[1m]")
+    """A HORIZON_1M_MODEL that already carries [1m] is not double-suffixed."""
+    monkeypatch.setenv("HORIZON_1M_MODEL", "claude-opus-9[1m]")
     assert wrap_mod._resolve_1m_model(None) == "claude-opus-9[1m]"
 
 
 def test_resolve_1m_model_blank_env_falls_back_to_builtin(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A blank/whitespace HEADROOM_1M_MODEL falls back to the built-in default."""
-    monkeypatch.setenv("HEADROOM_1M_MODEL", "   ")
+    """A blank/whitespace HORIZON_1M_MODEL falls back to the built-in default."""
+    monkeypatch.setenv("HORIZON_1M_MODEL", "   ")
     assert wrap_mod._resolve_1m_model(None) == f"{wrap_mod._DEFAULT_1M_MODEL}[1m]"
 
 
-def test_headroom_1m_model_is_documented_and_default_matches_code() -> None:
-    """The HEADROOM_1M_MODEL knob must stay documented, and the documented
+def test_horizon_1m_model_is_documented_and_default_matches_code() -> None:
+    """The HORIZON_1M_MODEL knob must stay documented, and the documented
     default must track the code, so the supported configuration surface cannot
     silently drift or disappear (#2937).
     """
@@ -846,7 +846,7 @@ def test_headroom_1m_model_is_documented_and_default_matches_code() -> None:
     assert wrap_mod._1M_MODEL_ENV in text, f"{wrap_mod._1M_MODEL_ENV} is not documented"
     # The env-var catalog row must advertise the current built-in default.
     assert f"`{wrap_mod._DEFAULT_1M_MODEL}`" in text, (
-        "documented HEADROOM_1M_MODEL default is out of sync with "
+        "documented HORIZON_1M_MODEL default is out of sync with "
         f"_DEFAULT_1M_MODEL={wrap_mod._DEFAULT_1M_MODEL!r}"
     )
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.cache.compression_cache import CompressionCache
+from horizon.cache.compression_cache import CompressionCache
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ class TestCompressionCacheRetention:
         timestamps = iter([1_000.0, 1_271.0, 1_272.0])
 
         monkeypatch.setattr(
-            "headroom.cache.compression_cache.time.time",
+            "horizon.cache.compression_cache.time.time",
             lambda: next(timestamps),
         )
 
@@ -754,7 +754,7 @@ class TestCompressionCacheConcurrency:
 
 
 def test_get_compression_cache_returns_same_instance_under_contention() -> None:
-    """`HeadroomProxy._get_compression_cache(session_id)` must return the
+    """`HorizonProxy._get_compression_cache(session_id)` must return the
     SAME `CompressionCache` instance for concurrent calls with the same
     session_id. Pre-lock, two concurrent calls could both see "not in dict"
     and each create a new instance, splitting the cache state across them.
@@ -762,7 +762,7 @@ def test_get_compression_cache_returns_same_instance_under_contention() -> None:
     import threading
 
     pytest.importorskip("fastapi")
-    from headroom.proxy.server import ProxyConfig, create_app
+    from horizon.proxy.server import ProxyConfig, create_app
 
     config = ProxyConfig(
         optimize=False,

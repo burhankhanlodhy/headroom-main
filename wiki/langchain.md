@@ -1,14 +1,14 @@
 # LangChain Integration
 
-Headroom provides seamless integration with LangChain, enabling automatic context optimization across all LangChain patterns: chat models, memory, retrievers, agents, and observability.
+Horizon provides seamless integration with LangChain, enabling automatic context optimization across all LangChain patterns: chat models, memory, retrievers, agents, and observability.
 
 ## Installation
 
 ```bash
-pip install "headroom-ai[langchain]"
+pip install "horizon-ai[langchain]"
 ```
 
-This installs Headroom with LangChain dependencies (`langchain-core`).
+This installs Horizon with LangChain dependencies (`langchain-core`).
 
 ## Quick Start
 
@@ -16,16 +16,16 @@ This installs Headroom with LangChain dependencies (`langchain-core`).
 
 ```python
 from langchain_openai import ChatOpenAI
-from headroom.integrations import HeadroomChatModel
+from horizon.integrations import HorizonChatModel
 
 # Wrap your model - that's it!
-llm = HeadroomChatModel(ChatOpenAI(model="gpt-4o"))
+llm = HorizonChatModel(ChatOpenAI(model="gpt-4o"))
 
 # Use exactly like before
 response = llm.invoke("Hello!")
 ```
 
-Headroom automatically:
+Horizon automatically:
 - Detects the provider (OpenAI, Anthropic, Google)
 - Compresses tool outputs in conversation history
 - Optimizes for provider caching
@@ -46,24 +46,24 @@ print(llm.get_savings_summary())
 
 ### 1. Chat Model Wrapper
 
-The `HeadroomChatModel` wraps any LangChain `BaseChatModel`:
+The `HorizonChatModel` wraps any LangChain `BaseChatModel`:
 
 ```python
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
-from headroom.integrations import HeadroomChatModel
+from horizon.integrations import HorizonChatModel
 
 # OpenAI
-llm = HeadroomChatModel(ChatOpenAI(model="gpt-4o"))
+llm = HorizonChatModel(ChatOpenAI(model="gpt-4o"))
 
 # Anthropic (auto-detected)
-llm = HeadroomChatModel(ChatAnthropic(model="claude-3-5-sonnet-20241022"))
+llm = HorizonChatModel(ChatAnthropic(model="claude-3-5-sonnet-20241022"))
 
 # Custom configuration
-from headroom import HeadroomConfig, HeadroomMode
+from horizon import HorizonConfig, HorizonMode
 
-config = HeadroomConfig(default_mode=HeadroomMode.OPTIMIZE)
-llm = HeadroomChatModel(
+config = HorizonConfig(default_mode=HorizonMode.OPTIMIZE)
+llm = HorizonChatModel(
     ChatOpenAI(model="gpt-4o"),
     config=config,
 )
@@ -105,16 +105,16 @@ response = llm_with_tools.invoke("Search for Python tutorials")
 
 ### 2. Memory Integration
 
-`HeadroomChatMessageHistory` wraps any chat history with automatic compression:
+`HorizonChatMessageHistory` wraps any chat history with automatic compression:
 
 ```python
 from langchain.memory import ConversationBufferMemory
 from langchain_community.chat_message_histories import ChatMessageHistory
-from headroom.integrations import HeadroomChatMessageHistory
+from horizon.integrations import HorizonChatMessageHistory
 
 # Wrap any history
 base_history = ChatMessageHistory()
-compressed_history = HeadroomChatMessageHistory(
+compressed_history = HorizonChatMessageHistory(
     base_history,
     compress_threshold_tokens=4000,  # Compress when over 4K tokens
     keep_recent_turns=5,  # Always keep last 5 turns
@@ -127,7 +127,7 @@ memory = ConversationBufferMemory(chat_memory=compressed_history)
 chain = ConversationChain(llm=llm, memory=memory)
 ```
 
-**Why this matters**: Long conversations can blow up to 50K+ tokens. HeadroomChatMessageHistory automatically compresses older turns while preserving recent context.
+**Why this matters**: Long conversations can blow up to 50K+ tokens. HorizonChatMessageHistory automatically compresses older turns while preserving recent context.
 
 ```python
 # Check compression stats
@@ -139,19 +139,19 @@ print(compressed_history.get_compression_stats())
 
 ### 3. Retriever Integration
 
-`HeadroomDocumentCompressor` filters retrieved documents by relevance:
+`HorizonDocumentCompressor` filters retrieved documents by relevance:
 
 ```python
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain_community.vectorstores import FAISS
-from headroom.integrations import HeadroomDocumentCompressor
+from horizon.integrations import HorizonDocumentCompressor
 
 # Create vector store retriever (retrieve many for recall)
 vectorstore = FAISS.from_documents(documents, embeddings)
 base_retriever = vectorstore.as_retriever(search_kwargs={"k": 50})
 
-# Wrap with Headroom compression (keep best for precision)
-compressor = HeadroomDocumentCompressor(
+# Wrap with Horizon compression (keep best for precision)
+compressor = HorizonDocumentCompressor(
     max_documents=10,  # Keep top 10
     min_relevance=0.3,  # Minimum relevance score
     prefer_diverse=True,  # MMR-style diversity
@@ -166,18 +166,18 @@ retriever = ContextualCompressionRetriever(
 docs = retriever.invoke("What is Python?")
 ```
 
-**Why this matters**: Vector search often returns many marginally-relevant documents. HeadroomDocumentCompressor uses BM25-style scoring to keep only the most relevant ones, reducing context size while improving answer quality.
+**Why this matters**: Vector search often returns many marginally-relevant documents. HorizonDocumentCompressor uses BM25-style scoring to keep only the most relevant ones, reducing context size while improving answer quality.
 
 ---
 
 ### 4. Agent Tool Wrapping
 
-`wrap_tools_with_headroom` compresses tool outputs for agents:
+`wrap_tools_with_horizon` compresses tool outputs for agents:
 
 ```python
 from langchain.agents import create_openai_tools_agent, AgentExecutor
 from langchain_core.tools import tool
-from headroom.integrations import wrap_tools_with_headroom
+from horizon.integrations import wrap_tools_with_horizon
 
 
 @tool
@@ -196,7 +196,7 @@ def fetch_logs(service: str) -> str:
 
 # Wrap tools with compression
 tools = [search_database, fetch_logs]
-wrapped_tools = wrap_tools_with_headroom(
+wrapped_tools = wrap_tools_with_horizon(
     tools,
     min_chars_to_compress=1000,  # Only compress large outputs
 )
@@ -212,7 +212,7 @@ result = executor.invoke({"input": "Find users who logged in yesterday"})
 **Per-tool metrics:**
 
 ```python
-from headroom.integrations import get_tool_metrics
+from horizon.integrations import get_tool_metrics
 
 metrics = get_tool_metrics()
 print(metrics.get_summary())
@@ -234,7 +234,7 @@ print(metrics.get_summary())
 Track output tokens during streaming:
 
 ```python
-from headroom.integrations import StreamingMetricsTracker
+from horizon.integrations import StreamingMetricsTracker
 
 tracker = StreamingMetricsTracker(model="gpt-4o")
 
@@ -250,7 +250,7 @@ print(f"Duration: {metrics.duration_ms:.0f}ms")
 **Context manager style:**
 
 ```python
-from headroom.integrations import StreamingMetricsCallback
+from horizon.integrations import StreamingMetricsCallback
 
 with StreamingMetricsCallback(model="gpt-4o") as tracker:
     for chunk in llm.stream(messages):
@@ -264,25 +264,25 @@ print(f"Metrics: {tracker.metrics}")
 
 ### 6. LangSmith Integration
 
-Add Headroom metrics to LangSmith traces:
+Add Horizon metrics to LangSmith traces:
 
 ```python
-from headroom.integrations import HeadroomLangSmithCallbackHandler
+from horizon.integrations import HorizonLangSmithCallbackHandler
 
 # Create callback handler
-langsmith_handler = HeadroomLangSmithCallbackHandler()
+langsmith_handler = HorizonLangSmithCallbackHandler()
 
 # Use with your LLM
-llm = HeadroomChatModel(
+llm = HorizonChatModel(
     ChatOpenAI(model="gpt-4o"),
     callbacks=[langsmith_handler],
 )
 
 # After calls, metrics appear in LangSmith traces:
-# - headroom.tokens_before
-# - headroom.tokens_after
-# - headroom.tokens_saved
-# - headroom.compression_ratio
+# - horizon.tokens_before
+# - horizon.tokens_after
+# - horizon.tokens_saved
+# - horizon.compression_ratio
 ```
 
 ---
@@ -297,7 +297,7 @@ The ReAct pattern is the most common agent architecture. Here's how to optimize 
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
-from headroom.integrations import HeadroomChatModel, wrap_tools_with_headroom
+from horizon.integrations import HorizonChatModel, wrap_tools_with_horizon
 
 
 # Define tools that return large outputs
@@ -327,11 +327,11 @@ def query_database(sql: str) -> str:
     )
 
 
-# Wrap model with Headroom
-llm = HeadroomChatModel(ChatOpenAI(model="gpt-4o"))
+# Wrap model with Horizon
+llm = HorizonChatModel(ChatOpenAI(model="gpt-4o"))
 
 # Wrap tools with compression
-tools = wrap_tools_with_headroom([search_web, query_database])
+tools = wrap_tools_with_horizon([search_web, query_database])
 
 # Create ReAct agent
 agent = create_react_agent(llm, tools)
@@ -345,8 +345,8 @@ result = agent.invoke(
 print(f"Tokens saved: {llm.get_metrics()['tokens_saved']}")
 ```
 
-**Without Headroom**: Each tool call adds 10-50K tokens to context.
-**With Headroom**: Tool outputs compressed to 1-2K tokens, agent runs faster and cheaper.
+**Without Horizon**: Each tool call adds 10-50K tokens to context.
+**With Horizon**: Tool outputs compressed to 1-2K tokens, agent runs faster and cheaper.
 
 ---
 
@@ -360,7 +360,7 @@ you can insert a compression node between tools and the agent. This compresses a
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, MessagesState, START, END
-from headroom.integrations.langchain import create_compress_tool_messages_node
+from horizon.integrations.langchain import create_compress_tool_messages_node
 
 
 # Define your agent and tools nodes
@@ -399,7 +399,7 @@ result = app.invoke({"messages": [HumanMessage(content="Find sales data")]})
 You can also use `compress_tool_messages` directly as a standalone function:
 
 ```python
-from headroom.integrations.langchain import compress_tool_messages
+from horizon.integrations.langchain import compress_tool_messages
 
 # Compress ToolMessages in any list of LangChain messages
 result = compress_tool_messages(messages, min_tokens_to_compress=100)
@@ -416,7 +416,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain.chains import RetrievalQA
 from langchain.retrievers import ContextualCompressionRetriever
-from headroom.integrations import HeadroomChatModel, HeadroomDocumentCompressor
+from horizon.integrations import HorizonChatModel, HorizonDocumentCompressor
 
 # Setup vector store
 embeddings = OpenAIEmbeddings()
@@ -425,8 +425,8 @@ vectorstore = Chroma.from_documents(documents, embeddings)
 # High-recall retriever (get many candidates)
 base_retriever = vectorstore.as_retriever(search_kwargs={"k": 50})
 
-# Headroom compressor for precision
-compressor = HeadroomDocumentCompressor(
+# Horizon compressor for precision
+compressor = HorizonDocumentCompressor(
     max_documents=5,  # Keep only top 5
     min_relevance=0.4,  # Must be 40%+ relevant
     prefer_diverse=True,  # Avoid redundant docs
@@ -439,7 +439,7 @@ retriever = ContextualCompressionRetriever(
 )
 
 # Wrap LLM
-llm = HeadroomChatModel(ChatOpenAI(model="gpt-4o"))
+llm = HorizonChatModel(ChatOpenAI(model="gpt-4o"))
 
 # Create QA chain
 qa_chain = RetrievalQA.from_chain_type(
@@ -456,7 +456,7 @@ print(f"Sources: {len(result['source_documents'])} docs")
 
 **Impact**:
 - Without filtering: 50 docs × ~500 tokens = 25K context tokens
-- With Headroom: 5 docs × ~500 tokens = 2.5K context tokens (90% reduction)
+- With Horizon: 5 docs × ~500 tokens = 2.5K context tokens (90% reduction)
 
 ---
 
@@ -467,14 +467,14 @@ from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain.chains import ConversationChain
-from headroom.integrations import HeadroomChatModel, HeadroomChatMessageHistory
+from horizon.integrations import HorizonChatModel, HorizonChatMessageHistory
 
 # Wrap LLM
-llm = HeadroomChatModel(ChatOpenAI(model="gpt-4o"))
+llm = HorizonChatModel(ChatOpenAI(model="gpt-4o"))
 
 # Wrap memory with auto-compression
 base_history = ChatMessageHistory()
-compressed_history = HeadroomChatMessageHistory(
+compressed_history = HorizonChatMessageHistory(
     base_history,
     compress_threshold_tokens=8000,  # Compress when over 8K
     keep_recent_turns=10,  # Always keep last 10 turns
@@ -498,7 +498,7 @@ print(compressed_history.get_compression_stats())
 # {'compression_count': 8, 'total_tokens_saved': 45000}
 ```
 
-**Impact**: Without compression, 100-turn conversation = 100K+ tokens. With HeadroomChatMessageHistory, it stays under 8K tokens while preserving recent context.
+**Impact**: Without compression, 100-turn conversation = 100K+ tokens. With HorizonChatMessageHistory, it stays under 8K tokens while preserving recent context.
 
 ---
 
@@ -509,9 +509,9 @@ from langchain_openai import ChatOpenAI
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
-from headroom.integrations import (
-    HeadroomChatModel,
-    wrap_tools_with_headroom,
+from horizon.integrations import (
+    HorizonChatModel,
+    wrap_tools_with_horizon,
     get_tool_metrics,
     reset_tool_metrics,
 )
@@ -545,8 +545,8 @@ def fetch_documentation(url: str) -> str:
 
 
 # Wrap everything
-llm = HeadroomChatModel(ChatOpenAI(model="gpt-4o"))
-tools = wrap_tools_with_headroom([search_arxiv, search_github, fetch_documentation])
+llm = HorizonChatModel(ChatOpenAI(model="gpt-4o"))
+tools = wrap_tools_with_horizon([search_arxiv, search_github, fetch_documentation])
 
 prompt = ChatPromptTemplate.from_messages(
     [
@@ -579,20 +579,20 @@ print(f"Per-tool breakdown: {metrics['by_tool']}")
 
 ## Configuration Options
 
-### HeadroomChatModel
+### HorizonChatModel
 
 ```python
-HeadroomChatModel(
+HorizonChatModel(
     wrapped_model,  # Any LangChain BaseChatModel
-    headroom_config=HeadroomConfig(),  # Headroom configuration
+    horizon_config=HorizonConfig(),  # Horizon configuration
     auto_detect_provider=True,  # Auto-detect from wrapped model
 )
 ```
 
-### HeadroomChatMessageHistory
+### HorizonChatMessageHistory
 
 ```python
-HeadroomChatMessageHistory(
+HorizonChatMessageHistory(
     base_history,  # Any BaseChatMessageHistory
     compress_threshold_tokens=4000,  # Token threshold for compression
     keep_recent_turns=5,  # Minimum turns to preserve
@@ -600,20 +600,20 @@ HeadroomChatMessageHistory(
 )
 ```
 
-### HeadroomDocumentCompressor
+### HorizonDocumentCompressor
 
 ```python
-HeadroomDocumentCompressor(
+HorizonDocumentCompressor(
     max_documents=10,  # Maximum docs to return
     min_relevance=0.0,  # Minimum relevance score (0-1)
     prefer_diverse=False,  # Use MMR for diversity
 )
 ```
 
-### wrap_tools_with_headroom
+### wrap_tools_with_horizon
 
 ```python
-wrap_tools_with_headroom(
+wrap_tools_with_horizon(
     tools,  # List of LangChain tools
     min_chars_to_compress=1000,  # Minimum output size
     smart_crusher_config=None,  # SmartCrusher configuration
@@ -625,16 +625,16 @@ wrap_tools_with_headroom(
 ## Import Reference
 
 ```python
-from headroom.integrations import (
+from horizon.integrations import (
     # Chat Model
-    HeadroomChatModel,
+    HorizonChatModel,
     # Memory
-    HeadroomChatMessageHistory,
+    HorizonChatMessageHistory,
     # Retrievers
-    HeadroomDocumentCompressor,
+    HorizonDocumentCompressor,
     # Agents
-    HeadroomToolWrapper,
-    wrap_tools_with_headroom,
+    HorizonToolWrapper,
+    wrap_tools_with_horizon,
     get_tool_metrics,
     reset_tool_metrics,
     # Streaming
@@ -642,15 +642,15 @@ from headroom.integrations import (
     StreamingMetricsCallback,
     track_streaming_response,
     # LangSmith
-    HeadroomLangSmithCallbackHandler,
+    HorizonLangSmithCallbackHandler,
     # Provider Detection
     detect_provider,
-    get_headroom_provider,
+    get_horizon_provider,
 )
 
 # Or import from subpackage directly
-from headroom.integrations.langchain import HeadroomChatModel
-from headroom.integrations.langchain.memory import HeadroomChatMessageHistory
+from horizon.integrations.langchain import HorizonChatModel
+from horizon.integrations.langchain.memory import HorizonChatMessageHistory
 ```
 
 ---
@@ -660,19 +660,19 @@ from headroom.integrations.langchain.memory import HeadroomChatMessageHistory
 ### LangChain not detected
 
 ```python
-from headroom.integrations import langchain_available
+from horizon.integrations import langchain_available
 
 if not langchain_available():
-    print("Install with: pip install headroom-ai[langchain]")
+    print("Install with: pip install horizon-ai[langchain]")
 ```
 
 ### Provider detection failing
 
 ```python
 # Force a specific provider
-from headroom.providers import AnthropicProvider
+from horizon.providers import AnthropicProvider
 
-llm = HeadroomChatModel(
+llm = HorizonChatModel(
     ChatAnthropic(model="claude-3-5-sonnet-20241022"),
     auto_detect_provider=False,
 )
@@ -684,7 +684,7 @@ llm._provider = AnthropicProvider()
 Check that your message count exceeds the threshold:
 
 ```python
-history = HeadroomChatMessageHistory(
+history = HorizonChatMessageHistory(
     base_history,
     compress_threshold_tokens=1000,  # Lower threshold
     keep_recent_turns=2,  # Fewer preserved turns

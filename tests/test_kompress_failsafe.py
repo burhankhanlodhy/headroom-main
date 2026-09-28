@@ -16,8 +16,8 @@ import time
 
 import pytest
 
-import headroom.transforms.kompress_compressor as kc
-from headroom.transforms.kompress_compressor import (
+import horizon.transforms.kompress_compressor as kc
+from horizon.transforms.kompress_compressor import (
     KOMPRESS_ACQUIRE_TIMEOUT_ENV,
     KOMPRESS_CANARY_THRESHOLD_ENV,
     KOMPRESS_EXECUTION_SEMAPHORE_WAIT_MS_ENV,

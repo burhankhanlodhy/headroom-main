@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from headroom.pricing import cache_ttl
+from horizon.pricing import cache_ttl
 
 
 def test_multipliers_match_anthropic_structure() -> None:

@@ -1,6 +1,6 @@
 """SSE ping passthrough in the Bedrock streaming path (issue #902).
 
-When Headroom routes through a Bedrock (LiteLLM/AnyLLM) backend the
+When Horizon routes through a Bedrock (LiteLLM/AnyLLM) backend the
 translation layer emits only Anthropic-semantic events — it never produces
 SSE-level ping keepalives.  Claude Code uses ping events to keep a turn in
 the interruptible / steering-armed state; without them, mid-turn interjections
@@ -24,8 +24,8 @@ fastapi = pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from headroom.backends.base import StreamEvent  # noqa: E402
-from headroom.proxy.server import ProxyConfig, create_app  # noqa: E402
+from horizon.backends.base import StreamEvent  # noqa: E402
+from horizon.proxy.server import ProxyConfig, create_app  # noqa: E402
 
 
 def _ev(event_type: str, data: dict[str, Any]) -> StreamEvent:
@@ -100,7 +100,7 @@ def _run_bedrock_stream(events: list[StreamEvent]) -> str:
         anyllm_provider="anthropic",
     )
     backend = _make_bedrock_backend(events)
-    with patch("headroom.proxy.server.AnyLLMBackend", return_value=backend):
+    with patch("horizon.proxy.server.AnyLLMBackend", return_value=backend):
         app = create_app(config)
         with TestClient(app) as client:
             resp = client.post(

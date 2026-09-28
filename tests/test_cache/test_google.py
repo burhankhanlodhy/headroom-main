@@ -4,9 +4,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from headroom.cache import CacheConfig, GoogleCacheOptimizer, OptimizationContext
-from headroom.cache.base import CacheStrategy
-from headroom.cache.google import (
+from horizon.cache import CacheConfig, GoogleCacheOptimizer, OptimizationContext
+from horizon.cache.base import CacheStrategy
+from horizon.cache.google import (
     GOOGLE_CACHE_DISCOUNT,
     GOOGLE_MIN_CACHE_TOKENS,
     CacheabilityAnalysis,

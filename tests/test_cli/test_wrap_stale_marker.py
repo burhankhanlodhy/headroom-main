@@ -65,6 +65,8 @@ def test_signal_handler_unwinds_so_the_restore_can_run() -> None:
     already torn the proxy down under a live child. The handler must raise.
     """
     with pytest.raises(SystemExit) as excinfo:
-        wrap_cli._exit_on_signal(signal.SIGHUP, None)
+        # SIGHUP does not exist on Windows; SIGTERM exercises the same
+        # handler contract (raise SystemExit so the finally-block restore runs).
+        wrap_cli._exit_on_signal(signal.SIGTERM, None)
 
-    assert excinfo.value.code == 128 + signal.SIGHUP
+    assert excinfo.value.code == 128 + signal.SIGTERM

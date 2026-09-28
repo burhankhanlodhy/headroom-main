@@ -841,8 +841,8 @@ def test_horizon_1m_model_is_documented_and_default_matches_code() -> None:
     default must track the code, so the supported configuration surface cannot
     silently drift or disappear (#2937).
     """
-    docs = Path(__file__).resolve().parents[2] / "docs" / "content" / "docs" / "configuration.mdx"
-    text = docs.read_text(encoding="utf-8")
+    wiki = Path(__file__).resolve().parents[2] / "wiki" / "configuration.md"
+    text = wiki.read_text(encoding="utf-8")
     assert wrap_mod._1M_MODEL_ENV in text, f"{wrap_mod._1M_MODEL_ENV} is not documented"
     # The env-var catalog row must advertise the current built-in default.
     assert f"`{wrap_mod._DEFAULT_1M_MODEL}`" in text, (

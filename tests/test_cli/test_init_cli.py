@@ -1079,11 +1079,18 @@ def test_resolve_copilot_env_supports_anthropic(monkeypatch) -> None:
     }
 
 
-def test_marketplace_source_prefers_repo_checkout(monkeypatch) -> None:
+def test_marketplace_source_env_override_wins(monkeypatch) -> None:
+    init_cli, _ = _load_init_module(monkeypatch)
+    monkeypatch.setenv("HORIZON_MARKETPLACE_SOURCE", "some-org/some-repo")
+    assert init_cli._marketplace_source() == "some-org/some-repo"
+
+
+def test_marketplace_source_falls_back_without_manifest(monkeypatch) -> None:
     init_cli, _ = _load_init_module(monkeypatch)
     monkeypatch.delenv("HORIZON_MARKETPLACE_SOURCE", raising=False)
-
-    assert init_cli._marketplace_source() == str(Path(init_cli.__file__).resolve().parents[2])
+    # The plugin marketplace manifest was removed with the plugin system, so
+    # the repo-checkout branch no longer applies and the default slug wins.
+    assert init_cli._marketplace_source() == "your-org/horizon"
 
 
 def test_run_checked_raises_on_failure(monkeypatch) -> None:

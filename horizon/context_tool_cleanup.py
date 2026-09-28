@@ -307,7 +307,15 @@ _PATH_BOUNDARY_CHARS = frozenset("\"'=:;,()|")
 # Splits a command into path-shaped tokens on whitespace plus the same
 # boundary punctuation above — used by _names_a_managed_script, which (unlike
 # _references_managed_bin's needle-anchored scan) tokenizes the whole command.
-_PATH_TOKEN_SPLIT = re.compile(r"[\s" + re.escape("".join(_PATH_BOUNDARY_CHARS)) + r"]+")
+#
+# ':' is a command boundary (`PATH=<dir>:$PATH`, `BIN=<dir>/x`) EXCEPT when it
+# is a Windows drive separator (`C:\...`, `C:/...`) — splitting there would
+# sever every absolute Windows path into a stray drive letter, so managed
+# hook scripts referenced by absolute path would never match and the purge
+# would silently skip them.
+_PATH_TOKEN_SPLIT = re.compile(
+    r"[\s" + re.escape("".join(_PATH_BOUNDARY_CHARS - {":"})) + r"]+|:(?![/\\])"
+)
 
 
 def _norm_path_text(value: str) -> str:

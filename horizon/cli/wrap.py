@@ -554,7 +554,7 @@ def _print_telemetry_notice() -> None:
     Respects the HORIZON_TELEMETRY and HORIZON_TELEMETRY_WARN feature flags.
     Does nothing when telemetry or warnings are disabled.
     """
-    from horizon.telemetry.beacon import format_telemetry_notice
+    from horizon.telemetry.toggles import format_telemetry_notice
 
     notice = format_telemetry_notice(prefix="  ")
     if notice:

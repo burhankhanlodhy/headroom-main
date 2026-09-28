@@ -1,0 +1,163 @@
+"""Tests for horizon.forwarder (loopback relay to a remote Horizon proxy).
+
+All HTTP traffic goes through ``httpx.MockTransport`` - no network.
+"""
+
+from __future__ import annotations
+
+import json
+
+import httpx
+import pytest
+from fastapi.testclient import TestClient
+
+from horizon.forwarder import _is_loopback, build_app
+
+REMOTE = "https://remote.example.test"
+
+
+def _make_client(handler, credential: str = "hz_feedface") -> TestClient:
+    app = build_app(REMOTE, lambda: credential, transport=httpx.MockTransport(handler))
+    return TestClient(app)
+
+
+def test_relay_forwards_method_path_and_injects_credential() -> None:
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["method"] = request.method
+        seen["url"] = str(request.url)
+        seen["credential"] = request.headers.get("x-horizon-proxy-token")
+        seen["body"] = request.read()
+        seen["custom"] = request.headers.get("x-custom")
+        return httpx.Response(200, json={"ok": True})
+
+    client = _make_client(handler)
+    resp = client.post(
+        "/v1/messages",
+        json={"model": "claude", "max_tokens": 1},
+        headers={"x-custom": "keep-me", "x-horizon-proxy-token": "spoofed"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json() == {"ok": True}
+    assert seen["method"] == "POST"
+    assert seen["url"].startswith(REMOTE)
+    assert "/v1/messages" in seen["url"]
+    assert seen["credential"] == "hz_feedface"
+    assert json.loads(seen["body"]) == {"model": "claude", "max_tokens": 1}
+    assert seen["custom"] == "keep-me"
+
+
+def test_client_cannot_spoof_credential_header() -> None:
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["credential"] = request.headers.get("x-horizon-proxy-token")
+        return httpx.Response(200)
+
+    client = _make_client(handler)
+    client.post("/v1/messages", headers={"x-horizon-proxy-token": "attacker-key"})
+    assert seen["credential"] == "hz_feedface"
+
+
+def test_credential_provider_is_read_per_request() -> None:
+    seen: list[str] = []
+    creds = iter(["hz_first", "hz_second"])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("x-horizon-proxy-token", ""))
+        return httpx.Response(200)
+
+    app = build_app(REMOTE, lambda: next(creds), transport=httpx.MockTransport(handler))
+    with TestClient(app) as client:
+        client.get("/a")
+        client.get("/b")
+    assert seen == ["hz_first", "hz_second"]
+
+
+def test_hop_by_hop_headers_stripped() -> None:
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["connection"] = request.headers.get("connection")
+        seen["transfer_encoding"] = request.headers.get("transfer-encoding")
+        seen["te"] = request.headers.get("te")
+        return httpx.Response(
+            200,
+            content=b"ok",
+            headers={"connection": "close", "transfer-encoding": "chunked", "x-real": "1"},
+        )
+
+    client = _make_client(handler)
+    resp = client.get("/x", headers={"connection": "keep-alive", "te": "trailers"})
+
+    # httpx manages its own upstream Connection header, so only assert that
+    # the client's hop-by-hop *values* were not blindly forwarded.
+    assert seen["te"] is None
+    assert seen["transfer_encoding"] is None
+    assert resp.headers.get("x-real") == "1"
+    assert "connection" not in resp.headers
+    assert "transfer-encoding" not in resp.headers
+
+
+def test_query_params_relayed() -> None:
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["params"] = dict(request.url.params)
+        return httpx.Response(200)
+
+    client = _make_client(handler)
+    client.get("/v1/models?beta=true&limit=5")
+    assert seen["params"] == {"beta": "true", "limit": "5"}
+
+
+def test_upstream_error_becomes_502() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused")
+
+    client = _make_client(handler)
+    resp = client.get("/v1/messages")
+    assert resp.status_code == 502
+    assert "upstream error" in resp.text
+
+
+def test_upstream_status_passthrough() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, json={"error": "rate_limited"})
+
+    client = _make_client(handler)
+    resp = client.post("/v1/messages")
+    assert resp.status_code == 429
+    assert resp.json() == {"error": "rate_limited"}
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1", "localhost", "::1"])
+def test_loopback_hosts_allowed(host: str) -> None:
+    assert _is_loopback(host) is True
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "192.168.1.5", "example.com"])
+def test_non_loopback_hosts_rejected(host: str) -> None:
+    assert _is_loopback(host) is False
+
+
+def test_run_forwarder_refuses_non_loopback_bind() -> None:
+    from horizon.forwarder import run_forwarder
+
+    with pytest.raises(ValueError, match="non-loopback"):
+        run_forwarder("https://remote.example.test", port=18788, host="0.0.0.0")
+
+
+def test_run_forwarder_fails_fast_without_credential(monkeypatch: pytest.MonkeyPatch) -> None:
+    from horizon import vault
+    from horizon.forwarder import run_forwarder
+
+    def _raise():
+        raise vault.VaultError("no Horizon credential stored - set one with: horizon vault set")
+
+    monkeypatch.setattr(vault, "get_credential", _raise)
+
+    with pytest.raises(ValueError, match="horizon vault set"):
+        run_forwarder("https://remote.example.test", port=18788)

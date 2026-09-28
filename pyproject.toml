@@ -95,6 +95,14 @@ proxy = [
     "watchdog>=4.0.0; sys_platform != 'darwin' or python_version < '3.14'",
     "sqlite-vec>=0.1.6",          # Vector index for memory (--memory). Lightweight, no torch.
 ]
+
+# PC-side credential storage for the local forwarder (horizon vault /
+# horizon forward). Stores the remote per-user hz_ key in the OS credential
+# store (Windows Credential Manager / macOS Keychain) instead of a plaintext
+# config file. Optional so server installs never pull it.
+vault = [
+    "keyring>=24.0",
+]
 # Production ASGI/WSGI server — Unix-only (gunicorn does not support Windows).
 # Kept separate from [proxy] so that dev, CI, and Windows users are not forced
 # to install a non-functional package.  Production deployments should use:

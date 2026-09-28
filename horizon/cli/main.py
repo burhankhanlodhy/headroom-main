@@ -56,6 +56,7 @@ def _register_commands() -> None:
         copilot_auth,  # noqa: F401
         doctor,  # noqa: F401
         evals,  # noqa: F401
+        forward,  # noqa: F401
         init,  # noqa: F401
         inspect,  # noqa: F401
         install,  # noqa: F401
@@ -69,6 +70,7 @@ def _register_commands() -> None:
         rollout,  # noqa: F401
         savings,  # noqa: F401
         tools,  # noqa: F401
+        vault,  # noqa: F401
         wrap,  # noqa: F401
     )
 

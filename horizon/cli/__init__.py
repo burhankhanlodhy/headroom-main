@@ -17,6 +17,7 @@ from . import (  # noqa: F401
     capture,
     copilot_auth,
     evals,
+    forward,
     init,
     inspect,
     install,
@@ -28,6 +29,7 @@ from . import (  # noqa: F401
     recover,
     rollout,
     tools,
+    vault,
     wrap,
 )
 from .main import main

@@ -269,6 +269,11 @@ def test_ordinary_install_does_not_adopt_serena(monkeypatch, tmp_path: Path):
     monkeypatch.setitem(sys.modules, "mcp", object())
     registrar = ClaudeRegistrar(claude_cli=None, home_dir=tmp_path)
     monkeypatch.setattr("horizon.mcp_registry.install.get_all_registrars", lambda: [registrar])
+    # Hermetic resolution: the adoption behavior under test must not depend on
+    # the ambient PATH (which("horizon") fails from a bare dev shell).
+    monkeypatch.setattr(
+        "horizon.mcp_registry.install.resolve_horizon_command", lambda: ["horizon"]
+    )
     result = CliRunner().invoke(main, ["mcp", "install", "--agent", "claude"])
     assert result.exit_code == 0, result.output
     after = json.loads(config.read_text())

@@ -5189,6 +5189,17 @@ def wrap_selfheal(marker: str | None) -> None:
         "window activates through the proxy (issue #1158)."
     ),
 )
+@click.option(
+    "--remote",
+    "remote_url",
+    default=None,
+    metavar="URL",
+    help=(
+        "Relay to a remote Horizon proxy at URL instead of running a local "
+        "proxy. The per-user key comes from the OS key store (horizon vault "
+        "set); compression happens on the remote host."
+    ),
+)
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @click.option("--prepare-only", is_flag=True, hidden=True)
 @click.argument("claude_args", nargs=-1, type=click.UNPROCESSED)
@@ -5205,6 +5216,7 @@ def claude(
     tool_search: str | None,
     backend: str | None,
     region: str | None,
+    remote_url: str | None,
     context_1m: bool,
     verbose: bool,
     prepare_only: bool,
@@ -5240,6 +5252,9 @@ def claude(
         tool_search = _normalize_tool_search_mode(tool_search)
 
     proxy_holder: list[subprocess.Popen | None] = [None]
+    # Remote relay (wrap claude --remote): the forwarder subprocess replaces
+    # the local Horizon proxy, so it gets its own holder and unwind path.
+    _forwarder_holder: list[subprocess.Popen | None] = [None]
     _saved_base_url: list[str | None] = [None]  # previous settings.json value for restore
     _tool_search_not_written = object()
     _saved_tool_search: list[object | str | None] = [_tool_search_not_written]
@@ -5337,27 +5352,82 @@ def claude(
         proxy_url = _claude_proxy_base_url(port)
         vertex_upstream = _vertex_target_api_url_from_claude_env(proxy_url) if use_vertex else None
 
-        _register_proxy_client(port)
-        proxy_holder[0], actual_port = _ensure_proxy(
-            port,
-            no_proxy,
-            learn=learn,
-            memory=memory,
-            agent_type="claude",
-            code_graph=code_graph,
-            backend=backend,
-            region=region,
-            anthropic_api_url=foundry_upstream,
-            vertex_api_url=vertex_upstream,
-            clear_vertex_api_url=use_vertex and vertex_upstream is None,
-        )
-        if actual_port != port:
-            _unregister_proxy_client(port)
-            _register_proxy_client(actual_port)
-        port_holder[0] = actual_port
-        _push_runtime_env(actual_port, no_proxy)
+        if remote_url:
+            if use_vertex or foundry_upstream:
+                raise click.ClickException(
+                    "--remote cannot be combined with Foundry/Vertex modes"
+                )
+            from horizon.vault import VaultError, get_credential
 
-        if not no_mcp:
+            try:
+                get_credential()  # fail fast before spawning anything
+            except VaultError as exc:
+                raise click.ClickException(str(exc)) from exc
+
+            _forwarder_creationflags = (
+                subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            )
+            _forwarder_holder[0] = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-m",
+                    "horizon.cli",
+                    "forward",
+                    "start",
+                    "--remote",
+                    remote_url,
+                    "--port",
+                    str(port),
+                ],
+                creationflags=_forwarder_creationflags,
+            )
+            import time as _time
+
+            import httpx as _httpx
+
+            _forwarder_deadline = _time.monotonic() + 15.0
+            while _time.monotonic() < _forwarder_deadline:
+                if _forwarder_holder[0].poll() is not None:
+                    raise click.ClickException(
+                        "forwarder exited during startup (vault credential "
+                        "missing or port already in use - see output above)"
+                    )
+                try:
+                    # Any HTTP response (even 404/502 relayed from upstream)
+                    # proves the relay is listening; connection errors retry.
+                    _httpx.get(f"http://127.0.0.1:{port}/", timeout=1.0)
+                    break
+                except _httpx.HTTPError:
+                    _time.sleep(0.25)
+            else:
+                raise click.ClickException(
+                    f"forwarder did not become ready on 127.0.0.1:{port}"
+                )
+            actual_port = port
+            proxy_url = _claude_proxy_base_url(actual_port)
+            click.echo(f"  Remote relay: {proxy_url} -> {remote_url}")
+        else:
+            _register_proxy_client(port)
+            proxy_holder[0], actual_port = _ensure_proxy(
+                port,
+                no_proxy,
+                learn=learn,
+                memory=memory,
+                agent_type="claude",
+                code_graph=code_graph,
+                backend=backend,
+                region=region,
+                anthropic_api_url=foundry_upstream,
+                vertex_api_url=vertex_upstream,
+                clear_vertex_api_url=use_vertex and vertex_upstream is None,
+            )
+            if actual_port != port:
+                _unregister_proxy_client(port)
+                _register_proxy_client(actual_port)
+            port_holder[0] = actual_port
+            _push_runtime_env(actual_port, no_proxy)
+
+        if not no_mcp and not remote_url:
             from horizon.mcp_registry import ClaudeRegistrar
 
             _setup_horizon_mcp(ClaudeRegistrar(), actual_port, verbose=verbose)
@@ -5365,16 +5435,19 @@ def claude(
             click.echo("  Skipping MCP retrieve tool (--no-mcp)")
 
         # Coding-task compressor: Serena (retires any legacy tokensave entry).
-        from horizon.mcp_registry import CLAUDE_SERENA_CONTEXT, ClaudeRegistrar
+        # Local MCP endpoints do not exist in --remote mode (the relay only
+        # carries the Anthropic API), so both registrations are skipped there.
+        if not remote_url:
+            from horizon.mcp_registry import CLAUDE_SERENA_CONTEXT, ClaudeRegistrar
 
-        _setup_coding_compressor(
-            ClaudeRegistrar(),
-            serena_context=CLAUDE_SERENA_CONTEXT,
-            serena=serena,
-            no_serena=no_serena,
-            no_tokensave=no_tokensave,
-            verbose=verbose,
-        )
+            _setup_coding_compressor(
+                ClaudeRegistrar(),
+                serena_context=CLAUDE_SERENA_CONTEXT,
+                serena=serena,
+                no_serena=no_serena,
+                no_tokensave=no_tokensave,
+                verbose=verbose,
+            )
 
         proxy_url = _claude_proxy_base_url(actual_port)
         click.echo()
@@ -5541,6 +5614,13 @@ def claude(
             vertex_mode=_settings_vertex[0],
             settings_path=_wrap_settings_path,
         )
+        _forwarder_proc = _forwarder_holder[0]
+        if _forwarder_proc is not None and _forwarder_proc.poll() is None:
+            _forwarder_proc.terminate()
+            try:
+                _forwarder_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                _forwarder_proc.kill()
         cleanup()
 
 

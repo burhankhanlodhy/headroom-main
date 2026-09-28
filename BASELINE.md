@@ -60,3 +60,30 @@ memories, run the optimization proxy, and analyze metrics).
   telemetry beacon (wrap.py banner), a Windows-only drive-colon bug in the
   hook-purge path tokenizer (`context_tool_cleanup._PATH_TOKEN_SPLIT`), and
   the `HORIZON_1M_MODEL` doc guard repointed to `wiki/configuration.md`.
+
+## Gate C — per-user keys + remote relay (commits 8a118a5..)
+
+- `pytest tests/test_cli tests/test_keys.py tests/test_vault.py
+  tests/test_forwarder.py tests/test_proxy_hardening.py tests/test_transforms
+  tests/test_ccr.py -q`: **1,242 passed, 84 skipped, 1 failed** (same
+  pre-existing ONNX env failure). 0 new failures.
+- New in this phase: per-user API keys (SQLite store, `horizon keys` CLI,
+  proxy auth gate accepting `hz_`-tagged credentials), the VPS deploy pack
+  (optional Caddy TLS compose profile, DEPLOY.md), the PC-side loopback
+  forwarder (`horizon forward start`) with the credential in the OS key
+  store (`horizon vault set`, optional `[vault]` extra), and
+  `horizon wrap claude --remote URL` which swaps the local proxy for the
+  forwarder relay.
+- `test_mcp_reconcile.py::test_ordinary_install_does_not_adopt_serena` was
+  made hermetic (pins `resolve_horizon_command`): it silently depended on
+  `horizon.exe` being on the ambient PATH and failed from a bare dev shell.
+- Full-tree `pytest tests` was attempted: 10 upstream test files fail to
+  COLLECT for missing optional test deps (`respx`, `opentelemetry.sdk`,
+  langchain, ...). Excluding them, large never-run-here areas (gateway
+  suites) show pre-existing failures unrelated to this phase; they are not
+  part of the gate. The gate remains the scoped suite above.
+- EDITOR HAZARD (this machine): `StrReplace` intermittently corrupts files
+  under this OneDrive-synced workspace (fused lines at unrelated offsets,
+  cp1252 mojibake of em-dashes). Full-file `Write` has been reliable.
+  Suspect any surprise SyntaxError whose reported line looks fine in the
+  Read tool; verify with `py_compile` and rewrite whole files.

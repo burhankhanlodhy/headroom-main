@@ -269,3 +269,6 @@ horizon-managed/
 .tokensave
 
 .codebase-memory/
+
+# Serena MCP local project state
+.serena/

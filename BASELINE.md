@@ -32,3 +32,31 @@ failures** relative to this set (same single failure tolerated).
 
 `python -m horizon.cli --help` renders the command tree (usage: Manage
 memories, run the optimization proxy, and analyze metrics).
+
+---
+
+# Gate Records (Horizon rebrand)
+
+## Gate A — post-prune (commit b98bce3)
+
+- `pytest tests/test_transforms tests/test_ccr.py -q`: 408 passed, 78 skipped,
+  1 failed (same pre-existing ONNX env failure above). 0 new failures.
+- `cargo check -p headroom-core -p headroom-py`: clean.
+- `headroom` CLI imports and renders help.
+
+## Gate B — post-rebrand (commit 9725c9d)
+
+- `pytest tests/test_transforms tests/test_ccr.py tests/test_cli -q`:
+  **1,181 passed, 84 skipped, 1 failed** (same pre-existing ONNX env failure).
+  0 new failures.
+- `maturin build --release -m crates/horizon-py/Cargo.toml`:
+  `horizon_ai-0.39.1-cp310-abi3-win_amd64.whl`.
+- Fresh venv install of the wheel with `[proxy]`: `import horizon`,
+  `import horizon._core`, and `horizon --help` all OK.
+- `cargo check -p horizon-core -p horizon-py`: clean.
+- Grep audit (`git grep -i headroom`): only intentional keeps remain
+  (CHANGELOG history note, LICENSE/NOTICE legal text, README fork lineage).
+- Notable fixes made during the gate: two lazy imports of the removed
+  telemetry beacon (wrap.py banner), a Windows-only drive-colon bug in the
+  hook-purge path tokenizer (`context_tool_cleanup._PATH_TOKEN_SPLIT`), and
+  the `HORIZON_1M_MODEL` doc guard repointed to `wiki/configuration.md`.

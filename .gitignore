@@ -120,6 +120,7 @@ pytest_cache/
 !.env.act.example
 !.env.example
 .venv
+.venv-gate
 env/
 venv/
 ENV/

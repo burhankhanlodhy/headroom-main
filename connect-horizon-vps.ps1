@@ -123,17 +123,85 @@ else {
         Write-Host "  claude $($ClaudeArgs -join ' ')"
         exit 1
     }
-    # Lean direct launch. Claude Code silently falls back to --print mode when
-    # its stdin is not a live console, and nesting the launch through
-    # python/wrap lost the console on some Windows hosts ("Input must be
-    # provided either through stdin or as a prompt argument"). Tunnel mode
-    # needs no local proxy or MCP setup, so the script sets the routing env
-    # itself and makes claude a direct child of this console.
+    # Lean direct launch: claude must inherit THIS console's stdin or it
+    # silently falls back to --print mode ("Input must be provided..."),
+    # so claude stays a direct child of this console. Tunnel mode needs no
+    # local proxy or MCP setup.
     $env:ANTHROPIC_BASE_URL = "http://127.0.0.1:$LocalPort"
     $env:ENABLE_TOOL_SEARCH = "true"
-    if ($ClaudeArgs) { & claude @ClaudeArgs } else { & claude }
-    $exitCode = $LASTEXITCODE
-    if ($null -eq $exitCode) { $exitCode = 1 }
+
+    # Also route durably through Claude's user settings: the API client did
+    # not pick the base URL up from process env alone (the proxy stayed at
+    # zero requests), while the settings env block is applied on every
+    # claude start. Original values are restored when the session ends.
+    $settingsPath = Join-Path $env:USERPROFILE ".claude\settings.json"
+    $savedBase = $null
+    $savedTool = $null
+    $createdSettings = $false
+    $settingsPatched = $false
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    if (Test-Path $settingsPath) {
+        try {
+            $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
+            if ($settings.PSObject.Properties["env"]) {
+                if ($settings.env.PSObject.Properties["ANTHROPIC_BASE_URL"]) { $savedBase = $settings.env.ANTHROPIC_BASE_URL }
+                if ($settings.env.PSObject.Properties["ENABLE_TOOL_SEARCH"]) { $savedTool = $settings.env.ENABLE_TOOL_SEARCH }
+            }
+            else {
+                $settings | Add-Member -NotePropertyName env -NotePropertyValue ([pscustomobject]@{})
+            }
+            if ($settings.env.PSObject.Properties["ANTHROPIC_BASE_URL"]) { $settings.env.ANTHROPIC_BASE_URL = $env:ANTHROPIC_BASE_URL }
+            else { $settings.env | Add-Member -NotePropertyName ANTHROPIC_BASE_URL -NotePropertyValue $env:ANTHROPIC_BASE_URL }
+            if ($settings.env.PSObject.Properties["ENABLE_TOOL_SEARCH"]) { $settings.env.ENABLE_TOOL_SEARCH = "true" }
+            else { $settings.env | Add-Member -NotePropertyName ENABLE_TOOL_SEARCH -NotePropertyValue "true" }
+            [IO.File]::WriteAllText($settingsPath, ($settings | ConvertTo-Json -Depth 20), $utf8NoBom)
+            $settingsPatched = $true
+        }
+        catch {
+            Write-Warning "Could not patch $settingsPath ($($_.Exception.Message)); relying on environment variables only."
+        }
+    }
+    else {
+        [IO.File]::WriteAllText($settingsPath, (@{ env = [pscustomobject]@{ ANTHROPIC_BASE_URL = $env:ANTHROPIC_BASE_URL; ENABLE_TOOL_SEARCH = "true" } } | ConvertTo-Json -Depth 20), $utf8NoBom)
+        $createdSettings = $true
+        $settingsPatched = $true
+    }
+
+    try {
+        if ($ClaudeArgs) { & claude @ClaudeArgs } else { & claude }
+        $exitCode = $LASTEXITCODE
+        if ($null -eq $exitCode) { $exitCode = 1 }
+    }
+    finally {
+        if ($settingsPatched) {
+            try {
+                if ($createdSettings) {
+                    [IO.File]::WriteAllText($settingsPath, "{}", $utf8NoBom)
+                }
+                else {
+                    $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
+                    if (-not $settings.PSObject.Properties["env"]) {
+                        $settings | Add-Member -NotePropertyName env -NotePropertyValue ([pscustomobject]@{})
+                    }
+                    foreach ($pair in @(@("ANTHROPIC_BASE_URL", $savedBase), @("ENABLE_TOOL_SEARCH", $savedTool))) {
+                        $name = $pair[0]
+                        $old = $pair[1]
+                        if ($null -ne $old) {
+                            if ($settings.env.PSObject.Properties[$name]) { $settings.env.$name = $old }
+                            else { $settings.env | Add-Member -NotePropertyName $name -NotePropertyValue $old }
+                        }
+                        elseif ($settings.env.PSObject.Properties[$name]) {
+                            $settings.env.PSObject.Properties.Remove($name)
+                        }
+                    }
+                    [IO.File]::WriteAllText($settingsPath, ($settings | ConvertTo-Json -Depth 20), $utf8NoBom)
+                }
+            }
+            catch {
+                Write-Warning "Could not restore ${settingsPath}: $($_.Exception.Message)"
+            }
+        }
+    }
     Remove-Item Env:ANTHROPIC_BASE_URL -ErrorAction SilentlyContinue
     Remove-Item Env:ENABLE_TOOL_SEARCH -ErrorAction SilentlyContinue
 }

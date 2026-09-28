@@ -499,8 +499,8 @@ class ProxyConfig:
     proxy_token: str | None = None
 
     # Air-gap master switch — hard-disable ALL outbound network egress
-    # (telemetry beacon, update check, license/usage reporter, HuggingFace model
-    # downloads) for fully offline / regulated deployments. Env: HEADROOM_OFFLINE=1.
+    # (usage reporter, HuggingFace model downloads) for fully offline /
+    # regulated deployments. Env: HEADROOM_OFFLINE=1.
     offline: bool = False
 
     # Unit 4: Bounded pre-upstream concurrency for Anthropic replay storms.

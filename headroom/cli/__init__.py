@@ -27,7 +27,6 @@ from . import (  # noqa: F401
     recover,
     rollout,
     tools,
-    update,
     wrap,
 )
 from .main import main

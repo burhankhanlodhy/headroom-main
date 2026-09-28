@@ -745,13 +745,13 @@ def get_telemetry_collector(
         with _collector_lock:
             if _telemetry_collector is None:
                 # Honour HEADROOM_TELEMETRY (the documented opt-out var; see
-                # the predicate in telemetry/beacon.py). Collection is local
+                # the predicate in telemetry/toggles.py). Collection is local
                 # only — nothing is sent externally.
                 # Pre-#390 this only checked HEADROOM_TELEMETRY_DISABLED,
                 # so users who set HEADROOM_TELEMETRY=off (the value in
                 # the docs) still saw /v1/telemetry report enabled=true.
                 # HEADROOM_TELEMETRY_DISABLED stays accepted for back-compat.
-                from headroom.telemetry.beacon import is_telemetry_enabled
+                from headroom.telemetry.toggles import is_telemetry_enabled
 
                 disabled_legacy = os.environ.get("HEADROOM_TELEMETRY_DISABLED", "").lower() in (
                     "1",

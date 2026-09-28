@@ -1547,37 +1547,25 @@ Memory (Multi-Provider):
             "  Stateless:    YES (no filesystem writes — memory, logs, TOIN disabled)\n"
         )
 
-    # Build telemetry section for the startup banner.
-    #
-    # HEADROOM_TELEMETRY (local aggregate stats, off by default) and
-    # HEADROOM_BEACON (the anonymous upload beacon, ON by default —
-    # see telemetry/beacon.py) are two independent switches. This banner
-    # used to check only is_telemetry_enabled() and print "DISABLED" for
-    # any operator who had merely turned local stats off, even though the
-    # beacon — the switch that actually ships data off the machine — was
-    # still on and unmentioned. Delegate to format_telemetry_notice(), the
-    # one place that already gets the beacon-vs-local distinction right,
-    # instead of re-deriving (and re-drifting from) the same wording here.
-    from headroom.telemetry.beacon import (
+    # Build telemetry section for the startup banner. HEADROOM_TELEMETRY is
+    # local aggregate stats only — nothing is sent externally; Horizon ships
+    # no upload beacon.
+    from headroom.telemetry.toggles import (
         format_telemetry_notice,
-        is_beacon_enabled,
         is_telemetry_enabled,
     )
 
     _notice = format_telemetry_notice(prefix="  ")
     if _notice:
         telemetry_line = _notice
-    elif is_beacon_enabled() or is_telemetry_enabled():
+    elif is_telemetry_enabled():
         # format_telemetry_notice() returns "" when HEADROOM_TELEMETRY_WARN=off
-        # suppresses the notice text itself — still say ON/OFF plainly rather
+        # suppresses the notice text itself — still say ON plainly rather
         # than silently showing nothing in the one place an operator is most
         # likely to be checking.
         telemetry_line = "  Telemetry:    ON (notice suppressed via HEADROOM_TELEMETRY_WARN=off)"
     else:
-        telemetry_line = (
-            "  Telemetry:    OFF (local stats: HEADROOM_TELEMETRY=on to enable | "
-            "beacon: HEADROOM_BEACON=on to enable)"
-        )
+        telemetry_line = "  Telemetry:    OFF (local stats: HEADROOM_TELEMETRY=on to enable)"
 
     # Discover proxy extensions (third-party packages registered via the
     # `headroom.proxy_extension` entry-point group). Surfaced in the banner
@@ -1687,17 +1675,6 @@ Endpoints:
 
 Press Ctrl+C to stop.
 """)
-
-    # Surface an "update available" notice (reads cache only; no network here).
-    # Best-effort: a broken update check must never block proxy startup.
-    try:
-        from headroom.update_check import format_update_notice
-
-        _update_notice = format_update_notice()
-        if _update_notice:
-            click.echo(f"\n{_update_notice}\n")
-    except Exception:  # noqa: BLE001 — banner must never crash startup
-        pass
 
     # -----------------------------------------------------------------------
     # Option E: start embedding server sidecar if requested

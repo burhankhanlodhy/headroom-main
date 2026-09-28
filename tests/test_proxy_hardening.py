@@ -404,19 +404,11 @@ class TestOfflineSwitch:
         assert is_offline() is False
 
     def test_offline_disables_telemetry(self, monkeypatch):
-        from headroom.telemetry.beacon import is_telemetry_enabled
+        from headroom.telemetry.toggles import is_telemetry_enabled
 
         monkeypatch.setenv("HEADROOM_TELEMETRY", "on")
         monkeypatch.setenv("HEADROOM_OFFLINE", "1")
         assert is_telemetry_enabled() is False  # offline overrides the opt-in
-
-    def test_offline_disables_update_check(self, monkeypatch):
-        from headroom.update_check import is_update_check_enabled
-
-        monkeypatch.delenv("CI", raising=False)
-        monkeypatch.delenv("HEADROOM_STATELESS", raising=False)
-        monkeypatch.setenv("HEADROOM_OFFLINE", "1")
-        assert is_update_check_enabled() is False
 
     def test_apply_offline_env_sets_hf_offline(self, monkeypatch):
         monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)

@@ -42,18 +42,8 @@ TOIN (Tool Output Intelligence Network) — observation-only since PR-B5:
 
     # Record retrieval (automatic via compression_store).
     toin.record_retrieval(sig_hash, retrieval_type, query, query_fields)
-
-    # Aggregated recommendations are emitted offline:
-    #   python -m headroom.cli.toin_publish --output recommendations.toml
-    # The Rust proxy loads that TOML at startup; there is no
-    # request-time hint API.
 """
 
-from .beacon import (
-    format_telemetry_notice,
-    is_telemetry_enabled,
-    is_telemetry_warn_enabled,
-)
 from .collector import (
     TelemetryCollector,
     TelemetryConfig,
@@ -77,9 +67,14 @@ from .toin import (
     get_toin,
     reset_toin,
 )
+from .toggles import (
+    format_telemetry_notice,
+    is_telemetry_enabled,
+    is_telemetry_warn_enabled,
+)
 
 __all__ = [
-    # Beacon helpers
+    # Local telemetry toggles
     "format_telemetry_notice",
     "is_telemetry_enabled",
     "is_telemetry_warn_enabled",

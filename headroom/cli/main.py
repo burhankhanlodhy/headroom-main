@@ -45,17 +45,6 @@ def main(ctx: click.Context) -> None:
     except Exception:  # noqa: BLE001 — settings load must never break the CLI
         pass
 
-    # Fire a rate-limited, opt-out background check for newer releases so other
-    # surfaces (e.g. the proxy banner) can show an "update available" notice.
-    # Never blocks, never raises; skipped for `update` (it checks explicitly).
-    if ctx.invoked_subcommand != "update":
-        try:
-            from headroom.update_check import maybe_check_async
-
-            maybe_check_async()
-        except Exception:  # noqa: BLE001 — update check must never break the CLI
-            pass
-
 
 # Import subcommands - these register themselves with the main group
 def _register_commands() -> None:
@@ -78,9 +67,7 @@ def _register_commands() -> None:
         recover,  # noqa: F401
         rollout,  # noqa: F401
         savings,  # noqa: F401
-        telemetry,  # noqa: F401
         tools,  # noqa: F401
-        update,  # noqa: F401
         wrap,  # noqa: F401
     )
 

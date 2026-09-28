@@ -1,5 +1,5 @@
 # =============================================================================
-# Horizon proxy compose (trimmed: proxy only)
+# Horizon proxy compose (trimmed: proxy only, optional TLS front)
 # =============================================================================
 # Quick start:
 #   1. cp .env.example .env   # then set HORIZON_PROXY_TOKEN (openssl rand -hex 32)
@@ -8,6 +8,15 @@
 #
 # The published port is loopback-only. For network access put a TLS reverse
 # proxy in front AND require HORIZON_PROXY_TOKEN - never one without the other.
+#
+# TLS front (VPS with a DNS name):
+#   1. set HORIZON_PUBLIC_DOMAIN in .env (e.g. horizon.example.com)
+#   2. docker compose --profile tls up -d
+#   3. Caddy terminates TLS on 80/443 and obtains certificates automatically
+#
+# Per-user keys live in the horizon_workspace volume (keys.db), so issuing a
+# key from the host is: docker compose exec horizon-proxy horizon keys issue <name>
+# See DEPLOY.md for the full walkthrough.
 # =============================================================================
 
 services:
@@ -38,5 +47,24 @@ services:
       retries: 3
       start_period: 20s
 
+  # Optional TLS front. Activated with: docker compose --profile tls up -d
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["tls"]
+    restart: unless-stopped
+    environment:
+      - HORIZON_PUBLIC_DOMAIN=${HORIZON_PUBLIC_DOMAIN:?set HORIZON_PUBLIC_DOMAIN in .env to enable the tls profile}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - horizon-proxy
+
 volumes:
   horizon_workspace:
+  caddy_data:
+  caddy_config:

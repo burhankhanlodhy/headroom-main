@@ -1,0 +1,7 @@
+# Caddy TLS front for the Horizon proxy (docker compose --profile tls).
+# The domain comes from HORIZON_PUBLIC_DOMAIN in .env; Caddy obtains and
+# renews certificates automatically. All routes require the client to present
+# a token/key (enforced by the proxy, not Caddy) — Caddy only terminates TLS.
+{$HORIZON_PUBLIC_DOMAIN} {
+	reverse_proxy horizon-proxy:8787
+}

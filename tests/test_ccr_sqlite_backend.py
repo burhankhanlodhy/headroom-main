@@ -1,0 +1,424 @@
+"""Tests for the SQLite CCR backend and session-scale TTL defaults.
+
+The SQLite backend is the default for `get_compression_store()` because the
+30-minute TTL assumes entries survive proxy restarts and are visible across
+worker processes — neither holds for the in-memory dict.
+"""
+
+from __future__ import annotations
+
+import os
+import sqlite3
+import time
+
+import pytest
+
+from headroom.cache.backends.sqlite import SQLiteBackend
+from headroom.cache.compression_store import CompressionEntry, CompressionStore
+
+
+def make_entry(hash_key: str = "h1", content: str = "x" * 600, ttl: int = 1800) -> CompressionEntry:
+    return CompressionEntry(
+        hash=hash_key,
+        original_content=content,
+        compressed_content="c",
+        original_tokens=100,
+        compressed_tokens=10,
+        original_item_count=50,
+        compressed_item_count=5,
+        tool_name="Read",
+        tool_call_id="t1",
+        query_context=None,
+        created_at=time.time(),
+        ttl=ttl,
+    )
+
+
+@pytest.fixture
+def db_path(tmp_path):
+    return tmp_path / "ccr_test.db"
+
+
+class TestSQLiteBackend:
+    def test_crud_roundtrip(self, db_path):
+        b = SQLiteBackend(db_path)
+        entry = make_entry()
+        b.set("h1", entry)
+
+        got = b.get("h1")
+        assert got is not None
+        assert got.original_content == entry.original_content
+        assert got.tool_name == "Read"
+        assert got.ttl == 1800
+
+        assert b.exists("h1")
+        assert b.count() == 1
+        assert b.keys() == ["h1"]
+        assert b.delete("h1")
+        assert not b.exists("h1")
+        assert not b.delete("h1")
+
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX permission bits only")
+    def test_db_file_is_private_under_permissive_umask(self, db_path):
+        """The CCR db (sensitive tool output) must be 0o600 under any umask.
+
+        ``_ensure_private`` creates the db with an explicit ``0o600`` mode
+        (``O_CREAT | O_EXCL``) before ``sqlite3.connect`` opens it, so it is
+        private from birth. Forcing ``umask(0o022)`` — which would make sqlite
+        create it 0o644 — confirms the mode is umask-independent.
+        """
+        old_umask = os.umask(0o022)
+        try:
+            SQLiteBackend(db_path)  # fresh open, private from birth
+        finally:
+            os.umask(old_umask)
+
+        assert db_path.exists()
+        assert (db_path.stat().st_mode & 0o777) == 0o600
+
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX chmod semantics")
+    def test_open_fails_closed_when_db_cannot_be_made_private(self, db_path, monkeypatch):
+        """If an existing db cannot be narrowed, opening must abort (fail closed).
+
+        A store of raw tool output must not be opened world-readable, so
+        ``_ensure_private`` raises rather than silently proceeding to
+        ``sqlite3.connect`` on a db it could not make private.
+        """
+        import headroom.cache.backends.sqlite as sqlite_mod
+
+        db_path.write_text("")  # pre-existing regular db file
+
+        def boom(fd, mode):
+            raise PermissionError("cannot fchmod")
+
+        # The existing-file path narrows through the descriptor (fchmod), so a
+        # narrowing failure there must still abort the open.
+        monkeypatch.setattr(sqlite_mod.os, "fchmod", boom)
+        with pytest.raises(PermissionError):
+            SQLiteBackend(db_path)
+
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX symlink semantics")
+    def test_open_fails_closed_on_symlinked_db_path(self, tmp_path):
+        """A symlinked db path must be refused without following it.
+
+        If the db path is a symlink an attacker planted, ``_ensure_private``
+        must fail closed (O_NOFOLLOW) rather than chmod-ing and handing the
+        attacker-chosen target to ``sqlite3.connect``. The target must be left
+        untouched: neither narrowed nor opened/rewritten.
+        """
+        target = tmp_path / "attacker_target"
+        # Create the target with a deliberately wider mode via umask (not an
+        # explicit permissive chmod) so a chmod-follow regression would show up
+        # as a mode change, without the test itself performing a world-readable
+        # chmod that the security scanner flags as overly permissive.
+        old_umask = os.umask(0o022)
+        try:
+            target.write_text("SECRET-ORIGINAL")  # lands 0o644 under this umask
+        finally:
+            os.umask(old_umask)
+        before_mode = target.stat().st_mode & 0o777
+        assert before_mode != 0o600  # precondition: a narrow would be visible
+
+        link = tmp_path / "ccr_store.db"
+        link.symlink_to(target)
+
+        with pytest.raises(PermissionError):
+            SQLiteBackend(link)
+
+        # Target was neither narrowed (mode unchanged) nor opened/rewritten by
+        # sqlite (contents intact, no WAL/journal siblings created).
+        assert (target.stat().st_mode & 0o777) == before_mode
+        assert target.read_text() == "SECRET-ORIGINAL"
+        assert link.is_symlink()
+
+    def test_survives_reopen(self, db_path):
+        """The restart-survival property the default flip exists for."""
+        SQLiteBackend(db_path).set("h1", make_entry())
+
+        reopened = SQLiteBackend(db_path)
+        got = reopened.get("h1")
+        assert got is not None
+        assert got.original_content == "x" * 600
+
+    def test_two_connections_share_data(self, db_path):
+        """Multi-worker property: a second live connection sees writes."""
+        writer = SQLiteBackend(db_path)
+        reader = SQLiteBackend(db_path)
+        writer.set("h1", make_entry())
+        assert reader.get("h1") is not None
+
+    def test_items_and_stats(self, db_path):
+        b = SQLiteBackend(db_path)
+        b.set("h1", make_entry("h1"))
+        b.set("h2", make_entry("h2"))
+
+        items = dict(b.items())
+        assert set(items) == {"h1", "h2"}
+        stats = b.get_stats()
+        assert stats["backend_type"] == "sqlite"
+        assert stats["entry_count"] == 2
+        assert stats["bytes_used"] > 0
+
+    def test_opening_a_db_with_the_old_index_drops_it_and_keeps_the_rows(self, db_path):
+        # Databases written before idx_ccr_expiry_deadline still carry the
+        # superseded idx_ccr_expiry; opening them must migrate, not fail.
+        seeded = SQLiteBackend(db_path)
+        seeded.set("h1", make_entry("h1"))
+        seeded._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_ccr_expiry ON ccr_entries (created_at)"
+        )
+        seeded._conn.commit()
+        seeded._conn.close()
+
+        b = SQLiteBackend(db_path)
+        indexes = {
+            row[0]
+            for row in b._conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'"
+            )
+        }
+        assert indexes == {"idx_ccr_expiry_deadline"}
+        entry = b.get("h1")
+        assert entry is not None
+        assert entry.original_content == make_entry("h1").original_content
+
+    def test_purge_expired_deletes_by_deadline_and_keeps_the_boundary_row(self, db_path):
+        b = SQLiteBackend(db_path)
+        now = time.time()
+        expired = make_entry("expired", ttl=10)
+        expired.created_at = now - 11
+        boundary = make_entry("boundary", ttl=10)
+        boundary.created_at = now - 10
+        live = make_entry("live", ttl=60)
+        live.created_at = now - 11
+
+        # Keep backend.set() from performing its opportunistic purge first.
+        b._last_purge = now
+        for entry in (expired, boundary, live):
+            b.set(entry.hash, entry)
+
+        assert b.purge_expired(now) == 1
+        assert set(b.keys()) == {"boundary", "live"}
+
+    def test_new_insert_purges_expired_sqlite_entry_without_decoding_live_payloads(
+        self, db_path, monkeypatch
+    ):
+        backend = SQLiteBackend(db_path)
+        store = CompressionStore(max_entries=4, backend=backend, enable_feedback=False)
+        expired_hash = store.store("expired original", "expired compact", ttl=10)
+        live_hash = store.store("live original", "live compact", ttl=60)
+        other_live_hash = store.store("other live original", "other live compact", ttl=60)
+
+        expired = backend.get(expired_hash)
+        assert expired is not None
+        expired.created_at = time.time() - 11
+        backend.set(expired_hash, expired)
+        # The setup stores above intentionally exercised the periodic purge and
+        # advanced its 60-second throttle. Make the insertion under test eligible
+        # to purge the row we only just backdated.
+        backend._last_purge = 0.0
+
+        monkeypatch.setattr(
+            backend,
+            "_entry_from_json",
+            lambda _raw: pytest.fail("new insertion decoded existing CCR payloads"),
+        )
+
+        new_hash = store.store("new original", "new compact", ttl=60)
+
+        assert not backend.exists(expired_hash)
+        assert backend.exists(live_hash)
+        assert backend.exists(other_live_hash)
+        assert backend.exists(new_hash)
+
+    def test_clear(self, db_path):
+        b = SQLiteBackend(db_path)
+        b.set("h1", make_entry())
+        b.clear()
+        assert b.count() == 0
+
+    def test_unknown_json_fields_tolerated(self, db_path):
+        """Forward-compat: entries written by a newer headroom version
+        (extra fields) must still load."""
+        b = SQLiteBackend(db_path)
+        b.set("h1", make_entry())
+        with b._lock:
+            row = b._conn.execute("SELECT entry_json FROM ccr_entries WHERE hash='h1'").fetchone()
+            doctored = row[0][:-1] + ', "field_from_the_future": 7}'
+            b._conn.execute("UPDATE ccr_entries SET entry_json=? WHERE hash='h1'", (doctored,))
+            b._conn.commit()
+
+        got = b.get("h1")
+        assert got is not None
+        assert got.original_content == "x" * 600
+
+    def test_store_ttl_enforcement_via_compression_store(self, db_path):
+        """TTL checks stay in CompressionStore; expired entries miss."""
+        store = CompressionStore(backend=SQLiteBackend(db_path))
+        expired = make_entry(ttl=1)
+        expired.created_at = time.time() - 10
+        store._backend.set("h1", expired)
+
+        assert store.retrieve("h1") is None
+
+    def test_retrieval_count_persists(self, db_path):
+        """record_access mutations are re-persisted (store re-sets the
+        entry after mutating), so feedback counts survive reopen."""
+        store = CompressionStore(backend=SQLiteBackend(db_path))
+        store._backend.set("h1", make_entry())
+        store.retrieve("h1", query="foo")
+
+        reopened = SQLiteBackend(db_path)
+        got = reopened.get("h1")
+        assert got is not None
+        assert got.retrieval_count == 1
+
+
+class TestMultiWorkerSafety:
+    def test_busy_error_does_not_delete_database(self, db_path):
+        """SQLITE_BUSY (OperationalError, a DatabaseError subclass) under
+        multi-worker write contention must be treated as transient — NOT
+        as corruption that deletes every stored original."""
+        b = SQLiteBackend(db_path)
+        b.set("h1", make_entry())
+
+        class BusyOnceConn:
+            """Delegating wrapper; first SELECT raises 'database is locked'."""
+
+            def __init__(self, real):
+                self._real = real
+                self.raised = False
+
+            def execute(self, *args, **kwargs):
+                if not self.raised and args and "SELECT" in args[0]:
+                    self.raised = True
+                    raise sqlite3.OperationalError("database is locked")
+                return self._real.execute(*args, **kwargs)
+
+            def __getattr__(self, name):
+                return getattr(self._real, name)
+
+        real = b._conn
+        b._conn = BusyOnceConn(real)  # type: ignore[assignment]
+        assert b.get("h1") is None  # transient miss, not a crash
+
+        b._conn = real
+        # The data and the database file both survived.
+        assert db_path.exists()
+        assert b.get("h1") is not None
+
+    def test_corruption_message_triggers_reset(self, db_path):
+        b = SQLiteBackend(db_path)
+        b.set("h1", make_entry())
+        b._handle_db_error(sqlite3.DatabaseError("database disk image is malformed"), "get")
+        # Database recreated: empty but functional.
+        assert b.count() == 0
+        b.set("h2", make_entry("h2"))
+        assert b.exists("h2")
+
+    def test_busy_timeout_configured(self, db_path):
+        b = SQLiteBackend(db_path)
+        timeout = b._conn.execute("PRAGMA busy_timeout").fetchone()[0]
+        assert timeout >= 5000
+
+    def test_expired_rows_purged_on_open(self, db_path):
+        b = SQLiteBackend(db_path)
+        expired = make_entry(ttl=1)
+        expired.created_at = time.time() - 10
+        b.set("old", expired)
+        b.set("fresh", make_entry("fresh"))
+
+        reopened = SQLiteBackend(db_path)
+        assert not reopened.exists("old")  # swept at open
+        assert reopened.exists("fresh")
+
+    @pytest.mark.skipif(os.name != "posix", reason="POSIX permissions")
+    def test_database_file_is_private(self, db_path):
+        SQLiteBackend(db_path)
+        mode = db_path.stat().st_mode & 0o777
+        assert mode == 0o600
+
+
+class TestDefaults:
+    def test_session_scale_ttl_lockstep(self):
+        """CCRConfig, CompressionEntry, and CompressionStore must agree."""
+        from headroom.config import CCRConfig
+
+        assert CCRConfig().store_ttl_seconds == 1800
+        assert CompressionEntry.__dataclass_fields__["ttl"].default == 1800
+        assert CompressionStore()._default_ttl == 1800
+
+    def test_default_backend_is_sqlite(self, monkeypatch, tmp_path):
+        from headroom.cache.compression_store import _create_default_ccr_backend
+
+        monkeypatch.delenv("HEADROOM_CCR_BACKEND", raising=False)
+        monkeypatch.setenv("HEADROOM_CCR_SQLITE_PATH", str(tmp_path / "d.db"))
+        backend = _create_default_ccr_backend()
+        assert backend is not None
+        assert backend.get_stats()["backend_type"] == "sqlite"
+
+    def test_workspace_dir(self, monkeypatch, tmp_path):
+        from headroom.cache.compression_store import _create_default_ccr_backend
+
+        workspace = tmp_path / "workspace"
+        fake_home = tmp_path / "fake_home"
+
+        monkeypatch.delenv("HEADROOM_CCR_BACKEND", raising=False)
+        monkeypatch.delenv("HEADROOM_CCR_SQLITE_PATH", raising=False)
+        monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(workspace))
+        monkeypatch.setenv("HOME", str(fake_home))
+        monkeypatch.setenv("USERPROFILE", str(fake_home))
+
+        backend = _create_default_ccr_backend()
+        assert backend is not None
+        assert str(backend._path) == str(workspace / "ccr_store.db")
+
+    def test_sqlite_path_env_wins(self, monkeypatch, tmp_path):
+        from headroom.cache.compression_store import _create_default_ccr_backend
+
+        workspace = tmp_path / "workspace"
+        sqlite_path = tmp_path / "sqlite_override.db"
+
+        monkeypatch.delenv("HEADROOM_CCR_BACKEND", raising=False)
+        monkeypatch.setenv("HEADROOM_WORKSPACE_DIR", str(workspace))
+        monkeypatch.setenv("HEADROOM_CCR_SQLITE_PATH", str(sqlite_path))
+        backend = _create_default_ccr_backend()
+
+        assert backend is not None
+        assert str(backend._path) == str(sqlite_path)
+
+    def test_home_fallback(self, monkeypatch, tmp_path):
+        from headroom.cache.compression_store import _create_default_ccr_backend
+
+        fake_home = tmp_path / "fake_home"
+
+        monkeypatch.delenv("HEADROOM_CCR_BACKEND", raising=False)
+        monkeypatch.delenv("HEADROOM_CCR_SQLITE_PATH", raising=False)
+        monkeypatch.delenv("HEADROOM_WORKSPACE_DIR", raising=False)
+        monkeypatch.setenv("HOME", str(fake_home))
+        monkeypatch.setenv("USERPROFILE", str(fake_home))
+
+        backend = _create_default_ccr_backend()
+        assert backend is not None
+        assert str(backend._path) == str(fake_home / ".headroom" / "ccr_store.db")
+
+    def test_explicit_db_path(self, tmp_path):
+        explicit = tmp_path / "explicit.db"
+        backend = SQLiteBackend(explicit)
+        assert backend._path == explicit
+
+    def test_memory_opt_out(self, monkeypatch):
+        from headroom.cache.compression_store import _create_default_ccr_backend
+
+        monkeypatch.setenv("HEADROOM_CCR_BACKEND", "memory")
+        assert _create_default_ccr_backend() is None
+
+    def test_miss_message_is_actionable(self):
+        from headroom.cache.compression_store import CCR_MISS_MESSAGE
+
+        assert "re-read" in CCR_MISS_MESSAGE
+        assert "re-run" in CCR_MISS_MESSAGE
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

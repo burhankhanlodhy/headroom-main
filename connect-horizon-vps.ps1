@@ -45,12 +45,19 @@ function Invoke-Horizon {
         & horizon @HorizonArgs
         return $LASTEXITCODE
     }
+    # The CLI lives at horizon.cli (there is no horizon/__main__.py) and needs
+    # this repo's venv for its dependencies, so prefer it over global Python.
+    $repoPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
+    if (Test-Path $repoPython) {
+        & $repoPython -m horizon.cli @HorizonArgs
+        return $LASTEXITCODE
+    }
     elseif (Get-Command py -ErrorAction SilentlyContinue) {
-        & py -m horizon @HorizonArgs
+        & py -m horizon.cli @HorizonArgs
         return $LASTEXITCODE
     }
     elseif (Get-Command python -ErrorAction SilentlyContinue) {
-        & python -m horizon @HorizonArgs
+        & python -m horizon.cli @HorizonArgs
         return $LASTEXITCODE
     }
     return $null

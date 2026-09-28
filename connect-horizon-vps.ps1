@@ -39,30 +39,6 @@ function Test-PortListening([int]$Port) {
     [bool](Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
 }
 
-function Invoke-Horizon {
-    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$HorizonArgs)
-    if (Get-Command horizon -ErrorAction SilentlyContinue) {
-        & horizon @HorizonArgs
-        return $LASTEXITCODE
-    }
-    # The CLI lives at horizon.cli (there is no horizon/__main__.py) and needs
-    # this repo's venv for its dependencies, so prefer it over global Python.
-    $repoPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
-    if (Test-Path $repoPython) {
-        & $repoPython -m horizon.cli @HorizonArgs
-        return $LASTEXITCODE
-    }
-    elseif (Get-Command py -ErrorAction SilentlyContinue) {
-        & py -m horizon.cli @HorizonArgs
-        return $LASTEXITCODE
-    }
-    elseif (Get-Command python -ErrorAction SilentlyContinue) {
-        & python -m horizon.cli @HorizonArgs
-        return $LASTEXITCODE
-    }
-    return $null
-}
-
 # Reuse a live tunnel from a previous run instead of starting a second one.
 $reuseTunnel = $false
 if (Test-Path $StateFile) {
@@ -136,20 +112,30 @@ $exitCode = 0
 if ($NoLaunch) {
     Write-Host ""
     Write-Host "Tunnel only. Point your client at:  http://127.0.0.1:$LocalPort"
-    Write-Host "Or launch via wrap:  horizon wrap claude --no-proxy --port $LocalPort"
+    Write-Host "Or relaunch with Claude:  .\connect-horizon-vps.ps1 -VpsHost $VpsHost -LocalPort $LocalPort"
 }
 else {
     Write-Host ""
-    Write-Host "Launching Claude Code through Horizon (--no-proxy, port $LocalPort)..."
-    $code = Invoke-Horizon wrap claude --no-proxy --port $LocalPort @ClaudeArgs
-    if ($null -eq $code) {
-        Write-Warning "horizon CLI not found. Set manually for this shell instead:"
+    Write-Host "Launching Claude Code through Horizon (tunnel port $LocalPort)..."
+    if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
+        Write-Warning "claude not found in PATH. Set manually for this shell instead:"
         Write-Host "  `$env:ANTHROPIC_BASE_URL = 'http://127.0.0.1:$LocalPort'"
         Write-Host "  claude $($ClaudeArgs -join ' ')"
+        exit 1
     }
-    else {
-        $exitCode = $code
-    }
+    # Lean direct launch. Claude Code silently falls back to --print mode when
+    # its stdin is not a live console, and nesting the launch through
+    # python/wrap lost the console on some Windows hosts ("Input must be
+    # provided either through stdin or as a prompt argument"). Tunnel mode
+    # needs no local proxy or MCP setup, so the script sets the routing env
+    # itself and makes claude a direct child of this console.
+    $env:ANTHROPIC_BASE_URL = "http://127.0.0.1:$LocalPort"
+    $env:ENABLE_TOOL_SEARCH = "true"
+    if ($ClaudeArgs) { & claude @ClaudeArgs } else { & claude }
+    $exitCode = $LASTEXITCODE
+    if ($null -eq $exitCode) { $exitCode = 1 }
+    Remove-Item Env:ANTHROPIC_BASE_URL -ErrorAction SilentlyContinue
+    Remove-Item Env:ENABLE_TOOL_SEARCH -ErrorAction SilentlyContinue
 }
 
 if ($KillTunnelOnExit) {

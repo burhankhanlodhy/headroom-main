@@ -2791,6 +2791,41 @@ def read_proxy_token(headers: Mapping[str, str]) -> str | None:
     return None
 
 
+_API_KEY_TAG = "hz_"
+_api_key_store: Any = None
+
+# Per-key request counters for /stats attribution. Guarded because the gate
+# runs on the event loop thread(s) while /stats may read concurrently.
+_api_key_request_counts: dict[str, int] = {}
+_api_key_stats_lock = threading.Lock()
+
+
+def _authenticate_api_key(provided: str | None) -> str | None:
+    """Return the key NAME when ``provided`` is a valid per-user API key.
+
+    Only credentials carrying the ``hz_`` tag reach the store, so provider
+    bearer tokens and random secrets never cause a database lookup. Any
+    store failure fails CLOSED (returns ``None``, i.e. the caller rejects):
+    a broken key database must never bypass authentication. Per-user keys
+    supplement — never replace — the operator token, and are only consulted
+    when a master token is configured (the VPS deployment always sets one).
+    """
+
+    global _api_key_store
+    if not provided or not provided.startswith(_API_KEY_TAG):
+        return None
+    try:
+        from horizon.keys import KeyStore
+
+        if _api_key_store is None:
+            _api_key_store = KeyStore()
+        record = _api_key_store.authenticate(provided)
+    except Exception:
+        logger.warning("event=proxy_key_lookup_failed", exc_info=True)
+        return None
+    return record.name if record is not None else None
+
+
 class WebSocketAuthMiddleware:
     """Enforce ``HORIZON_PROXY_TOKEN`` on WebSocket handshakes.
 
@@ -2814,9 +2849,19 @@ class WebSocketAuthMiddleware:
     logs and browser history.
     """
 
-    def __init__(self, app: Any, *, proxy_token: str | None = None) -> None:
+    def __init__(
+        self,
+        app: Any,
+        *,
+        proxy_token: str | None = None,
+        api_key_auth: Any = None,
+    ) -> None:
         self.app = app
         self.proxy_token = proxy_token
+        # Optional per-user API-key authenticator: callable(provided) -> key
+        # name | None. Consulted only when the master-token compare fails, so
+        # it adds one branch for ``hz_``-tagged credentials and nothing else.
+        self.api_key_auth = api_key_auth
         # Pre-encoded for constant-time comparison, mirroring the HTTP gate:
         # compare_digest on str raises TypeError for non-ASCII input, which
         # would turn a rejected handshake into a 500.
@@ -2846,6 +2891,13 @@ class WebSocketAuthMiddleware:
         ):
             await self.app(scope, receive, send)
             return
+
+        if provided is not None and self.api_key_auth is not None:
+            key_name = self.api_key_auth(provided)
+            if key_name:
+                scope.setdefault("state", {})["horizon_key_name"] = key_name
+                await self.app(scope, receive, send)
+                return
 
         logger.warning(
             "event=proxy_auth_rejected transport=websocket path=%s client=%s reason=%s",
@@ -3768,9 +3820,14 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             client_host = getattr(client, "host", None) if client is not None else None
             if path not in _AUTH_EXEMPT_PATHS and not is_loopback_host(client_host):
                 provided = _extract_proxy_token(request.headers)
-                if provided is None or not hmac.compare_digest(
+                key_name: str | None = None
+                if provided is not None and hmac.compare_digest(
                     provided.encode("utf-8", "replace"), _proxy_token_bytes
                 ):
+                    key_name = "master"
+                else:
+                    key_name = _authenticate_api_key(provided)
+                if key_name is None:
                     logger.warning(
                         "event=proxy_auth_rejected path=%s client=%s reason=%s",
                         path,
@@ -3780,6 +3837,22 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                     rejection = JSONResponse(status_code=401, content={"error": "unauthorized"})
                     _apply_security_headers(rejection)
                     return rejection
+                request.state.horizon_key_name = key_name
+                if key_name != "master":
+                    # Per-user audit trail: one line per key-authenticated
+                    # request. Master-token requests stay unlogged here —
+                    # they are the operator and are not attributable to a
+                    # person anyway.
+                    logger.info(
+                        "event=proxy_key_request key=%s path=%s client=%s",
+                        key_name,
+                        path,
+                        client_host,
+                    )
+                    with _api_key_stats_lock:
+                        _api_key_request_counts[key_name] = (
+                            _api_key_request_counts.get(key_name, 0) + 1
+                        )
 
         response = await call_next(request)
         _apply_security_headers(response)
@@ -3800,7 +3873,11 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     # scope), so the same token rule is applied to the `websocket` scope here.
     # Added after it, which makes it the outermost layer — an unauthenticated
     # handshake is refused before any project-prefix or routing work happens.
-    app.add_middleware(WebSocketAuthMiddleware, proxy_token=_proxy_token)
+    app.add_middleware(
+        WebSocketAuthMiddleware,
+        proxy_token=_proxy_token,
+        api_key_auth=_authenticate_api_key if _proxy_token else None,
+    )
 
     # Third-party proxy extensions (Enterprise, custom plugins). Discovered via
     # the `horizon.proxy_extension` entry-point group, but **opt-in only**:
@@ -4799,6 +4876,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "router": {
                 "route_counts": dict(m.router_route_counts) if m.router_route_counts else {},
             },
+            # Per-key request counts for the VPS multi-user deployment:
+            # who is driving traffic, at a glance, without reading logs.
+            "api_key_usage": dict(_api_key_request_counts),
             "savings_history": m.savings_history[-100:],  # Last 100 data points
             "display_session": display_session,
             # Whether LiteLLM is importable. Pricing (the "$ Saved" tile) is

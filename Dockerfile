@@ -145,17 +145,6 @@ PY
 RUN cd /tmp && python -c "from horizon._core import DiffCompressor, SmartCrusher; \
     print(f'build-stage rust core verify OK: {DiffCompressor.__name__}, {SmartCrusher.__name__}')"
 
-# Build the native Rust reverse proxy binary and stage it for the runtime
-# images (issue #976). These images already run "the proxy"; bundling the
-# native `horizon-proxy` binary lets operators front the Python proxy with
-# the Rust SigV4 / live-zone compression path from the same image. The
-# binary is copied out of the cache-mounted target dir into a persistent
-# path so the COPY in the runtime stages can pick it up.
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/build/target \
-    cargo build --release --locked --bin horizon-proxy && \
-    cp target/release/horizon-proxy /usr/local/bin/horizon-proxy
-
 # ---- Runtime stage (python-slim): supports root/nonroot via build arg ----
 FROM python:${PYTHON_VERSION}-slim AS runtime-slim-base
 
@@ -169,8 +158,6 @@ RUN apt-get update && \
 
 COPY --from=builder ${PYTHON_SITE_PACKAGES} ${PYTHON_SITE_PACKAGES}
 COPY --from=builder /usr/local/bin/horizon /usr/local/bin/horizon
-# Native Rust reverse proxy binary (issue #976).
-COPY --from=builder /usr/local/bin/horizon-proxy /usr/local/bin/horizon-proxy
 
 RUN mkdir -p /home/nonroot /data && \
     if [ "$RUNTIME_USER" = "nonroot" ]; then \
@@ -210,8 +197,6 @@ ARG RUNTIME_USER=nonroot
 ARG PYTHON_SITE_PACKAGES
 
 COPY --from=builder ${PYTHON_SITE_PACKAGES} ${PYTHON_SITE_PACKAGES}
-# Native Rust reverse proxy binary (issue #976).
-COPY --from=builder /usr/local/bin/horizon-proxy /usr/local/bin/horizon-proxy
 
 USER ${RUNTIME_USER}
 WORKDIR /app

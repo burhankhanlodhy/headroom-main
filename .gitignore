@@ -259,9 +259,6 @@ horizon-managed/
 # Release metadata artifact
 .releaseetadata
 
-# uv lockfile: regenerated locally; not committed
-uv.lock
-
 # Rust extension `.so` symlinks placed by `scripts/build_rust_extension.sh`
 # into the `horizon/` package dir for local development. The real binary
 # lives in `crates/horizon-py/python/horizon/`; this is the dev overlay

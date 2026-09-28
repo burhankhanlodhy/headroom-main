@@ -53,7 +53,7 @@ services:
     profiles: ["tls"]
     restart: unless-stopped
     environment:
-      - HORIZON_PUBLIC_DOMAIN=${HORIZON_PUBLIC_DOMAIN:?set HORIZON_PUBLIC_DOMAIN in .env to enable the tls profile}
+      - HORIZON_PUBLIC_DOMAIN=${HORIZON_PUBLIC_DOMAIN:-}
     ports:
       - "80:80"
       - "443:443"

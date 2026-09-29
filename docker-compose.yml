@@ -33,6 +33,7 @@ services:
     # is the confinement - nothing off-box can reach the port.
     network_mode: host
     command: ["--host", "127.0.0.1"]
+    restart: unless-stopped
     environment:
       - HORIZON_HOST=127.0.0.1
       - HORIZON_PROXY_TOKEN=${HORIZON_PROXY_TOKEN:?set HORIZON_PROXY_TOKEN (see .env.example; e.g. openssl rand -hex 32)}

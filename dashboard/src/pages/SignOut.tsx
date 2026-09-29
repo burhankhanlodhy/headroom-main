@@ -1,10 +1,17 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EASE, GhostButton, GradientButton } from "../components/ui";
+import { signOut } from "../lib/auth";
 
 export default function SignOut() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    signOut();
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.94, y: 16 }}
@@ -23,10 +30,10 @@ export default function SignOut() {
       <h2 className="mt-5 font-display text-2xl font-semibold text-white">You're signed out</h2>
       <p className="mt-2 text-sm leading-relaxed text-slate-400">
         Your session was closed and the agent's base URL was restored to its default.
-        The proxy on your Pi keeps running.
+        The proxy on your box keeps running.
       </p>
       <div className="mt-6 flex justify-center gap-3">
-        <GradientButton onClick={() => navigate("/")}>Sign back in</GradientButton>
+        <GradientButton onClick={() => navigate("/login")}>Sign back in</GradientButton>
         <GhostButton onClick={() => navigate("/docs")}>View docs</GhostButton>
       </div>
     </motion.div>

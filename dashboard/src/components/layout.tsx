@@ -8,7 +8,7 @@ import {
   KeyRound,
   LogOut,
   Menu,
-  Sparkles,
+  Shrink,
   UserRound,
   X,
 } from "lucide-react";
@@ -47,17 +47,17 @@ function Logo() {
     <div className="flex items-center gap-3 px-2">
       <motion.div
         className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-400 shadow-[0_0_28px_-6px_rgba(99,102,241,0.9)]"
-        whileHover={{ rotate: 8, scale: 1.06 }}
+        whileHover={{ rotate: -8, scale: 1.06 }}
         transition={{ type: "spring", stiffness: 300, damping: 15 }}
       >
-        <Sparkles size={19} className="text-white" />
+        <Shrink size={19} className="text-white" strokeWidth={2.4} />
       </motion.div>
       <div>
-        <div className="font-display text-[15px] font-bold tracking-[0.18em] text-white">
-          HORIZON
+        <div className="font-display text-[15px] font-bold tracking-tight text-white">
+          Context<span className="text-gradient">Shrink</span>
         </div>
         <div className="text-[10.5px] font-medium tracking-wide text-slate-400">
-          context optimization
+          same answers, fewer tokens
         </div>
       </div>
     </div>
@@ -130,7 +130,7 @@ function ProxyStatus() {
 export function Shell() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const meta = pageMeta[location.pathname] ?? { title: "Horizon", subtitle: "" };
+  const meta = pageMeta[location.pathname] ?? { title: "ContextShrink", subtitle: "" };
 
   return (
     <div className="relative z-10 flex h-screen">

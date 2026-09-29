@@ -1,8 +1,8 @@
-# Horizon Dashboard
+# ContextShrink — Dashboard
 
-The modern dashboard for the Horizon proxy. Dark aurora theme, glass panels,
-animated stats — built with Vite + React + TypeScript + Tailwind v4 +
-Framer Motion + Recharts.
+The app dashboard for ContextShrink (same answers, fewer tokens). Dark aurora
+theme, glass panels, animated stats — built with Vite + React + TypeScript +
+Tailwind v4 + Framer Motion + Recharts.
 
 ## Pages
 
@@ -13,7 +13,12 @@ Framer Motion + Recharts.
 | `/usage`         | Usage — range toggle, traffic chart, model mix, funnel  |
 | `/subscriptions` | Subscriptions — plan banner, quota rings, billing       |
 | `/docs`          | Documentation — quickstarts, endpoints, wiring guide    |
-| `/signout`       | Sign out screen                                         |
+| `/login`         | Sign in → redirects to the dashboard                    |
+| `/signup`        | Create account → redirects to the dashboard             |
+| `/signout`       | Sign out screen (clears the local session)              |
+
+Auth is a client-side mock for now (`src/lib/auth.ts`, localStorage session) —
+swap its two action functions for real API calls when the backend lands.
 
 ## Run
 
@@ -23,6 +28,12 @@ npm install
 npm run dev        # http://127.0.0.1:5173
 npm run build      # type-check + production bundle in dist/
 ```
+
+## Cross-links with the landing page
+
+`VITE_LANDING_URL` (default `http://127.0.0.1:5174`) is baked at build time
+and drives the "Back to contextshrink.com" links on `/login` and `/signup`.
+See `../landingpage/README.md` for the two-host deployment topology.
 
 ## Wiring live data
 

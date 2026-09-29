@@ -6,6 +6,8 @@ import Usage from "./pages/Usage";
 import Subscriptions from "./pages/Subscriptions";
 import Documentation from "./pages/Documentation";
 import SignOut from "./pages/SignOut";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 
 export default function App() {
   return (
@@ -20,6 +22,22 @@ export default function App() {
           <Route path="docs" element={<Documentation />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
+        <Route
+          path="/login"
+          element={
+            <FullPageCenter>
+              <Login />
+            </FullPageCenter>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <FullPageCenter>
+              <Signup />
+            </FullPageCenter>
+          }
+        />
         <Route
           path="/signout"
           element={

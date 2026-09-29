@@ -272,3 +272,6 @@ horizon-managed/
 
 # Serena MCP local project state
 .serena/
+
+# frontend app sources -- the Python-template lib/ rule above must not swallow them
+!**/src/lib/

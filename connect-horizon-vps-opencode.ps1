@@ -13,7 +13,8 @@
      OpenCode's config (~/.config/opencode/opencode.json, snapshotted first),
      then launches opencode as a child. --no-proxy is mandatory: the proxy is
      remote; without it wrap would spawn a second, local proxy on the port.
-  3. On exit, runs `horizon unwrap opencode` to restore the pre-wrap config.
+  3. On exit, runs `horizon unwrap opencode --no-stop-proxy` to restore the
+     pre-wrap config without touching the tunnel.
 
 .EXAMPLE
   .\connect-horizon-vps-opencode.ps1 -VpsHost raspberrypi5@192.168.0.71
@@ -56,15 +57,15 @@ try {
     Write-Host ""
     Write-Host "Launching OpenCode through Horizon (tunnel port $LocalPort)..."
     & $repoPython @horizonArgs
-    if finally {
+    if ($null -ne $LASTEXITCODE) { $exitCode = $LASTEXITCODE }
+}
+finally {
     # 3. Restore the pre-wrap OpenCode config. --no-stop-proxy is mandatory:
     # the proxy is remote; without it unwrap may kill whatever answers on the
     # local port - which here is the SSH tunnel itself.
     Write-Host ""
     Write-Host "Restoring OpenCode config..."
     & $repoPython -m horizon.cli unwrap opencode --port $LocalPort --no-stop-proxy
-}e config..."
-    & $repoPython -m horizon.cli unwrap opencode
 }
 
 if ($KillTunnelOnExit) {

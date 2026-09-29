@@ -171,7 +171,45 @@ That stops the tunnel and restores your original Claude settings. If you forget,
 nothing breaks — but Claude would keep pointing at the dead tunnel until the
 settings are restored.
 
-**Dashboard:** `http://127.0.0.1:18787/dashboard` while the tunnel is up.
+**Dashboard:** `http://127.0.0.1:18787/dashboard` while## Using OpenCode instead of Claude Code
+
+Horizon wraps OpenCode natively (`horizon wrap opencode`): it injects a
+`horizon` provider block into `~\.config\opencode\opencode.json` (snapshotted
+first, restored byte-for-byte by unwrap), registers the Horizon MCP server
+(horizon_retrieve/compress/stats) plus Serena, and launches OpenCode as a child.
+
+`connect-horizon-vps-opencode.ps1` chains the same tunnel used for Claude with
+that wrap (`--no-proxy` is mandatory — the proxy is remote):
+
+```powershell
+# Prereq: opencode in PATH (https://opencode.ai); repo venv from Part B step 5.
+.\connect-horizon-vps-opencode.ps1 -VpsHost user@<pi-ip>
+.\connect-horizon-vps-opencode.ps1 -VpsHost user@<pi-ip> -KillTunnelOnExit
+.\connect-horizon-vps-opencode.ps1 -VpsHost user@<pi-ip> -- --resume
+```
+
+On exit it runs `horizon unwrap opencode --no-stop-proxy` (restores the config
+without touching the tunnel), then leaves the tunnel for `disconnect-horizon-vps.ps1`
+unless `-KillTunnelOnExit` was passed.
+
+Models: the injected `horizon/gpt-4o` and `horizon/gpt-4.1` entries route
+through the proxy's OpenAI-compatible path. To use Claude models from OpenCode,
+select OpenCode's native `anthropic` provider — Horizon redirects its base URL
+to the proxy as well. Since tunnel clients pass the loopback trust boundary, no
+real upstream key is required; if OpenCode demands one, any placeholder via
+`opencode auth login` works.
+
+Manual equivalent (what the script does):
+
+```powershell
+.\connect-horizon-vps.ps1 -VpsHost user@<pi-ip> -LocalPort 18787 -NoLaunch
+.\.venv\Scripts\python.exe -m horizon.cli wrap opencode --no-proxy --port 18787
+# ... work ...
+.\.venv\Scripts\python.exe -m horizon.cli unwrap opencode --port 18787 --no-stop-proxy
+.\disconnect-horizon-vps.ps1
+```
+
+## Updating Horizon
 
 **Tunnel-only mode** (no Claude, e.g. just to peek at the dashboard):
 `.\connect-horizon-vps.ps1 -VpsHost user@<pi-ip> -LocalPort 18787 -NoLaunch`

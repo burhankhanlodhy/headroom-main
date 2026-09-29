@@ -7873,6 +7873,24 @@ def openclaw(
 # =============================================================================
 
 
+def _resolve_opencode_launcher() -> str | None:
+    """Resolve the opencode launcher, preferring real Windows executables.
+
+    npm installs `opencode` (POSIX sh shim), `opencode.cmd`, and `opencode.ps1`
+    side by side in the npm bin dir. On Windows, Python 3.12's shutil.which
+    can return the bare sh shim even though opencode.cmd sits in the same
+    directory, and CreateProcess on a sh script fails with
+    "[WinError 193] %1 is not a valid Win32 application".
+    """
+    if os.name != "nt":
+        return shutil.which("opencode")
+    for name in ("opencode.exe", "opencode.cmd", "opencode.bat"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return shutil.which("opencode")
+
+
 @wrap.command(context_settings={"ignore_unknown_options": True})
 @_retired_context_tool_option
 @_serena_instructions_option
@@ -7963,7 +7981,7 @@ def opencode(
     # config without launching, so it is exempt.
     opencode_bin: str | None = None
     if not prepare_only:
-        opencode_bin = shutil.which("opencode")
+        opencode_bin = _resolve_opencode_launcher()
         if not opencode_bin:
             click.echo("Error: 'opencode' not found in PATH.")
             click.echo("Install OpenCode: https://opencode.ai")

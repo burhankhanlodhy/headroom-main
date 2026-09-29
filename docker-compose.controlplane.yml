@@ -1,0 +1,42 @@
+# ContextShrink control plane: Postgres + API.
+# Run on the Pi:  cp controlplane.env.example .env  -> edit secrets ->
+#                 docker compose -f docker-compose.controlplane.yml up -d
+# Postgres and the API bind to loopback only; reach them via SSH tunnel or
+# (later) the app.contextshrink.com reverse proxy.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: contextshrink-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-contextshrink}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-contextshrink}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./api/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-contextshrink} -d ${POSTGRES_DB:-contextshrink}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./api
+    container_name: contextshrink-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-contextshrink}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-contextshrink}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
+    ports:
+      - "127.0.0.1:8788:8788"
+
+volumes:
+  pgdata:

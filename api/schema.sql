@@ -1,0 +1,128 @@
+-- ContextShrink control-plane schema.
+-- Idempotent: safe to run on every container start (docker-entrypoint runs it
+-- only on first init, but the API also executes it as a startup safety net).
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- ============================================================= core schema
+CREATE SCHEMA IF NOT EXISTS core;
+
+CREATE TABLE IF NOT EXISTS core.users (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email         TEXT        NOT NULL UNIQUE,
+    password_hash TEXT        NOT NULL,
+    name          TEXT        NOT NULL,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Sessions hold SHA-256 hashes of opaque bearer tokens (never the token itself).
+CREATE TABLE IF NOT EXISTS core.sessions (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      UUID        NOT NULL REFERENCES core.users (id) ON DELETE CASCADE,
+    token_hash   TEXT        NOT NULL UNIQUE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at   TIMESTAMPTZ NOT NULL,
+    last_used_at TIMESTAMPTZ,
+    revoked_at   TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON core.sessions (user_id);
+
+CREATE TABLE IF NOT EXISTS core.api_keys (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      UUID        NOT NULL REFERENCES core.users (id) ON DELETE CASCADE,
+    name         TEXT        NOT NULL,
+    key_hash     TEXT        NOT NULL UNIQUE,
+    prefix       TEXT        NOT NULL,
+    scopes       TEXT[]      NOT NULL DEFAULT '{proxy:messages,stats:read}',
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_used_at TIMESTAMPTZ,
+    revoked_at   TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_api_keys_user ON core.api_keys (user_id);
+
+CREATE TABLE IF NOT EXISTS core.subscriptions (
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id            UUID        NOT NULL UNIQUE REFERENCES core.users (id) ON DELETE CASCADE,
+    plan               TEXT        NOT NULL DEFAULT 'free',
+    status             TEXT        NOT NULL DEFAULT 'active',
+    current_period_end TIMESTAMPTZ,
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ========================================================== metrics schema
+CREATE SCHEMA IF NOT EXISTS metrics;
+
+-- Append-only per-request ledger, partitioned monthly. Proxies batch-upload
+-- rows every 30-60s; the dashboard reads rollups, never this table directly.
+CREATE TABLE IF NOT EXISTS metrics.usage_events (
+    id           BIGINT       GENERATED ALWAYS AS IDENTITY,
+    user_id      UUID         NOT NULL,
+    ts           TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    session_id   TEXT,
+    agent        TEXT,
+    model        TEXT,
+    requests     INTEGER      NOT NULL DEFAULT 1,
+    tokens_in    BIGINT       NOT NULL DEFAULT 0,
+    tokens_out   BIGINT       NOT NULL DEFAULT 0,
+    tokens_saved BIGINT       NOT NULL DEFAULT 0,
+    savings_usd  NUMERIC(12, 4) NOT NULL DEFAULT 0,
+    cache_hit    BOOLEAN,
+    PRIMARY KEY (id, ts)
+) PARTITION BY RANGE (ts);
+
+-- Partitions: current + next two months (extend monthly; see README).
+DO $$
+DECLARE
+    d DATE;
+BEGIN
+    FOREACH d IN ARRAY ARRAY[DATE '2026-09-01', DATE '2026-10-01', DATE '2026-11-01']
+    LOOP
+        EXECUTE format(
+            'CREATE TABLE IF NOT EXISTS metrics.usage_events_%s PARTITION OF metrics.usage_events FOR VALUES FROM (%L) TO (%L)',
+            to_char(d, 'YYYY_MM'), d, d + INTERVAL '1 month'
+        );
+    END LOOP;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_usage_events_user_ts
+    ON metrics.usage_events (user_id, ts DESC);
+
+-- Daily rollups: what the dashboard actually reads.
+CREATE TABLE IF NOT EXISTS metrics.usage_daily (
+    user_id      UUID   NOT NULL REFERENCES core.users (id) ON DELETE CASCADE,
+    day          DATE   NOT NULL,
+    requests     BIGINT NOT NULL DEFAULT 0,
+    tokens_in    BIGINT NOT NULL DEFAULT 0,
+    tokens_out   BIGINT NOT NULL DEFAULT 0,
+    tokens_saved BIGINT NOT NULL DEFAULT 0,
+    savings_usd  NUMERIC(14, 4) NOT NULL DEFAULT 0,
+    cache_hits   BIGINT NOT NULL DEFAULT 0,
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, day)
+);
+
+-- Incremental rollup helper: ingest calls this per (user, day) touched.
+CREATE OR REPLACE FUNCTION metrics.refresh_usage_daily(p_user_id UUID, p_day DATE)
+RETURNS void LANGUAGE sql AS $$
+    INSERT INTO metrics.usage_daily AS ud
+        (user_id, day, requests, tokens_in, tokens_out, tokens_saved, savings_usd, cache_hits, updated_at)
+    SELECT p_user_id, p_day,
+           COALESCE(SUM(requests), 0),
+           COALESCE(SUM(tokens_in), 0),
+           COALESCE(SUM(tokens_out), 0),
+           COALESCE(SUM(tokens_saved), 0),
+           COALESCE(SUM(savings_usd), 0),
+           COALESCE(SUM(CASE WHEN cache_hit THEN requests ELSE 0 END), 0),
+           now()
+    FROM metrics.usage_events
+    WHERE user_id = p_user_id AND ts >= p_day AND ts < p_day + INTERVAL '1 day'
+    ON CONFLICT (user_id, day) DO UPDATE
+        SET requests     = EXCLUDED.requests,
+            tokens_in    = EXCLUDED.tokens_in,
+            tokens_out   = EXCLUDED.tokens_out,
+            tokens_saved = EXCLUDED.tokens_saved,
+            savings_usd  = EXCLUDED.savings_usd,
+            cache_hits   = EXCLUDED.cache_hits,
+            updated_at   = now();
+$$;

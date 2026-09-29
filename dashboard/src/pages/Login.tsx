@@ -19,18 +19,24 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
+    if (busy) return;
     if (!email.trim() || !password) {
       setError("Enter your email and password.");
       return;
     }
-    if (!email.includes("@")) {
-      setError("That email doesn't look right.");
-      return;
+    setError(null);
+    setBusy(true);
+    try {
+      await signIn(email.trim(), password);
+      navigate("/");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sign in failed.");
+    } finally {
+      setBusy(false);
     }
-    signIn({ name: email.split("@")[0], email: email.trim() });
-    navigate("/");
   };
 
   return (
@@ -92,7 +98,7 @@ export default function Login() {
         )}
 
         <GradientButton onClick={submit} className="mt-1 w-full justify-center">
-          Sign in
+          {busy ? "Signing in…" : "Sign in"}
         </GradientButton>
       </div>
 

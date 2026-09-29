@@ -3,13 +3,13 @@ import { motion } from "framer-motion";
 import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EASE, GhostButton, GradientButton } from "../components/ui";
-import { signOut } from "../lib/auth";
+import { logout } from "../lib/auth";
 
 export default function SignOut() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    signOut();
+    logout();
   }, []);
 
   return (

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Shrink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EASE, GradientButton } from "../components/ui";
-import { signIn } from "../lib/auth";
+import { signUp } from "../lib/auth";
 
 const LANDING_URL =
   (import.meta.env.VITE_LANDING_URL as string | undefined) ?? "http://127.0.0.1:5174";
@@ -22,8 +22,10 @@ export default function Signup() {
   const [confirm, setConfirm] = useState("");
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
+    if (busy) return;
     if (!name.trim() || !email.trim() || !password) {
       setError("Fill in every field to continue.");
       return;
@@ -44,8 +46,16 @@ export default function Signup() {
       setError("Please accept the terms to continue.");
       return;
     }
-    signIn({ name: name.trim(), email: email.trim() });
-    navigate("/");
+    setError(null);
+    setBusy(true);
+    try {
+      await signUp(name.trim(), email.trim(), password);
+      navigate("/");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Account creation failed.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -139,7 +149,7 @@ export default function Signup() {
         )}
 
         <GradientButton onClick={submit} className="mt-1 w-full justify-center">
-          Create account
+          {busy ? "Creating account…" : "Create account"}
         </GradientButton>
       </div>
 

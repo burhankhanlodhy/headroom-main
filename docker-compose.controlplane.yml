@@ -1,8 +1,9 @@
 # ContextShrink control plane: Postgres + API.
 # Run on the Pi:  cp controlplane.env.example .env  -> edit secrets ->
 #                 docker compose -f docker-compose.controlplane.yml up -d
-# Postgres and the API bind to loopback only; reach them via SSH tunnel or
-# (later) the app.contextshrink.com reverse proxy.
+# Postgres always binds loopback. The API binds loopback by default; on the
+# deployment Pi set API_BIND=0.0.0.0 in .env so the web tier's reverse proxy
+# (Pi 4) can reach it over the LAN.
 
 services:
   postgres:
@@ -36,7 +37,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
     ports:
-      - "127.0.0.1:8788:8788"
+      - "${API_BIND:-127.0.0.1}:8788:8788"
 
 volumes:
   pgdata:

@@ -1,0 +1,51 @@
+# ContextShrink web tier — Pi 4 (192.168.0.64)
+# Landing page on :80, dashboard SPA on :8080.
+# The dashboard calls the control plane via same-origin /api, which Caddy
+# strips and reverse-proxies to the API on Pi 5. No CORS anywhere.
+
+# ---------------------------------------------------------------- landing
+:80 {
+	encode gzip
+	root * /var/www/contextshrink/landing
+	try_files {path} /index.html
+	file_server
+}
+
+# ------------------------------------------------------------- dashboard
+:8080 {
+	encode gzip
+
+	handle_path /api/* {
+		reverse_proxy 192.168.0.71:8788
+	}
+
+	handle {
+		root * /var/www/contextshrink/dashboard
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# ------------------------------------------------------------ domain day
+# When you point DNS and want HTTPS, replace the two blocks above with:
+#
+# contextshrink.com {
+# 	encode gzip
+# 	root * /var/www/contextshrink/landing
+# 	try_files {path} /index.html
+# 	file_server
+# }
+#
+# app.contextshrink.com {
+# 	encode gzip
+# 	handle_path /api/* {
+# 		reverse_proxy 192.168.0.71:8788
+# 	}
+# 	handle {
+# 		root * /var/www/contextshrink/dashboard
+# 		try_files {path} /index.html
+# 		file_server
+# 	}
+# }
+#
+# Caddy obtains and renews certificates automatically.

@@ -9,10 +9,10 @@ const LANDING_URL =
   (import.meta.env.VITE_LANDING_URL as string | undefined) ?? "http://127.0.0.1:5174";
 
 const inputCls =
-  "w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-indigo-400/50 focus:ring-2 focus:ring-indigo-500/20";
+  "w-full rounded-lg border border-ink/20 bg-ink/5 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-3 focus:border-ember/50 focus:ring-2 focus:ring-ember/20";
 
 const backLinkCls =
-  "inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 transition hover:border-indigo-400/40 hover:text-white";
+  "inline-flex items-center gap-1.5 rounded-lg border border-ink/10 bg-ink/5 px-3 py-1.5 text-xs text-ink-3 transition hover:border-ember/40 hover:text-ink";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -63,27 +63,27 @@ export default function Signup() {
       initial={{ opacity: 0, scale: 0.95, y: 18 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.5, ease: EASE }}
-      className="glass w-[460px] max-w-full rounded-3xl p-9"
+      className="ink-card w-[460px] max-w-full rounded-lg p-9"
     >
       <motion.div
         initial={{ rotate: 10, scale: 0.7 }}
         animate={{ rotate: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 260, damping: 15, delay: 0.15 }}
-        className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-400 shadow-[0_0_28px_-6px_rgba(99,102,241,0.9)]"
+        className="mx-auto grid h-14 w-14 place-items-center rounded-lg bg-ink text-paper shadow-[4px_4px_0_0_rgba(29,23,18,0.9)]"
       >
-        <Shrink size={22} className="text-white" />
+        <Shrink size={22} className="text-paper" />
       </motion.div>
 
-      <h1 className="mt-5 text-center font-display text-2xl font-bold text-white">
+      <h1 className="mt-5 text-center font-display text-2xl font-bold text-ink">
         Create your account
       </h1>
-      <p className="mt-1.5 text-center text-sm text-slate-400">
+      <p className="mt-1.5 text-center text-sm text-ink-3">
         Start shrinking context in minutes.
       </p>
 
       <div className="mt-6 flex flex-col gap-3.5">
         <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-slate-400">Name</span>
+          <span className="mb-1.5 block text-xs font-medium text-ink-3">Name</span>
           <input
             autoFocus
             value={name}
@@ -93,7 +93,7 @@ export default function Signup() {
           />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-slate-400">Email</span>
+          <span className="mb-1.5 block text-xs font-medium text-ink-3">Email</span>
           <input
             type="email"
             value={email}

@@ -31,8 +31,8 @@ function MethodChip({ method }: { method: string }) {
     <span
       className={
         method === "GET"
-          ? "inline-block rounded-md border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-emerald-300"
-          : "inline-block rounded-md border border-indigo-400/25 bg-indigo-400/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-indigo-300"
+          ? "inline-block rounded-md border border-sage/25 bg-sage-soft px-2 py-0.5 font-mono text-[10px] font-semibold text-sage"
+          : "inline-block rounded-md border border-ember/25 bg-ember-soft px-2 py-0.5 font-mono text-[10px] font-semibold text-ember"
       }
     >
       {method}
@@ -45,7 +45,7 @@ export default function Documentation() {
     <div className="flex flex-col gap-6">
       <Card hairline className="p-7">
         <SectionHeader eyebrow="Docs" title="Point any agent at Horizon" />
-        <p className="max-w-2xl text-sm leading-relaxed text-slate-400">
+        <p className="max-w-2xl text-sm leading-relaxed text-ink-3">
           Horizon sits between your agent and the provider: it compresses context,
           preserves cache prefixes, and records every token saved. The proxy binds to
           loopback only — the SSH tunnel is the security boundary, so no token is
@@ -57,18 +57,18 @@ export default function Documentation() {
         <Card hairline className="p-6">
           <SectionHeader eyebrow="Claude Code" title="Tunnel + launch" />
           <CodeBlock code={QUICKSTART} />
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-ink-3">
             The connect script opens the tunnel, patches{" "}
-            <code className="font-mono text-indigo-200">settings.json</code> for the
+            <code className="font-mono text-ember">settings.json</code> for the
             session, and restores it on exit.
           </p>
         </Card>
         <Card hairline className="p-6">
           <SectionHeader eyebrow="OpenCode" title="Tunnel + wrap" />
           <CodeBlock code={OPENCODE} />
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-ink-3">
             Wrap injects the Horizon provider, the{" "}
-            <code className="font-mono text-indigo-200">horizon_retrieve</code> MCP and
+            <code className="font-mono text-ember">horizon_retrieve</code> MCP and
             Serena into OpenCode's config — restored by unwrap.
           </p>
         </Card>
@@ -77,7 +77,7 @@ export default function Documentation() {
       <Card className="p-6">
         <SectionHeader eyebrow="Fallback" title="Any Anthropic-compatible client" />
         <CodeBlock code={ENVVAR} className="max-w-2xl" />
-        <p className="mt-3 text-xs text-slate-500">
+        <p className="mt-3 text-xs text-ink-3">
           Process env alone isn't always picked up — for Claude Code, prefer the
           connect script (it routes through the user settings env block).
         </p>
@@ -94,7 +94,7 @@ export default function Documentation() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-y border-white/5 text-[11px] uppercase tracking-wider text-slate-500">
+              <tr className="border-y border-ink/10 text-[11px] uppercase tracking-wider text-ink-3">
                 <th className="px-6 py-3 font-medium">Method</th>
                 <th className="py-3 font-medium">Path</th>
                 <th className="px-6 py-3 font-medium">Description</th>
@@ -104,13 +104,13 @@ export default function Documentation() {
               {ENDPOINTS.map((e) => (
                 <tr
                   key={e.path}
-                  className="border-b border-white/5 transition last:border-0 hover:bg-white/[0.03]"
+                  className="border-b border-ink/10 transition last:border-0 hover:bg-ink/5"
                 >
                   <td className="px-6 py-3">
                     <MethodChip method={e.method} />
                   </td>
-                  <td className="py-3 font-mono text-xs text-slate-200">{e.path}</td>
-                  <td className="px-6 py-3 text-slate-400">{e.desc}</td>
+                  <td className="py-3 font-mono text-xs text-ink-2">{e.path}</td>
+                  <td className="px-6 py-3 text-ink-3">{e.desc}</td>
                 </tr>
               ))}
             </tbody>
@@ -120,9 +120,9 @@ export default function Documentation() {
 
       <Card className="p-6">
         <SectionHeader eyebrow="Wiring" title="Connect this dashboard to live data" />
-        <p className="mb-4 max-w-2xl text-sm leading-relaxed text-slate-400">
+        <p className="mb-4 max-w-2xl text-sm leading-relaxed text-ink-3">
           Every page reads from{" "}
-          <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-indigo-200">
+          <code className="rounded bg-ink/5 px-1.5 py-0.5 font-mono text-xs text-ember">
             src/data/mock.ts
           </code>
           . Its shapes mirror the proxy's endpoints, so going live is a single-file

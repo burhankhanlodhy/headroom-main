@@ -16,7 +16,7 @@ import { cn, fmtCompact } from "../lib/utils";
 const SCOPES = ["proxy:messages", "proxy:responses", "keys:manage", "stats:read"];
 
 const inputCls =
-  "w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-indigo-400/50";
+  "w-full rounded-lg border border-ink/20 bg-ink/5 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-3 focus:border-ember/50";
 
 export default function ApiKeys() {
   const [keys, setKeys] = useState<ApiKey[]>(initialKeys);
@@ -52,7 +52,7 @@ export default function ApiKeys() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-xl text-sm text-slate-400">
+        <p className="max-w-xl text-sm text-ink-3">
           Keys issue per-user credentials for the proxy. Loopback and tunnelled clients
           are trusted by default — keys matter when you expose Horizon beyond your
           machine.
@@ -73,24 +73,24 @@ export default function ApiKeys() {
               exit={{ opacity: 0, scale: 0.94 }}
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Card hairline className={cn("glass-hover p-5", k.revoked && "opacity-60")}>
+              <Card hairline className={cn("p-5", k.revoked && "opacity-60")}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div
                       className={cn(
-                        "grid h-10 w-10 place-items-center rounded-xl border",
+                        "grid h-10 w-10 place-items-center rounded-lg border",
                         k.revoked
-                          ? "border-white/10 bg-white/5 text-slate-500"
-                          : "border-indigo-400/30 bg-indigo-500/10 text-indigo-300",
+                          ? "border-ink/10 bg-ink/5 text-ink-3"
+                          : "border-ember/30 bg-ember-soft text-ember",
                       )}
                     >
                       <KeyRound size={17} />
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-white">{k.name}</div>
-                      <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
+                      <div className="text-sm font-semibold text-ink">{k.name}</div>
+                      <div className="mt-0.5 flex items-center gap-2 text-[11px] text-ink-3">
                         <span>created {k.createdAt}</span>
-                        <span className="h-0.5 w-0.5 rounded-full bg-slate-600" />
+                        <span className="h-0.5 w-0.5 rounded-full bg-ink-3" />
                         <span>{k.lastUsed ? `last used ${k.lastUsed}` : "never used"}</span>
                       </div>
                     </div>
@@ -99,12 +99,12 @@ export default function ApiKeys() {
                 </div>
 
                 <div className="mt-4 flex items-center gap-2">
-                  <code className="min-w-0 flex-1 truncate rounded-lg border border-white/10 bg-black/40 px-3 py-2 font-mono text-xs text-slate-300">
+                  <code className="min-w-0 flex-1 truncate rounded-lg border border-ink/10 bg-ink/5 px-3 py-2 font-mono text-xs text-ink-2">
                     {revealed[k.id] ? k.masked.replace("••••••••", "Xk29dMm4") : k.masked}
                   </code>
                   <button
                     onClick={() => setRevealed((r) => ({ ...r, [k.id]: !r[k.id] }))}
-                    className="rounded-lg border border-white/10 bg-white/5 p-2 text-slate-400 transition hover:border-indigo-400/40 hover:text-white"
+                    className="rounded-lg border border-ink/10 bg-ink/5 p-2 text-ink-3 transition hover:border-ember/40 hover:text-ink"
                     title={revealed[k.id] ? "Hide" : "Reveal"}
                   >
                     {revealed[k.id] ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -113,15 +113,15 @@ export default function ApiKeys() {
                 </div>
 
                 <div className="mt-4">
-                  <div className="mb-1 flex justify-between text-[11px] text-slate-500">
+                  <div className="mb-1 flex justify-between text-[11px] text-ink-3">
                     <span>{fmtCompact(k.requests)} requests</span>
                     <span>{Math.round((k.requests / maxReq) * 100)}% of busiest key</span>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-ink/5">
                     <motion.div
                       className={cn(
                         "h-full rounded-full",
-                        k.revoked ? "bg-slate-600" : "bg-gradient-to-r from-indigo-500 to-cyan-400",
+                        k.revoked ? "bg-ink-3" : "bg-gradient-to-r from-ember to-sage",
                       )}
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.max(3, (k.requests / maxReq) * 100)}%` }}
@@ -133,14 +133,14 @@ export default function ApiKeys() {
                 <div className="mt-4 flex justify-end">
                   {!k.revoked ? (
                     <GhostButton
-                      className="border-rose-400/20 px-3 py-1.5 text-xs text-rose-300 hover:border-rose-400/50"
+                      className="border-ember/20 px-3 py-1.5 text-xs text-ember hover:border-ember/50"
                       onClick={() => revoke(k.id)}
                     >
                       Revoke
                     </GhostButton>
                   ) : (
                     <GhostButton
-                      className="px-3 py-1.5 text-xs text-slate-400"
+                      className="px-3 py-1.5 text-xs text-ink-3"
                       onClick={() => remove(k.id)}
                     >
                       <Trash2 size={13} /> Delete
@@ -159,9 +159,9 @@ export default function ApiKeys() {
           title="Default trust model"
           action={<Badge tone="slate">loopback</Badge>}
         />
-        <p className="text-sm leading-relaxed text-slate-400">
+        <p className="text-sm leading-relaxed text-ink-3">
           Requests arriving over the SSH tunnel present as{" "}
-          <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-xs text-indigo-200">
+          <code className="rounded bg-ink/5 px-1.5 py-0.5 font-mono text-xs text-ember">
             127.0.0.1
           </code>{" "}
           and pass the proxy's trust boundary without a token. API keys gate network
@@ -170,7 +170,7 @@ export default function ApiKeys() {
       </Card>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Create API key">
-        <label className="mb-1.5 block text-xs font-medium text-slate-400">Key name</label>
+        <label className="mb-1.5 block text-xs font-medium text-ink-3">Key name</label>
         <input
           autoFocus
           value={name}
@@ -179,7 +179,7 @@ export default function ApiKeys() {
           className={inputCls}
           onKeyDown={(e) => e.key === "Enter" && create()}
         />
-        <label className="mb-2 mt-5 block text-xs font-medium text-slate-400">Scopes</label>
+        <label className="mb-2 mt-5 block text-xs font-medium text-ink-3">Scopes</label>
         <div className="flex flex-wrap gap-2">
           {SCOPES.map((s) => {
             const on = scopes.includes(s);
@@ -192,8 +192,8 @@ export default function ApiKeys() {
                 className={cn(
                   "rounded-full border px-3 py-1.5 font-mono text-[11px] transition",
                   on
-                    ? "border-indigo-400/50 bg-indigo-500/15 text-indigo-200"
-                    : "border-white/10 bg-white/5 text-slate-500 hover:text-slate-300",
+                    ? "border-ember/50 bg-ember-soft text-ember"
+                    : "border-ink/10 bg-ink/5 text-ink-3 hover:text-ink",
                 )}
               >
                 {s}

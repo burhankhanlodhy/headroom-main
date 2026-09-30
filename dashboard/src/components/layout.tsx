@@ -16,13 +16,7 @@ import { cn } from "../lib/utils";
 import { EASE } from "./ui";
 
 export function AuroraBackground() {
-  return (
-    <div className="aurora" aria-hidden>
-      <div className="blob blob-1" />
-      <div className="blob blob-2" />
-      <div className="blob blob-3" />
-    </div>
-  );
+  return <div className="paper-grid fixed inset-0" aria-hidden />;
 }
 
 const nav = [
@@ -46,17 +40,17 @@ function Logo() {
   return (
     <div className="flex items-center gap-3 px-2">
       <motion.div
-        className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-400 shadow-[0_0_28px_-6px_rgba(99,102,241,0.9)]"
+        className="grid h-10 w-10 place-items-center rounded-lg bg-ink text-paper shadow-[4px_4px_0_0_rgba(29,23,18,0.9)]"
         whileHover={{ rotate: -8, scale: 1.06 }}
         transition={{ type: "spring", stiffness: 300, damping: 15 }}
       >
-        <Shrink size={19} className="text-white" strokeWidth={2.4} />
+        <Shrink size={19} className="text-paper" strokeWidth={2.4} />
       </motion.div>
       <div>
-        <div className="font-display text-[15px] font-bold tracking-tight text-white">
-          Context<span className="text-gradient">Shrink</span>
+        <div className="font-display text-[15px] font-bold tracking-tight text-ink">
+          Context<span className="text-ember">Shrink</span>
         </div>
-        <div className="text-[10.5px] font-medium tracking-wide text-slate-400">
+        <div className="text-[10.5px] font-medium tracking-wide text-ink-3">
           same answers, fewer tokens
         </div>
       </div>
@@ -72,26 +66,26 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
           {({ isActive }) => (
             <div
               className={cn(
-                "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive ? "text-white" : "text-slate-400 hover:text-slate-100",
+                "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                isActive ? "text-ink" : "text-ink-3 hover:text-ink",
               )}
             >
               {isActive && (
                 <motion.span
                   layoutId="nav-pill"
-                  className="absolute inset-0 rounded-xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500/20 via-violet-500/10 to-transparent"
+                  className="absolute inset-0 rounded-lg border border-ink/20 bg-ember-soft"
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
               <Icon
                 size={17}
-                className={cn("relative z-10", isActive && "text-indigo-300")}
+                className={cn("relative z-10", isActive && "text-ember")}
               />
               <span className="relative z-10">{label}</span>
               {isActive && (
                 <motion.span
                   layoutId="nav-dot"
-                  className="relative z-10 ml-auto h-1.5 w-1.5 rounded-full bg-cyan-300 shadow-[0_0_10px_2px_rgba(34,211,238,0.7)]"
+                  className="relative z-10 ml-auto h-1.5 w-1.5 rounded-full bg-ember"
                 />
               )}
             </div>
@@ -102,8 +96,8 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
         {({ isActive }) => (
           <div
             className={cn(
-              "relative mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-              isActive ? "text-rose-200" : "text-slate-400 hover:text-rose-200",
+              "relative mt-auto flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+              isActive ? "text-ember" : "text-ink-3 hover:text-ember",
             )}
           >
             <LogOut size={17} />
@@ -117,11 +111,11 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
 
 function ProxyStatus() {
   return (
-    <div className="glass flex items-center gap-3 rounded-xl px-3 py-2.5">
+    <div className="paper-panel flex items-center gap-3 rounded-lg px-3 py-2.5">
       <span className="live-dot" />
       <div className="text-[11px] leading-tight">
-        <div className="font-semibold text-slate-200">Proxy live</div>
-        <div className="text-slate-500">loopback · 8787</div>
+        <div className="font-semibold text-ink">Proxy live</div>
+        <div className="text-ink-3">loopback · 8787</div>
       </div>
     </div>
   );
@@ -135,7 +129,7 @@ export function Shell() {
   return (
     <div className="relative z-10 flex h-screen">
       {/* desktop sidebar */}
-      <aside className="glass hidden w-[250px] shrink-0 flex-col rounded-none border-y-0 border-l-0 px-4 py-6 lg:flex">
+      <aside className="paper-panel hidden w-[250px] shrink-0 flex-col rounded-none border-y-0 border-l-0 px-4 py-6 lg:flex">
         <Logo />
         <NavItems />
         <ProxyStatus />
@@ -145,14 +139,14 @@ export function Shell() {
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-40 bg-ink/60 backdrop-blur-sm lg:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setMobileOpen(false)}
           >
             <motion.aside
-              className="glass h-full w-[260px] rounded-none border-y-0 border-l-0 px-4 py-6"
+              className="paper-panel h-full w-[260px] rounded-none border-y-0 border-l-0 px-4 py-6"
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
@@ -162,7 +156,7 @@ export function Shell() {
               <div className="flex items-center justify-between">
                 <Logo />
                 <button
-                  className="rounded-lg p-2 text-slate-400 hover:bg-white/10"
+                  className="rounded-lg p-2 text-ink-3 hover:bg-ink/10"
                   onClick={() => setMobileOpen(false)}
                 >
                   <X size={18} />
@@ -179,7 +173,7 @@ export function Shell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-4 px-6 pt-6 lg:px-10">
           <button
-            className="glass rounded-xl p-2.5 text-slate-300 lg:hidden"
+            className="paper-panel rounded-lg p-2.5 text-ink-3 lg:hidden"
             onClick={() => setMobileOpen(true)}
           >
             <Menu size={18} />
@@ -190,13 +184,13 @@ export function Shell() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, ease: EASE }}
-              className="font-display text-[22px] font-semibold text-white"
+              className="font-display text-[22px] font-semibold text-ink"
             >
               {meta.title}
             </motion.h1>
-            {meta.subtitle && <p className="text-[13px] text-slate-400">{meta.subtitle}</p>}
+            {meta.subtitle && <p className="text-[13px] text-ink-3">{meta.subtitle}</p>}
           </div>
-          <div className="glass hidden items-center gap-2 rounded-xl px-3 py-2 text-xs text-slate-500 md:flex">
+          <div className="paper-panel hidden items-center gap-2 rounded-lg px-3 py-2 text-xs text-ink-3 md:flex">
             <svg
               width="13"
               height="13"
@@ -209,13 +203,13 @@ export function Shell() {
               <path d="m21 21-4.3-4.3" />
             </svg>
             Search
-            <kbd className="ml-4 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+            <kbd className="ml-4 rounded-md border border-ink/20 bg-ink/5 px-1.5 py-0.5 font-mono text-[10px] text-ink-3">
               ⌘K
             </kbd>
           </div>
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="grid h-10 w-10 cursor-pointer place-items-center rounded-full bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-400 text-[13px] font-bold text-white"
+            className="grid h-10 w-10 cursor-pointer place-items-center rounded-full bg-ink text-[13px] font-bold text-paper"
           >
             BK
           </motion.div>
@@ -245,7 +239,7 @@ export function FullPageCenter({ children }: { children: ReactNode }) {
   return (
     <div className="relative z-10 grid h-screen place-items-center px-6">
       <button
-        className="glass absolute right-6 top-6 rounded-xl px-4 py-2 text-sm text-slate-300 transition hover:text-white"
+        className="btn-ghost absolute right-6 top-6 rounded-lg px-4 py-2 text-sm"
         onClick={() => navigate("/")}
       >
         ← Back to dashboard

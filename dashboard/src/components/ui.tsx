@@ -18,7 +18,9 @@ export function Card({
   hairline?: boolean;
 }) {
   return (
-    <div className={cn("glass rounded-2xl", hairline && "hairline-top", className)}>{children}</div>
+    <div className={cn("ink-card rounded-lg", hairline && "border-t-2 border-t-ember", className)}>
+      {children}
+    </div>
   );
 }
 
@@ -35,11 +37,11 @@ export function SectionHeader({
     <div className="mb-4 flex items-end justify-between gap-4">
       <div>
         {eyebrow && (
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-indigo-300/80">
+          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-ember">
             {eyebrow}
           </div>
         )}
-        <h2 className="font-display text-lg font-semibold text-slate-100">{title}</h2>
+        <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
       </div>
       {action}
     </div>
@@ -83,11 +85,11 @@ export function CountUp({
 /* ------------------------------------------------------------------ Badge */
 
 const badgeTones: Record<string, string> = {
-  green: "bg-emerald-400/10 text-emerald-300 border-emerald-400/25",
-  red: "bg-rose-400/10 text-rose-300 border-rose-400/25",
-  amber: "bg-amber-400/10 text-amber-300 border-amber-400/25",
-  indigo: "bg-indigo-400/10 text-indigo-300 border-indigo-400/25",
-  slate: "bg-white/5 text-slate-300 border-white/10",
+  green: "bg-sage-soft text-sage border-sage/25",
+  red: "bg-ember-soft text-ember border-ember/25",
+  amber: "bg-amber-400/10 text-amber-700 border-amber-400/25",
+  indigo: "bg-ember-soft text-ember border-ember/25",
+  slate: "bg-ink/5 text-ink-2 border-ink/10",
 };
 
 export function Badge({
@@ -116,7 +118,7 @@ export function Badge({
 
 export function Spark({
   data,
-  color = "#818cf8",
+  color = "#c14d1b",
   height = 44,
 }: {
   data: number[];
@@ -155,7 +157,7 @@ export function StatCard({
   format,
   delta,
   spark,
-  color = "#818cf8",
+  color = "#c14d1b",
   className,
 }: {
   label: string;
@@ -168,23 +170,23 @@ export function StatCard({
 }) {
   const up = (delta ?? 0) >= 0;
   return (
-    <Card hairline className={cn("glass-hover p-5", className)}>
+    <Card hairline className={cn("p-5", className)}>
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-3">
           {label}
         </span>
         {delta !== undefined && (
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-              up ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300",
+              up ? "bg-sage-soft text-sage" : "bg-ember-soft text-ember",
             )}
           >
             {up ? "▲" : "▼"} {Math.abs(delta).toFixed(1)}%
           </span>
         )}
       </div>
-      <div className="mt-2 font-display text-[26px] font-semibold text-white">
+      <div className="mt-2 font-display text-[26px] font-semibold text-ink">
         <CountUp value={value} format={format} />
       </div>
       {spark && (
@@ -202,8 +204,8 @@ export function ProgressRing({
   pct,
   size = 116,
   stroke = 9,
-  from = "#818cf8",
-  to = "#22d3ee",
+  from = "#c14d1b",
+  to = "#5f7452",
   children,
 }: {
   pct: number;
@@ -230,7 +232,7 @@ export function ProgressRing({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="rgba(255,255,255,0.08)"
+          stroke="rgba(29,23,18,0.08)"
           strokeWidth={stroke}
         />
         <motion.circle
@@ -277,13 +279,13 @@ export function CopyButton({
         setTimeout(() => setCopied(false), 1600);
       }}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-300 transition hover:border-indigo-400/40 hover:text-white",
+        "inline-flex items-center gap-1.5 rounded-lg border border-ink/20 bg-ink/5 px-2.5 py-1.5 text-xs text-ink-2 transition hover:border-ember/40 hover:text-ink",
         className,
       )}
     >
       {copied ? (
         <motion.span key="ok" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-          <Check size={13} className="text-emerald-300" />
+          <Check size={13} className="text-sage" />
         </motion.span>
       ) : (
         <Copy size={13} />
@@ -299,7 +301,7 @@ export function CodeBlock({ code, className }: { code: string; className?: strin
   return (
     <div className={cn("codeblock relative", className)}>
       <CopyButton text={code} className="absolute right-3 top-3" />
-      <pre className="overflow-x-auto p-4 pr-14 text-[12.5px] leading-relaxed text-slate-300">
+      <pre className="overflow-x-auto p-4 pr-14 text-[12.5px] leading-relaxed text-paper">
         {code}
       </pre>
     </div>
@@ -323,14 +325,14 @@ export function Modal({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 grid place-items-center bg-ink/60 backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
         >
           <motion.div
-            className="ring-gradient w-[440px] max-w-[92vw] rounded-2xl p-6"
+            className="ink-card w-[440px] max-w-[92vw] rounded-lg p-6"
             initial={{ scale: 0.92, y: 18, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.95, y: 8, opacity: 0 }}
@@ -338,10 +340,10 @@ export function Modal({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-display text-lg font-semibold text-white">{title}</h3>
+              <h3 className="font-display text-lg font-semibold text-ink">{title}</h3>
               <button
                 onClick={onClose}
-                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
+                className="rounded-lg p-1.5 text-ink-3 transition hover:bg-ink/10 hover:text-ink"
               >
                 <X size={16} />
               </button>
@@ -371,7 +373,7 @@ export function GradientButton({
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-400 px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_30px_-10px_rgba(99,102,241,0.8)] transition hover:brightness-110",
+        "btn-ink inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold",
         className,
       )}
     >
@@ -393,7 +395,7 @@ export function GhostButton({
     <button
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-indigo-400/40 hover:bg-white/10",
+        "btn-ghost inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium",
         className,
       )}
     >

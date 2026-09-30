@@ -88,10 +88,10 @@ export function totals(series: DayPoint[]) {
 }
 
 export const modelShares: ModelShare[] = [
-  { name: "claude-sonnet-4.5", share: 0.52, color: "#818cf8" },
-  { name: "claude-haiku-4.5", share: 0.24, color: "#22d3ee" },
-  { name: "gpt-4o", share: 0.15, color: "#a78bfa" },
-  { name: "codex / other", share: 0.09, color: "#34d399" },
+  { name: "claude-sonnet-4.5", share: 0.52, color: "#c14d1b" },
+  { name: "claude-haiku-4.5", share: 0.24, color: "#5f7452" },
+  { name: "gpt-4o", share: 0.15, color: "#8b7f6f" },
+  { name: "codex / other", share: 0.09, color: "#4a4137" },
 ];
 
 export const sessions: SessionRow[] = [

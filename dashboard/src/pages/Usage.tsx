@@ -25,8 +25,8 @@ function ChartTip({ active, payload }: { active?: boolean; payload?: any[] }) {
     ? dayLabel(first.payload.date)
     : String(first?.payload?.name ?? first?.name ?? "");
   return (
-    <div className="glass rounded-xl px-3.5 py-2.5 text-xs">
-      <div className="mb-1.5 font-semibold text-slate-200">{title}</div>
+    <div className="paper-panel rounded-lg px-3.5 py-2.5 text-xs">
+      <div className="mb-1.5 font-semibold text-ink">{title}</div>
       {payload.map((p: any, i: number) => {
         const key = String(p.dataKey ?? p.name ?? "");
         const isShare = key === "share";
@@ -38,12 +38,12 @@ function ChartTip({ active, payload }: { active?: boolean; payload?: any[] }) {
         const value = isShare
           ? `${Math.round((Number(p.value) || 0) * 100)}%`
           : fmtCompact(Number(p.value) || 0);
-        const color = p.stroke ?? p.payload?.color ?? p.fill ?? "#818cf8";
+        const color = p.stroke ?? p.payload?.color ?? p.fill ?? "#c14d1b";
         return (
           <div key={i} className="flex items-center gap-2 py-0.5">
             <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-            <span className="text-slate-400">{name}</span>
-            <span className="ml-auto pl-4 font-semibold text-white">{value}</span>
+            <span className="text-ink-3">{name}</span>
+            <span className="ml-auto pl-4 font-semibold text-ink">{value}</span>
           </div>
         );
       })}
@@ -67,18 +67,18 @@ function FunnelBar({
   return (
     <div>
       <div className="mb-1.5 flex items-baseline justify-between gap-4 text-xs">
-        <span className="font-medium text-slate-300">{label}</span>
-        <span className="truncate text-slate-500">{sub}</span>
+        <span className="font-medium text-ink-2">{label}</span>
+        <span className="truncate text-ink-3">{sub}</span>
       </div>
-      <div className="h-9 overflow-hidden rounded-xl border border-white/5 bg-white/[0.03]">
+      <div className="h-9 overflow-hidden rounded-lg border border-ink/10 bg-ink/5">
         <motion.div
-          className={cn("flex h-full items-center rounded-xl bg-gradient-to-r px-3", gradient)}
+          className={cn("flex h-full items-center rounded-lg bg-gradient-to-r px-3", gradient)}
           initial={{ width: 0 }}
           whileInView={{ width: `${width}%` }}
           viewport={{ once: true }}
           transition={{ duration: 1.3, ease: [0.22, 1, 0.36, 1], delay }}
         >
-          <span className="whitespace-nowrap text-sm font-bold text-white">{width}%</span>
+          <span className="whitespace-nowrap text-sm font-bold text-paper">{width}%</span>
         </motion.div>
       </div>
     </div>
@@ -98,20 +98,20 @@ export default function Usage() {
     <div className="flex flex-col gap-6">
       {/* range toggle */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="glass inline-flex rounded-xl p-1">
+        <div className="paper-panel inline-flex rounded-lg p-1">
           {RANGES.map((r) => (
             <button
               key={r}
               onClick={() => setRange(r)}
               className={cn(
-                "relative rounded-lg px-4 py-1.5 text-xs font-semibold transition",
-                range === r ? "text-white" : "text-slate-400 hover:text-slate-200",
+                "relative rounded-md px-4 py-1.5 text-xs font-semibold transition",
+                range === r ? "text-ink" : "text-ink-3 hover:text-ink",
               )}
             >
               {range === r && (
                 <motion.span
                   layoutId="range-pill"
-                  className="absolute inset-0 rounded-lg bg-gradient-to-r from-indigo-500/60 to-violet-500/60"
+                  className="absolute inset-0 rounded-md bg-ember-soft"
                   transition={{ type: "spring", stiffness: 400, damping: 32 }}
                 />
               )}
@@ -138,7 +138,7 @@ export default function Usage() {
           format={fmtCompact}
           delta={pct(t.tokensSaved, prevHalf.tokensSaved)}
           spark={series.map((d) => d.tokensSaved)}
-          color="#22d3ee"
+          color="#5f7452"
         />
         <StatCard
           label="Est. savings"
@@ -146,14 +146,14 @@ export default function Usage() {
           format={fmtUsd}
           delta={pct(t.savingsUsd, prevHalf.savingsUsd)}
           spark={series.map((d) => d.savingsUsd)}
-          color="#34d399"
+          color="#c14d1b"
         />
         <StatCard
           label="Avg saved / request"
           value={Math.round(t.tokensSaved / Math.max(1, t.requests))}
           format={fmtCompact}
           spark={series.map((d) => Math.round(d.tokensSaved / Math.max(1, d.requests)))}
-          color="#a78bfa"
+          color="#c14d1b"
         />
       </div>
 
@@ -166,26 +166,26 @@ export default function Usage() {
               <AreaChart data={series} margin={{ top: 8, right: 8, bottom: 0, left: -14 }}>
                 <defs>
                   <linearGradient id="reqFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#818cf8" stopOpacity={0.45} />
-                    <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#c14d1b" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="#c14d1b" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="tokFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#5f7452" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#5f7452" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <CartesianGrid stroke="rgba(29,23,18,0.05)" vertical={false} />
                 <XAxis
                   dataKey="date"
                   tickFormatter={dayLabel}
-                  tick={{ fill: "#64748b", fontSize: 11 }}
+                  tick={{ fill: "#8b7f6f", fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
                   minTickGap={28}
                 />
                 <YAxis
                   yAxisId="req"
-                  tick={{ fill: "#64748b", fontSize: 11 }}
+                  tick={{ fill: "#8b7f6f", fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(v: number) => fmtCompact(v)}
@@ -193,17 +193,17 @@ export default function Usage() {
                 <YAxis
                   yAxisId="tok"
                   orientation="right"
-                  tick={{ fill: "#64748b", fontSize: 11 }}
+                  tick={{ fill: "#8b7f6f", fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(v: number) => fmtCompact(v)}
                 />
-                <Tooltip content={<ChartTip />} cursor={{ stroke: "rgba(255,255,255,0.15)" }} />
+                <Tooltip content={<ChartTip />} cursor={{ stroke: "rgba(29,23,18,0.15)" }} />
                 <Area
                   yAxisId="tok"
                   type="monotone"
                   dataKey="tokensSaved"
-                  stroke="#22d3ee"
+                  stroke="#5f7452"
                   strokeWidth={2}
                   fill="url(#tokFill)"
                   animationDuration={1200}
@@ -212,7 +212,7 @@ export default function Usage() {
                   yAxisId="req"
                   type="monotone"
                   dataKey="requests"
-                  stroke="#818cf8"
+                  stroke="#c14d1b"
                   strokeWidth={2.5}
                   fill="url(#reqFill)"
                   animationDuration={1400}
@@ -247,10 +247,10 @@ export default function Usage() {
             </ResponsiveContainer>
             <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
               <div>
-                <div className="font-display text-xl font-bold text-white">
+                <div className="font-display text-xl font-bold text-ink">
                   {fmtCompact(t.requests)}
                 </div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-500">requests</div>
+                <div className="text-[10px] uppercase tracking-wider text-ink-3">requests</div>
               </div>
             </div>
           </div>
@@ -258,8 +258,8 @@ export default function Usage() {
             {modelShares.map((m) => (
               <div key={m.name} className="flex items-center gap-2.5 text-xs">
                 <span className="h-2.5 w-2.5 rounded-[4px]" style={{ background: m.color }} />
-                <span className="text-slate-300">{m.name}</span>
-                <span className="ml-auto font-semibold text-white">{Math.round(m.share * 100)}%</span>
+                <span className="text-ink-2">{m.name}</span>
+                <span className="ml-auto font-semibold text-ink">{Math.round(m.share * 100)}%</span>
               </div>
             ))}
           </div>
@@ -274,21 +274,21 @@ export default function Usage() {
             label="Original context"
             sub="what the model would have read"
             width={100}
-            gradient="from-indigo-500/70 to-violet-500/40"
+            gradient="from-ember/70 to-ember/40"
             delay={0}
           />
           <FunnelBar
             label="Delivered to model"
             sub={`${fmtCompact(t.tokensSaved)} tokens after compression`}
             width={36.2}
-            gradient="from-cyan-500/70 to-sky-500/40"
+            gradient="from-sage/70 to-sage/40"
             delay={0.15}
           />
           <FunnelBar
             label="Saved by Horizon"
             sub={`${fmtUsd(t.savingsUsd)} est. cost avoided`}
             width={63.8}
-            gradient="from-emerald-500/70 to-teal-500/40"
+            gradient="from-ember/70 to-ember/40"
             delay={0.3}
           />
         </div>
@@ -306,7 +306,7 @@ export default function Usage() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-y border-white/5 text-[11px] uppercase tracking-wider text-slate-500">
+              <tr className="border-y border-ink/10 text-[11px] uppercase tracking-wider text-ink-3">
                 <th className="px-6 py-3 font-medium">Session</th>
                 <th className="py-3 font-medium">Agent</th>
                 <th className="py-3 text-right font-medium">Requests</th>
@@ -318,19 +318,19 @@ export default function Usage() {
               {sessions.map((s) => (
                 <tr
                   key={s.id}
-                  className="border-b border-white/5 transition last:border-0 hover:bg-white/[0.03]"
+                  className="border-b border-ink/10 transition last:border-0 hover:bg-ink/5"
                 >
-                  <td className="px-6 py-3.5 font-mono text-xs text-slate-400">{s.id}</td>
+                  <td className="px-6 py-3.5 font-mono text-xs text-ink-3">{s.id}</td>
                   <td className="py-3.5">
                     <Badge tone={s.agent === "Claude Code" ? "indigo" : "slate"}>{s.agent}</Badge>
                   </td>
-                  <td className="py-3.5 text-right tabular-nums text-slate-300">
+                  <td className="py-3.5 text-right tabular-nums text-ink-2">
                     {fmtCompact(s.requests)}
                   </td>
-                  <td className="py-3.5 text-right font-semibold tabular-nums text-emerald-300">
+                  <td className="py-3.5 text-right font-semibold tabular-nums text-sage">
                     {fmtCompact(s.tokensSaved)}
                   </td>
-                  <td className="px-6 py-3.5 text-right text-slate-400">
+                  <td className="px-6 py-3.5 text-right text-ink-3">
                     {s.minutes}m
                     {s.active && (
                       <span className="live-dot ml-2 inline-block !h-1.5 !w-1.5 align-middle" />

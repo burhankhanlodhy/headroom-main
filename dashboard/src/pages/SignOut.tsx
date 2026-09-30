@@ -17,18 +17,18 @@ export default function SignOut() {
       initial={{ opacity: 0, scale: 0.94, y: 16 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.5, ease: EASE }}
-      className="glass w-[420px] max-w-full rounded-3xl p-10 text-center"
+      className="ink-card w-[420px] max-w-full rounded-lg p-10 text-center"
     >
       <motion.div
         initial={{ rotate: -14, scale: 0.6 }}
         animate={{ rotate: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 260, damping: 15, delay: 0.15 }}
-        className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-rose-400/30 bg-gradient-to-br from-rose-500/30 to-rose-500/10"
+        className="mx-auto grid h-16 w-16 place-items-center rounded-lg border border-ember/30 bg-ember-soft"
       >
-        <LogOut size={26} className="text-rose-300" />
+        <LogOut size={26} className="text-ember" />
       </motion.div>
-      <h2 className="mt-5 font-display text-2xl font-semibold text-white">You're signed out</h2>
-      <p className="mt-2 text-sm leading-relaxed text-slate-400">
+      <h2 className="mt-5 font-display text-2xl font-semibold text-ink">You're signed out</h2>
+      <p className="mt-2 text-sm leading-relaxed text-ink-3">
         Your session was closed and the agent's base URL was restored to its default.
         The proxy on your box keeps running.
       </p>

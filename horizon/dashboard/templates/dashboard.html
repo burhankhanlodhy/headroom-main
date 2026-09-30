@@ -22,42 +22,58 @@
             darkMode: 'class',
             theme: {
                 extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                        display: ['Fraunces', 'Georgia', 'serif'],
+                        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+                    },
                     colors: {
                         surface: 'var(--color-surface)',
                         border: 'var(--color-border)',
-                        accent: '#22d3ee',
+                        accent: '#c14d1b',
+                        ink: '#1d1712',
+                        paper: '#f0e9da',
+                        ember: '#c14d1b',
+                        sage: '#5f7452',
                     }
                 }
             }
         }
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Inter:wght@400;500;600&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap"
+      rel="stylesheet"
+    />
     <style>
         :root {
-            --bg: #f9fafb;
-            --color-surface: #ffffff;
-            --color-border: #e5e7eb;
-            --card-alt-bg: #f3f4f6;
-            --diff-before-header: #fff5f5;
-            --diff-before-body: #fef2f2;
-            --diff-after-header: #f0fdf4;
-            --diff-after-body: #f0fdf4;
-            --ttl-card-bg: linear-gradient(180deg, rgba(34,211,238,0.10), rgba(224,249,253,0.90));
+            --bg: #f0e9da;
+            --color-surface: #f8f4ea;
+            --color-border: #d9cfb9;
+            --card-alt-bg: #efe8d8;
+            --diff-before-header: #f6e0cd;
+            --diff-before-body: #faf0e6;
+            --diff-after-header: #dfe4cf;
+            --diff-after-body: #ecefe0;
+            --ttl-card-bg: linear-gradient(180deg, rgba(193,77,27,0.10), rgba(246,224,205,0.90));
         }
         html.dark {
-            --bg: #0f0f0f;
-            --color-surface: #1a1a1a;
-            --color-border: #2a2a2a;
-            --card-alt-bg: #141414;
-            --diff-before-header: #1a0808;
-            --diff-before-body: #120606;
-            --diff-after-header: #081a08;
-            --diff-after-body: #0a120a;
-            --ttl-card-bg: linear-gradient(180deg, rgba(34,211,238,0.10), rgba(12,16,22,0.88));
+            --bg: #171310;
+            --color-surface: #221c16;
+            --color-border: #3a3128;
+            --card-alt-bg: #1d1712;
+            --diff-before-header: #2a1409;
+            --diff-before-body: #1d0f07;
+            --diff-after-header: #1c2415;
+            --diff-after-body: #141a10;
+            --ttl-card-bg: linear-gradient(180deg, rgba(193,77,27,0.16), rgba(29,23,18,0.88));
         }
-        body { background: var(--bg); }
+        body { background: var(--bg); font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+        h1, h2, h3, .font-display { font-family: 'Fraunces', Georgia, serif; }
         /* Accessibility: visible keyboard focus on every operable element (WCAG 2.4.7 / 2.4.11) */
-        :focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; border-radius: 4px; }
-        html:not(.dark) :focus-visible { outline-color: #0e7490; }
+        :focus-visible { outline: 2px solid #c14d1b; outline-offset: 2px; border-radius: 4px; }
+        html:not(.dark) :focus-visible { outline-color: #a03d13; }
         [role="button"]:focus-visible { outline-offset: -2px; }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
         @media (prefers-reduced-motion: reduce) {
@@ -65,9 +81,9 @@
             #feed-container { scroll-behavior: auto; }
             .transition-colors, .transition-opacity, [x-transition] { transition: none !important; }
         }
-        .sparkline { stroke: #22d3ee; stroke-width: 1.5; fill: none; }
+        .sparkline { stroke: #c14d1b; stroke-width: 1.5; fill: none; }
         .sparkline-area { fill: url(#sparkline-gradient); }
-        .trend-line { stroke: #22d3ee; stroke-width: 2; fill: none; }
+        .trend-line { stroke: #c14d1b; stroke-width: 2; fill: none; }
         .trend-area { fill: url(#trend-gradient); }
         @keyframes pulse-subtle { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         .pulse-live { animation: pulse-subtle 2s ease-in-out infinite; }
@@ -87,37 +103,75 @@
         .ttl-bucket-gradient-card { background: var(--ttl-card-bg); }
 
         /* Light mode: invert the gray text scale (dark bg grays → light bg grays) */
-        html:not(.dark) body { color: #1f2937; }
-        html:not(.dark) .text-gray-200 { color: #1f2937; }
-        html:not(.dark) .text-gray-300 { color: #374151; }
-        html:not(.dark) .text-gray-400 { color: #6b7280; }
-        html:not(.dark) .text-gray-500 { color: #9ca3af; }
-        html:not(.dark) .text-gray-600 { color: #6b7280; }
-        html:not(.dark) .hover\:text-gray-200:hover { color: #111827; }
-        html:not(.dark) .hover\:text-white:hover { color: #111827; }
+        html:not(.dark) body { color: #1d1712; }
+        html:not(.dark) .text-gray-200 { color: #1d1712; }
+        html:not(.dark) .text-gray-300 { color: #4a4137; }
+        html:not(.dark) .text-gray-400 { color: #6b5f52; }
+        html:not(.dark) .text-gray-500 { color: #8b7f6f; }
+        html:not(.dark) .text-gray-600 { color: #6b5f52; }
+        html:not(.dark) .hover\:text-gray-200:hover { color: #1d1712; }
+        html:not(.dark) .hover\:text-white:hover { color: #1d1712; }
         /* Light mode overrides for dark-specific utility classes */
-        html:not(.dark) .bg-black\/20 { background-color: rgba(0,0,0,0.04); }
-        html:not(.dark) .bg-black\/30 { background-color: rgba(0,0,0,0.06); }
-        html:not(.dark) .border-white\/8 { border-color: rgba(0,0,0,0.10); }
-        html:not(.dark) .ring-white\/5 { --tw-ring-color: rgba(0,0,0,0.08); }
-        html:not(.dark) .border-red-900\/30 { border-color: rgba(239,68,68,0.25); }
-        html:not(.dark) .border-emerald-900\/30 { border-color: rgba(16,185,129,0.25); }
+        html:not(.dark) .bg-black\/20 { background-color: rgba(29,23,18,0.05); }
+        html:not(.dark) .bg-black\/30 { background-color: rgba(29,23,18,0.07); }
+        html:not(.dark) .border-white\/8 { border-color: rgba(29,23,18,0.12); }
+        html:not(.dark) .ring-white\/5 { --tw-ring-color: rgba(29,23,18,0.08); }
+        html:not(.dark) .border-red-900\/30 { border-color: rgba(193,77,27,0.25); }
+        html:not(.dark) .border-emerald-900\/30 { border-color: rgba(95,116,82,0.25); }
         /* Light mode: TTL card color adjustments */
-        html:not(.dark) .text-cyan-50 { color: #164e63; }
-        html:not(.dark) .text-violet-50 { color: #4c1d95; }
-        html:not(.dark) .text-cyan-200\/80 { color: #0e7490; }
-        html:not(.dark) .text-cyan-300\/75 { color: #0891b2; }
-        html:not(.dark) .text-violet-300\/75 { color: #7c3aed; }
+        html:not(.dark) .text-cyan-50 { color: #7c3410; }
+        html:not(.dark) .text-violet-50 { color: #4a4137; }
+        html:not(.dark) .text-cyan-200\/80 { color: #a03d13; }
+        html:not(.dark) .text-cyan-300\/75 { color: #c14d1b; }
+        html:not(.dark) .text-violet-300\/75 { color: #5f7452; }
         /* Light mode: fix hardcoded dark card backgrounds */
         .bg-card-alt { background: var(--card-alt-bg); }
         .hover-bg-surface:hover { background: var(--color-surface); }
-        .rolling-provider-label, .rolling-provider-value { color: #0e7490; }
-        .rolling-compression-label, .rolling-compression-value { color: #047857; }
-        .rolling-scope-copy { color: #334155; }
-        .prefix-cache-current-label { color: #047857; }
-        html.dark .rolling-provider-label, html.dark .rolling-provider-value { color: #67e8f9; }
-        html.dark .rolling-compression-label, html.dark .rolling-compression-value { color: #6ee7b7; }
-        html.dark .rolling-scope-copy, html.dark .prefix-cache-current-label { color: #cbd5e1; }
+        .rolling-provider-label, .rolling-provider-value { color: #a03d13; }
+        .rolling-compression-label, .rolling-compression-value { color: #5f7452; }
+        .rolling-scope-copy { color: #4a4137; }
+        .prefix-cache-current-label { color: #5f7452; }
+        html.dark .rolling-provider-label, html.dark .rolling-provider-value { color: #e8976f; }
+        html.dark .rolling-compression-label, html.dark .rolling-compression-value { color: #9db08a; }
+        html.dark .rolling-scope-copy, html.dark .prefix-cache-current-label { color: #d9cfb9; }
+
+        /* ===== ContextShrink ember/sage retheme: remap legacy cyan/emerald/violet utilities =====
+           The dashboard markup uses cyan for the primary accent, emerald for "kept"/savings,
+           and violet as a secondary accent. Map them onto the brand palette so the whole UI
+           shifts without touching the ~100 utility usages. */
+        /* cyan → ember (primary accent) */
+        .text-cyan-50 { color: #f6e0cd; }
+        .text-cyan-100 { color: #f0cdb2; }
+        .text-cyan-200 { color: #e8a87e; }
+        .text-cyan-300 { color: #dd8651; }
+        .text-cyan-400 { color: #d1642c; }
+        .text-cyan-500 { color: #c14d1b; }
+        .text-cyan-600 { color: #a03d13; }
+        .bg-cyan-400 { background-color: #d1642c; }
+        .bg-cyan-500 { background-color: #c14d1b; }
+        .border-cyan-500 { border-color: #c14d1b; }
+        .bg-cyan-500\/5 { background-color: rgba(193,77,27,0.06); }
+        .bg-cyan-500\/10 { background-color: rgba(193,77,27,0.12); }
+        .border-cyan-500\/20 { border-color: rgba(193,77,27,0.22); }
+        .border-cyan-500\/40 { border-color: rgba(193,77,27,0.40); }
+        .text-cyan-400\/70 { color: rgba(209,100,44,0.72); }
+        .hover\:text-cyan-300:hover { color: #dd8651; }
+        /* emerald → sage (kept / savings / healthy) */
+        .text-emerald-300 { color: #9db08a; }
+        .text-emerald-400 { color: #7d9070; }
+        .bg-emerald-400 { background-color: #5f7452; }
+        .bg-emerald-500 { background-color: #5f7452; }
+        .bg-emerald-500\/5 { background-color: rgba(95,116,82,0.07); }
+        .bg-emerald-500\/10 { background-color: rgba(95,116,82,0.12); }
+        .border-emerald-500\/20 { border-color: rgba(95,116,82,0.24); }
+        .border-emerald-400\/25 { border-color: rgba(95,116,82,0.28); }
+        .bg-emerald-400\/10 { background-color: rgba(95,116,82,0.12); }
+        .text-emerald-500 { color: #5f7452; }
+        /* violet → warm ink-3 (secondary accent) */
+        .text-violet-300 { color: #b3a58d; }
+        .text-violet-400 { color: #8b7f6f; }
+        .bg-violet-500\/20 { background-color: rgba(139,127,111,0.18); }
+        /* keep red/amber semantic (errors, warnings) — no remap */
     </style>
 </head>
 <!-- No x-init: Alpine already calls the x-data object's own init(). Naming it
@@ -241,8 +295,8 @@
                                  :aria-label="'Savings trend sparkline, ' + (stats.savings_history || []).length + ' recent samples; latest ' + (stats.tokens?.savings_percent || 0).toFixed(1) + ' percent'">
                                 <defs>
                                     <linearGradient id="sparkline-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                        <stop offset="0%" style="stop-color:#22d3ee;stop-opacity:0.3"/>
-                                        <stop offset="100%" style="stop-color:#22d3ee;stop-opacity:0"/>
+                                        <stop offset="0%" style="stop-color:#c14d1b;stop-opacity:0.3"/>
+                                        <stop offset="100%" style="stop-color:#c14d1b;stop-opacity:0"/>
                                     </linearGradient>
                                 </defs>
                                 <path class="sparkline-area" :d="getSparklineArea(savingsHistory)"></path>
@@ -502,8 +556,8 @@
                                      :aria-label="'Savings trend chart, ' + (stats.savings_history || []).length + ' samples; ' + formatNumber(stats.tokens?.saved || 0) + ' tokens saved in total'">
                                     <defs>
                                         <linearGradient id="trend-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                            <stop offset="0%" style="stop-color:#22d3ee;stop-opacity:0.2"/>
-                                            <stop offset="100%" style="stop-color:#22d3ee;stop-opacity:0"/>
+                                            <stop offset="0%" style="stop-color:#c14d1b;stop-opacity:0.2"/>
+                                            <stop offset="100%" style="stop-color:#c14d1b;stop-opacity:0"/>
                                         </linearGradient>
                                     </defs>
                                     <path class="trend-area" :d="getTrendArea(stats.savings_history)"></path>
@@ -1781,8 +1835,8 @@
                                              aria-label="Historical savings chart. The per-model table below this chart lists the same values.">
                                             <defs>
                                                 <linearGradient id="history-trend-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                                    <stop offset="0%" style="stop-color:#22d3ee;stop-opacity:0.2"/>
-                                                    <stop offset="100%" style="stop-color:#22d3ee;stop-opacity:0"/>
+                                                    <stop offset="0%" style="stop-color:#c14d1b;stop-opacity:0.2"/>
+                                                    <stop offset="100%" style="stop-color:#c14d1b;stop-opacity:0"/>
                                                 </linearGradient>
                                             </defs>
                                             <path :d="historyChartMode === 'tokens' && !historyActiveModel ? getObjectTrendArea(historicalTrend, 'total_tokens_saved') : ''"
@@ -1799,9 +1853,9 @@
                                                   :stroke="historyModelColor(3)" :d="historyModelLine(3)"></path>
                                             <path fill="none" stroke-width="1"
                                                   :stroke="historyModelColor(4)" :d="historyModelLine(4)"></path>
-                                            <path fill="none" stroke="#22d3ee" stroke-width="1.5"
+                                            <path fill="none" stroke="#c14d1b" stroke-width="1.5"
                                                   :d="historyCostLine('actual')"></path>
-                                            <path fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="3 2"
+                                            <path fill="none" stroke="#a03d13" stroke-width="1.5" stroke-dasharray="3 2"
                                                   :d="historyCostLine('expected')"></path>
                                         </svg>
                                     </div>
@@ -1832,12 +1886,12 @@
                                 </div>
                                 <div class="flex flex-wrap gap-4 mt-3" x-show="historyChartMode === 'cost'">
                                     <span class="flex items-center gap-1.5 text-xs text-gray-400">
-                                        <span class="inline-block w-3 h-0.5" style="background:#22d3ee"></span>
+                                        <span class="inline-block w-3 h-0.5" style="background:#c14d1b"></span>
                                         Actual cost (with Horizon)
                                     </span>
                                     <span class="flex items-center gap-1.5 text-xs text-gray-400">
                                         <span class="inline-block w-3 h-0.5"
-                                              style="background:repeating-linear-gradient(90deg,#fbbf24 0 4px,transparent 4px 7px)"></span>
+                                              style="background:repeating-linear-gradient(90deg,#a03d13 0 4px,transparent 4px 7px)"></span>
                                         Expected cost (without Horizon)
                                     </span>
                                 </div>
@@ -2562,7 +2616,7 @@
                 },
 
                 historyModelColor(index) {
-                    const palette = ['#a78bfa', '#34d399', '#fbbf24', '#f87171', '#60a5fa'];
+                    const palette = ['#c14d1b', '#5f7452', '#8b7f6f', '#a03d13', '#4a4137'];
                     return palette[index % palette.length];
                 },
 

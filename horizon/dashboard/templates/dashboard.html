@@ -139,38 +139,44 @@
            The dashboard markup uses cyan for the primary accent, emerald for "kept"/savings,
            and violet as a secondary accent. Map them onto the brand palette so the whole UI
            shifts without touching the ~100 utility usages. */
-        /* cyan → ember (primary accent) */
-        .text-cyan-50 { color: #f6e0cd; }
-        .text-cyan-100 { color: #f0cdb2; }
-        .text-cyan-200 { color: #e8a87e; }
-        .text-cyan-300 { color: #dd8651; }
-        .text-cyan-400 { color: #d1642c; }
-        .text-cyan-500 { color: #c14d1b; }
-        .text-cyan-600 { color: #a03d13; }
-        .bg-cyan-400 { background-color: #d1642c; }
-        .bg-cyan-500 { background-color: #c14d1b; }
-        .border-cyan-500 { border-color: #c14d1b; }
-        .bg-cyan-500\/5 { background-color: rgba(193,77,27,0.06); }
-        .bg-cyan-500\/10 { background-color: rgba(193,77,27,0.12); }
-        .border-cyan-500\/20 { border-color: rgba(193,77,27,0.22); }
-        .border-cyan-500\/40 { border-color: rgba(193,77,27,0.40); }
-        .text-cyan-400\/70 { color: rgba(209,100,44,0.72); }
-        .hover\:text-cyan-300:hover { color: #dd8651; }
+        /* cyan → ember (primary accent). Prefixed with `html` (specificity 0,1,1)
+           so they win over the vendored Tailwind's own same-name rules, which are
+           injected at runtime *after* this style block. */
+        html .text-cyan-50 { color: #f6e0cd; }
+        html .text-cyan-100 { color: #f0cdb2; }
+        html .text-cyan-200 { color: #e8a87e; }
+        html .text-cyan-300 { color: #dd8651; }
+        html .text-cyan-400 { color: #d1642c; }
+        html .text-cyan-500 { color: #c14d1b; }
+        html .text-cyan-600 { color: #a03d13; }
+        html .bg-cyan-400 { background-color: #d1642c; }
+        html .bg-cyan-500 { background-color: #c14d1b; }
+        html .border-cyan-500 { border-color: #c14d1b; }
+        html .bg-cyan-500\/5 { background-color: rgba(193,77,27,0.06); }
+        html .bg-cyan-500\/10 { background-color: rgba(193,77,27,0.12); }
+        html .border-cyan-500\/20 { border-color: rgba(193,77,27,0.22); }
+        html .border-cyan-500\/40 { border-color: rgba(193,77,27,0.40); }
+        html .text-cyan-400\/70 { color: rgba(209,100,44,0.72); }
+        html .text-cyan-300\/70 { color: rgba(221,134,81,0.72); }
+        html .text-cyan-300\/75 { color: rgba(221,134,81,0.78); }
+        html .text-cyan-500\/60 { color: rgba(193,77,27,0.62); }
+        html .border-cyan-400\/20 { border-color: rgba(209,100,44,0.22); }
+        html .hover\:text-cyan-300:hover { color: #dd8651; }
         /* emerald → sage (kept / savings / healthy) */
-        .text-emerald-300 { color: #9db08a; }
-        .text-emerald-400 { color: #7d9070; }
-        .bg-emerald-400 { background-color: #5f7452; }
-        .bg-emerald-500 { background-color: #5f7452; }
-        .bg-emerald-500\/5 { background-color: rgba(95,116,82,0.07); }
-        .bg-emerald-500\/10 { background-color: rgba(95,116,82,0.12); }
-        .border-emerald-500\/20 { border-color: rgba(95,116,82,0.24); }
-        .border-emerald-400\/25 { border-color: rgba(95,116,82,0.28); }
-        .bg-emerald-400\/10 { background-color: rgba(95,116,82,0.12); }
-        .text-emerald-500 { color: #5f7452; }
+        html .text-emerald-300 { color: #9db08a; }
+        html .text-emerald-400 { color: #7d9070; }
+        html .bg-emerald-400 { background-color: #5f7452; }
+        html .bg-emerald-500 { background-color: #5f7452; }
+        html .bg-emerald-500\/5 { background-color: rgba(95,116,82,0.07); }
+        html .bg-emerald-500\/10 { background-color: rgba(95,116,82,0.12); }
+        html .border-emerald-500\/20 { border-color: rgba(95,116,82,0.24); }
+        html .border-emerald-400\/25 { border-color: rgba(95,116,82,0.28); }
+        html .bg-emerald-400\/10 { background-color: rgba(95,116,82,0.12); }
+        html .text-emerald-500 { color: #5f7452; }
         /* violet → warm ink-3 (secondary accent) */
-        .text-violet-300 { color: #b3a58d; }
-        .text-violet-400 { color: #8b7f6f; }
-        .bg-violet-500\/20 { background-color: rgba(139,127,111,0.18); }
+        html .text-violet-300 { color: #b3a58d; }
+        html .text-violet-400 { color: #8b7f6f; }
+        html .bg-violet-500\/20 { background-color: rgba(139,127,111,0.18); }
         /* keep red/amber semantic (errors, warnings) — no remap */
     </style>
 </head>

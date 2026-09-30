@@ -1,45 +1,67 @@
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { Brand } from "../components/Brand";
-import { Card, DASHBOARD_URL, EASE, GhostButton, GradientButton } from "../components/ui";
+import { Btn, DASHBOARD_URL, EASE, LogoMark, Wordmark } from "../components/ui";
 
 export function Footer() {
   return (
-    <footer className="mx-auto max-w-6xl px-4 pb-10 pt-8 sm:px-6">
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-60px" }}
-        transition={{ duration: 0.6, ease: EASE }}
-      >
-        <Card hairline className="relative overflow-hidden p-10 text-center">
-          <div className="pointer-events-none absolute -top-24 left-1/2 h-56 w-[36rem] -translate-x-1/2 rounded-full bg-indigo-500/20 blur-3xl" />
-          <h2 className="font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Stop paying for <span className="text-gradient">tokens you don't need.</span>
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-slate-400">
-            Point your agent at ContextShrink and watch the savings ledger fill up.
-          </p>
-          <div className="mt-7 flex flex-wrap justify-center gap-4">
-            <GradientButton href={`${DASHBOARD_URL}/signup`}>
-              Create your account <ArrowRight size={15} />
-            </GradientButton>
-            <GhostButton href={DASHBOARD_URL}>Open dashboard</GhostButton>
-          </div>
-        </Card>
-      </motion.div>
-
-      <div className="mt-10 flex flex-col items-center justify-between gap-6 border-t border-white/5 pt-8 md:flex-row">
-        <Brand size={32} />
-        <nav className="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500">
-          <a href="#features" className="transition hover:text-slate-200">Features</a>
-          <a href="#pricing" className="transition hover:text-slate-200">Pricing</a>
-          <a href="#faq" className="transition hover:text-slate-200">FAQ</a>
-          <a href={`${DASHBOARD_URL}/docs`} className="transition hover:text-slate-200">Documentation</a>
-          <a href={`${DASHBOARD_URL}/login`} className="transition hover:text-slate-200">Sign in</a>
-        </nav>
-        <div className="text-xs text-slate-600">
-          © 2026 ContextShrink · contextshrink.com
+    <footer>
+      <section className="bg-ink text-paper">
+        <div className="mx-auto max-w-[96rem] px-4 py-20 text-center sm:px-8 lg:py-28">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.6, ease: EASE }}
+          >
+            <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-paper/50">
+              ready when you are
+            </p>
+            <h2 className="mx-auto mt-4 max-w-2xl font-display text-4xl font-semibold tracking-tight sm:text-5xl">
+              Stop paying for <span className="italic text-[#e0824f]">tokens you don't need.</span>
+            </h2>
+            <p className="mx-auto mt-4 max-w-md text-paper/60">
+              Point your agent at ContextShrink and watch the savings ledger fill up.
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
+              <Btn variant="paper" href={`${DASHBOARD_URL}/signup`}>
+                Create your account <ArrowRight size={15} />
+              </Btn>
+              <Btn variant="ghost-light" href={DASHBOARD_URL}>
+                Open dashboard
+              </Btn>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+      <div className="border-t border-line">
+        <div className="mx-auto flex max-w-[96rem] flex-col items-center justify-between gap-6 px-4 py-8 sm:px-8 md:flex-row">
+          <a href="#" className="flex items-center gap-2.5">
+            <LogoMark size={26} />
+            <div className="leading-tight">
+              <Wordmark />
+              <div className="font-mono text-[10px] tracking-wide text-ink-3">
+                same answers, fewer tokens
+              </div>
+            </div>
+          </a>
+          <nav className="flex flex-wrap items-center justify-center gap-6 font-mono text-xs text-ink-2">
+            <a href="#features" className="transition hover:text-ink">
+              Features
+            </a>
+            <a href="#pricing" className="transition hover:text-ink">
+              Pricing
+            </a>
+            <a href="#faq" className="transition hover:text-ink">
+              FAQ
+            </a>
+            <a href={`${DASHBOARD_URL}/docs`} className="transition hover:text-ink">
+              Documentation
+            </a>
+            <a href={`${DASHBOARD_URL}/login`} className="transition hover:text-ink">
+              Sign in
+            </a>
+          </nav>
+          <div className="font-mono text-xs text-ink-3">© 2026 ContextShrink</div>
         </div>
       </div>
     </footer>

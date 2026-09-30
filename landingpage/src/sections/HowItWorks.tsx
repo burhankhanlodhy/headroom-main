@@ -1,118 +1,117 @@
 import { motion } from "framer-motion";
 import { Bot, Cloud, Shrink } from "lucide-react";
-import { Card, CodeBlock, EASE } from "../components/ui";
+import { CodeBlock, EASE, Kicker } from "../components/ui";
+import { cn } from "../lib/utils";
 
-function Node({
+function DiagramNode({
   icon: Icon,
   label,
   sub,
-  accent,
-  delay,
+  highlight = false,
 }: {
   icon: typeof Bot;
   label: string;
   sub: string;
-  accent: string;
-  delay: number;
+  highlight?: boolean;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.85 }}
-      whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once: true }}
-      transition={{ type: "spring", stiffness: 220, damping: 18, delay }}
-      className="flex flex-col items-center gap-2 text-center"
+    <div
+      className={cn(
+        "flex w-full flex-col items-center gap-1.5 px-4 py-5 text-center sm:w-44",
+        highlight ? "ink-card" : "rounded-sm border border-line-2 bg-paper",
+      )}
     >
-      <div
-        className="grid h-14 w-14 place-items-center rounded-2xl border sm:h-16 sm:w-16"
-        style={{ borderColor: `${accent}44`, background: `${accent}14` }}
-      >
-        <Icon size={24} style={{ color: accent }} />
-      </div>
-      <div className="text-sm font-semibold text-white">{label}</div>
-      <div className="text-[11px] text-slate-500">{sub}</div>
-    </motion.div>
+      <Icon size={22} className={highlight ? "text-ember" : "text-ink"} />
+      <div className="font-display text-sm font-semibold">{label}</div>
+      <div className="font-mono text-[10.5px] text-ink-3">{sub}</div>
+    </div>
   );
 }
 
-function FlowLine({ delay, reverse = false }: { delay: number; reverse?: boolean }) {
+function Connector({ delay }: { delay: number }) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true }}
-      transition={{ delay }}
-      className="relative mx-1 h-px flex-1 bg-gradient-to-r from-white/5 via-indigo-400/40 to-white/5 sm:mx-2"
-    >
+    <div className="relative hidden h-px flex-1 border-t border-dashed border-line-2 sm:block">
       <motion.span
-        className="absolute top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-cyan-300 shadow-[0_0_10px_2px_rgba(34,211,238,0.7)]"
-        animate={{ left: reverse ? ["100%", "0%"] : ["0%", "100%"] }}
-        transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut", repeatDelay: 0.4 }}
+        className="absolute -top-[3px] h-1.5 w-1.5 rounded-full bg-ember"
+        animate={{ left: ["0%", "100%"], opacity: [0, 1, 1, 0] }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay }}
       />
-    </motion.div>
+    </div>
   );
 }
 
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="mx-auto max-w-6xl scroll-mt-28 px-4 py-20 sm:px-6">
-      <motion.div
-        initial={{ opacity: 0, y: 18 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-80px" }}
-        transition={{ duration: 0.6, ease: EASE }}
-        className="mx-auto max-w-2xl text-center"
-      >
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-300/80">
-          How it works
-        </p>
-        <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-white sm:text-4xl">
-          One proxy. <span className="text-gradient">Three moving parts.</span>
-        </h2>
-      </motion.div>
-
-      <Card hairline className="mt-12 p-8">
-        <div className="flex flex-col items-stretch gap-6 sm:flex-row sm:items-center">
-          <Node icon={Bot} label="Your agent" sub="Claude Code, OpenCode, Cursor…" accent="#818cf8" delay={0.1} />
-          <FlowLine delay={0.3} />
-          <Node icon={Shrink} label="ContextShrink" sub="compress · cache · ledger" accent="#22d3ee" delay={0.4} />
-          <FlowLine delay={0.5} reverse />
-          <Node icon={Cloud} label="Provider" sub="Anthropic, OpenAI, Vertex…" accent="#34d399" delay={0.6} />
-        </div>
-        <div className="mx-auto mt-8 max-w-2xl border-t border-white/5 pt-6 text-center text-sm text-slate-400">
-          Requests flow through ContextShrink; bulky content is compressed and
-          shelved, cache prefixes stay frozen, and the savings ledger records every
-          token. Retrieve anything back with one MCP call.
-        </div>
-      </Card>
-
-      <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-5 md:grid-cols-2">
+    <section id="how-it-works" className="scroll-mt-20 border-b border-line">
+      <div className="mx-auto max-w-[96rem] px-4 py-20 sm:px-8 lg:py-24">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 14 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.55, ease: EASE, delay: 0.15 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.6, ease: EASE }}
         >
-          <Card className="h-full p-6">
-            <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              Step 1 · tunnel to your box
-            </div>
-            <CodeBlock code={".\\connect-horizon-vps.ps1 -VpsHost user@<pi-ip> -LocalPort 18787"} />
-          </Card>
+          <Kicker>02 — How it works</Kicker>
+          <h2 className="mt-3 max-w-md font-display text-4xl font-semibold tracking-tight sm:text-5xl">
+            One proxy. <span className="italic text-ember">Three</span> moving parts.
+          </h2>
         </motion.div>
+
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.55, ease: EASE, delay: 0.25 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.6, ease: EASE, delay: 0.15 }}
+          className="mt-12 flex flex-col items-center gap-0 rounded-sm border border-line-2 bg-card p-6 sm:flex-row sm:items-center sm:gap-3 sm:p-8"
         >
-          <Card className="h-full p-6">
-            <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              Step 2 · launch your agent
-            </div>
-            <CodeBlock code={"ANTHROPIC_BASE_URL=http://127.0.0.1:18787 claude"} />
-          </Card>
+          <DiagramNode
+            icon={Bot}
+            label="Your agent"
+            sub="Claude Code, OpenCode, Cursor…"
+          />
+          <div className="my-2 h-8 border-l border-dashed border-line-2 sm:hidden" />
+          <Connector delay={0} />
+          <DiagramNode icon={Shrink} label="ContextShrink" sub="compress · cache · ledger" highlight />
+          <div className="my-2 h-8 border-l border-dashed border-line-2 sm:hidden" />
+          <Connector delay={0.9} />
+          <DiagramNode icon={Cloud} label="Provider" sub="Anthropic, OpenAI, Vertex…" />
         </motion.div>
+
+        <motion.p
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.5, ease: EASE, delay: 0.25 }}
+          className="mx-auto mt-6 max-w-2xl border-l-2 border-ember pl-4 text-sm leading-relaxed text-ink-2"
+        >
+          Requests flow through ContextShrink: bulky content is compressed and stored, cache
+          prefixes stay frozen, and the savings ledger records every token saved. Your agent can
+          retrieve the full original with one MCP call.
+        </motion.p>
+
+        <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-40px" }}
+            transition={{ duration: 0.5, ease: EASE, delay: 0.1 }}
+          >
+            <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">
+              step 1 — Singup for a Plan
+            </p>
+            <CodeBlock code="Sign up for a Plan of your Choice" />
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-40px" }}
+            transition={{ duration: 0.5, ease: EASE, delay: 0.2 }}
+          >
+            <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">
+              step 2 — connect your agent
+            </p>
+            <CodeBlock code="Download the Installer and Start using any coding agent " />
+          </motion.div>
+        </div>
       </div>
     </section>
   );

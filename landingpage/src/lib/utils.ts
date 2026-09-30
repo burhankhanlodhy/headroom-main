@@ -17,6 +17,11 @@ export function fmtUsd(n: number): string {
   return n >= 1000 ? `$${compact.format(n)}` : `$${n.toLocaleString("en", { maximumFractionDigits: 2 })}`;
 }
 
+/** Show whole numbers without a trailing ".0", one decimal otherwise. */
+export function fmtStat(n: number): string {
+  return Number.isInteger(n) ? full.format(n) : n.toFixed(1);
+}
+
 /** Deterministic pseudo-random from a string seed — keeps mock charts stable across reloads. */
 export function seeded(seed: string): () => number {
   let h = 2166136261;

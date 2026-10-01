@@ -13,7 +13,12 @@ import {
   SectionHeader,
 } from "../components/ui";
 import { PLANS, useAccount, type Plan } from "../lib/account";
-import { openPortal, startCheckout, useBilling } from "../lib/billing";
+import {
+  openPortal,
+  renewSubscription,
+  startCheckout,
+  useBilling,
+} from "../lib/billing";
 import { useBillingEstimate } from "../lib/usage";
 import { cn, fmtUsd } from "../lib/utils";
 
@@ -76,7 +81,24 @@ export default function Subscriptions() {
     ? new Date(cancelDate).toLocaleDateString()
     : null;
   const upgrading = selected === "pro" && plan !== "pro";
-  const cancelling = selected === "free" && Boolean(info?.has_subscription);
+  const renewing = selected === plan && plan !== "free" && Boolean(cancelsOn);
+  const cancelling =
+    selected === "free" && Boolean(info?.has_subscription) && !cancelsOn;
+  async function renew() {
+    if (saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await renewSubscription();
+      await reloadBilling();
+      setOpen(false);
+      setNotice(`${current.name} renewed. It will keep renewing each month.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to renew");
+    } finally {
+      setSaving(false);
+    }
+  }
   async function portal() {
     setError("");
     try {
@@ -86,12 +108,17 @@ export default function Subscriptions() {
     }
   }
   async function save() {
+    if (renewing) return renew();
     if (saving) return;
     setSaving(true);
     setError("");
     try {
       if (selected === "team") {
         setError("Team is coming soon.");
+        return;
+      }
+      if (selected === "free" && cancelsOn) {
+        setError(`Already cancelled: ${current.name} ends on ${cancelsOn}.`);
         return;
       }
       if (upgrading) {
@@ -138,8 +165,14 @@ export default function Subscriptions() {
               {cancelsOn && (
                 <p className="mt-2 text-sm text-ember">
                   {current.name} ends on {cancelsOn}. Your final savings fee is
-                  billed then. Changed your mind? Renew from the billing
-                  portal.
+                  billed then.{" "}
+                  <button
+                    onClick={() => void renew()}
+                    disabled={saving}
+                    className="font-semibold underline underline-offset-2 hover:text-ember-2 disabled:opacity-60"
+                  >
+                    {saving ? "Renewing…" : `Renew ${current.name}`}
+                  </button>
                 </p>
               )}
               <div className="mt-4 flex flex-wrap gap-2">
@@ -365,6 +398,12 @@ export default function Subscriptions() {
           they exceed $20. Cancel any time from the billing portal; Pro stays
           active until the end of the period.
         </p>
+        {cancelsOn && (
+          <p className="mb-4 rounded-md border border-ember/30 bg-ember-soft px-3 py-2 text-sm text-ink">
+            {current.name} is cancelled and ends on {cancelsOn}. Keep{" "}
+            {current.name} selected and choose Renew to keep it.
+          </p>
+        )}
         <label
           className="mb-2 block text-xs font-semibold text-ink-2"
           htmlFor="subscription-plan"
@@ -396,19 +435,25 @@ export default function Subscriptions() {
           <GradientButton
             disabled={
               saving ||
-              (selected === plan && user.subscription_status === "active")
+              (selected === plan &&
+                user.subscription_status === "active" &&
+                !renewing)
             }
             onClick={() => void save()}
           >
             {saving
               ? upgrading || cancelling
                 ? "Opening Stripe…"
-                : "Saving…"
+                : renewing
+                  ? "Renewing…"
+                  : "Saving…"
               : upgrading
                 ? "Continue to checkout"
-                : cancelling
-                  ? "Cancel in billing portal"
-                  : "Save subscription"}
+                : renewing
+                  ? `Renew ${current.name}`
+                  : cancelling
+                    ? "Cancel in billing portal"
+                    : "Save subscription"}
           </GradientButton>
         </div>
       </Modal>

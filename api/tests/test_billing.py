@@ -238,6 +238,39 @@ def test_sync_records_scheduled_cancellation(env, monkeypatch, fields):
     assert env.conn.plan_updates == [(UID, "pro", "active", "sub_1", START, END, True, END)]
 
 
+@pytest.mark.parametrize(
+    "fields, update",
+    [
+        ({"cancel_at": int(END.timestamp())}, {"cancel_at": ""}),
+        ({"cancel_at_period_end": True}, {"cancel_at_period_end": False}),
+    ],
+)
+def test_renew_clears_the_scheduled_cancellation(env, monkeypatch, fields, update):
+    async def price_id(_):
+        return "price_pro"
+
+    updates = []
+    state = {"sub": _subscription("active", {}, **fields)}
+
+    def apply(sub_id, params):
+        updates.append(params)
+        state["sub"] = _subscription("active", {})
+
+    monkeypatch.setattr(billing, "_price_id", price_id)
+    env.stripe.v1.subscriptions.retrieve = lambda _id: state["sub"]
+    env.stripe.v1.subscriptions.update = apply
+    asyncio.run(billing.renew_subscription("sub_1"))
+    assert updates == [update]
+    assert env.conn.plan_updates[-1] == (UID, "pro", "active", "sub_1", START, END, False, None)
+
+
+def test_renew_refuses_an_ended_subscription(env):
+    env.stripe.v1.subscriptions.retrieve = lambda _id: _subscription("canceled", {})
+    with pytest.raises(billing.HTTPException) as exc:
+        asyncio.run(billing.renew_subscription("sub_1"))
+    assert exc.value.status_code == 409
+
+
 # ── Webhook endpoint ──────────────────────────────────────────────────
 
 

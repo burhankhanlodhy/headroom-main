@@ -35,6 +35,11 @@ export async function startCheckout(plan: "pro"): Promise<void> {
   window.location.assign(url);
 }
 
+/** Undoes a scheduled cancellation; the plan keeps renewing. */
+export async function renewSubscription(): Promise<void> {
+  await apiFetch("/billing/renew", { method: "POST" });
+}
+
 /** Opens the Stripe Customer Portal (card, invoices, cancellation). */
 export async function openPortal(): Promise<void> {
   const { url } = await apiFetch<{ url: string }>("/billing/portal", {

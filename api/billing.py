@@ -188,6 +188,22 @@ async def sync_subscription(subscription_id: str) -> None:
     )
 
 
+async def renew_subscription(subscription_id: str) -> None:
+    """Undo a scheduled cancellation so the subscription keeps renewing."""
+    sub = await _call(_stripe().v1.subscriptions.retrieve, subscription_id)
+    if sub.status in ENDED_STATUSES:
+        raise HTTPException(409, "This subscription has ended. Upgrade through checkout.")
+    # Clear whichever mechanism scheduled it; "" unsets cancel_at.
+    if sub.cancel_at:
+        await _call(_stripe().v1.subscriptions.update, subscription_id, {"cancel_at": ""})
+    elif sub.cancel_at_period_end:
+        await _call(
+            _stripe().v1.subscriptions.update, subscription_id, {"cancel_at_period_end": False}
+        )
+    # Reflect it now; the customer.subscription.updated webhook agrees.
+    await sync_subscription(subscription_id)
+
+
 async def charge_savings_fee(
     user_id, customer_id: str, start: datetime, end: datetime, payment_method: str | None
 ) -> None:
@@ -343,6 +359,14 @@ def install(app, current_user):
             },
         )
         return {"url": session.url}
+
+    @app.post("/billing/renew")
+    async def renew(user=Depends(current_user)):
+        row = await _billing_row(user["user_id"])
+        if not row or not row["stripe_subscription_id"]:
+            raise HTTPException(409, "No subscription to renew. Upgrade through checkout.")
+        await renew_subscription(row["stripe_subscription_id"])
+        return {"renewed": True}
 
     @app.post("/billing/portal")
     async def portal(user=Depends(current_user)):

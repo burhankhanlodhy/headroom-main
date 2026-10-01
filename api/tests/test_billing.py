@@ -181,7 +181,7 @@ def test_first_invoice_is_not_a_fee_period(env, monkeypatch):
 # ── Plan sync from real Stripe object types ───────────────────────────
 
 
-def _subscription(status, metadata):
+def _subscription(status, metadata, *, cancel_at=None, cancel_at_period_end=False):
     # construct_from yields the same StripeObject types the API returns.
     return stripe.Subscription.construct_from(
         {
@@ -189,7 +189,8 @@ def _subscription(status, metadata):
             "object": "subscription",
             "customer": "cus_1",
             "status": status,
-            "cancel_at_period_end": False,
+            "cancel_at_period_end": cancel_at_period_end,
+            "cancel_at": cancel_at,
             "metadata": metadata,
             "items": {
                 "object": "list",
@@ -216,7 +217,25 @@ def test_sync_grants_pro_from_stripe_state(env, monkeypatch, metadata, status, s
     monkeypatch.setattr(billing, "_price_id", price_id)
     env.stripe.v1.subscriptions.retrieve = lambda _id: _subscription(status, metadata)
     asyncio.run(billing.sync_subscription("sub_1"))
-    assert env.conn.plan_updates == [(UID, "pro", stored, "sub_1", START, END, False)]
+    assert env.conn.plan_updates == [(UID, "pro", stored, "sub_1", START, END, False, None)]
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"cancel_at": int(END.timestamp())},  # Customer Portal on newer API versions
+        {"cancel_at_period_end": True},  # older style flag
+    ],
+)
+def test_sync_records_scheduled_cancellation(env, monkeypatch, fields):
+    async def price_id(_):
+        return "price_pro"
+
+    monkeypatch.setattr(billing, "_price_id", price_id)
+    env.stripe.v1.subscriptions.retrieve = lambda _id: _subscription("active", {}, **fields)
+    asyncio.run(billing.sync_subscription("sub_1"))
+    # Still Pro until the cancellation date, which is recorded.
+    assert env.conn.plan_updates == [(UID, "pro", "active", "sub_1", START, END, True, END)]
 
 
 # ── Webhook endpoint ──────────────────────────────────────────────────

@@ -10,6 +10,8 @@ export interface SubscriptionInfo {
   has_billing_account: boolean;
   has_subscription: boolean;
   cancel_at_period_end: boolean;
+  /** When a scheduled cancellation takes effect. */
+  cancel_at: string | null;
   current_period_end: string | null;
 }
 

@@ -65,6 +65,10 @@ ALTER TABLE core.subscriptions
     ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT UNIQUE;
 ALTER TABLE core.subscriptions
     ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT false;
+-- When a scheduled cancellation takes effect (cancel_at_period_end is true
+-- whenever this is set).
+ALTER TABLE core.subscriptions
+    ADD COLUMN IF NOT EXISTS cancel_at TIMESTAMPTZ;
 
 CREATE SCHEMA IF NOT EXISTS billing;
 

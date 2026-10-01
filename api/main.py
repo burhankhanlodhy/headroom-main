@@ -226,7 +226,7 @@ async def me(user: asyncpg.Record = Depends(current_user)):
 @app.get("/subscription")
 async def subscription(user: asyncpg.Record = Depends(current_user)):
     row = await db._conn().fetchrow(
-        "SELECT stripe_customer_id, stripe_subscription_id, cancel_at_period_end, current_period_end "
+        "SELECT stripe_customer_id, stripe_subscription_id, cancel_at_period_end, cancel_at, current_period_end "
         "FROM core.subscriptions WHERE user_id=$1",
         user["user_id"],
     )
@@ -236,6 +236,7 @@ async def subscription(user: asyncpg.Record = Depends(current_user)):
         "has_billing_account": bool(row and row["stripe_customer_id"]),
         "has_subscription": bool(row and row["stripe_subscription_id"]),
         "cancel_at_period_end": bool(row and row["cancel_at_period_end"]),
+        "cancel_at": row["cancel_at"] if row else None,
         "current_period_end": row["current_period_end"] if row else None,
         "estimate": await account_billing_estimate(user),
     }

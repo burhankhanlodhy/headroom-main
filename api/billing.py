@@ -158,8 +158,8 @@ async def sync_subscription(subscription_id: str) -> None:
     if sub.status in ENDED_STATUSES:
         await db._conn().execute(
             "UPDATE core.subscriptions SET plan='free', status='active', stripe_subscription_id=NULL, "
-            "cancel_at_period_end=false, current_period_start=NULL, current_period_end=NULL, "
-            "updated_at=now() WHERE user_id=$1 AND stripe_subscription_id=$2",
+            "cancel_at_period_end=false, cancel_at=NULL, current_period_start=NULL, "
+            "current_period_end=NULL, updated_at=now() WHERE user_id=$1 AND stripe_subscription_id=$2",
             user_id,
             subscription_id,
         )
@@ -169,17 +169,22 @@ async def sync_subscription(subscription_id: str) -> None:
         logger.warning("Stripe subscription %s has no recognised plan price", subscription_id)
         return
     item = sub["items"].data[0]
+    period_end = _ts(item.current_period_end)
+    # Newer API versions schedule a cancellation (e.g. from the Customer
+    # Portal) with cancel_at, leaving cancel_at_period_end false.
+    cancel_at = _ts(sub.cancel_at) or (period_end if sub.cancel_at_period_end else None)
     await db._conn().execute(
         "UPDATE core.subscriptions SET plan=$2, status=$3, stripe_subscription_id=$4, "
-        "current_period_start=$5, current_period_end=$6, cancel_at_period_end=$7, updated_at=now() "
-        "WHERE user_id=$1",
+        "current_period_start=$5, current_period_end=$6, cancel_at_period_end=$7, cancel_at=$8, "
+        "updated_at=now() WHERE user_id=$1",
         user_id,
         plan,
         "active" if sub.status in ENTITLED_STATUSES else sub.status,
         subscription_id,
         _ts(item.current_period_start),
-        _ts(item.current_period_end),
-        bool(sub.cancel_at_period_end),
+        period_end,
+        cancel_at is not None,
+        cancel_at,
     )
 
 

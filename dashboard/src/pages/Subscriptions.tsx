@@ -69,6 +69,12 @@ export default function Subscriptions() {
     setNotice("");
     setOpen(true);
   }
+  const cancelDate = info?.cancel_at_period_end
+    ? (info.cancel_at ?? info.current_period_end)
+    : null;
+  const cancelsOn = cancelDate
+    ? new Date(cancelDate).toLocaleDateString()
+    : null;
   const upgrading = selected === "pro" && plan !== "pro";
   const cancelling = selected === "free" && Boolean(info?.has_subscription);
   async function portal() {
@@ -129,11 +135,11 @@ export default function Subscriptions() {
               <p className="mt-1.5 max-w-lg text-sm text-ink-3">
                 {current.description}
               </p>
-              {info?.cancel_at_period_end && info.current_period_end && (
+              {cancelsOn && (
                 <p className="mt-2 text-sm text-ember">
-                  {current.name} ends on{" "}
-                  {new Date(info.current_period_end).toLocaleDateString()}. Your
-                  final savings fee is billed then.
+                  {current.name} ends on {cancelsOn}. Your final savings fee is
+                  billed then. Changed your mind? Renew from the billing
+                  portal.
                 </p>
               )}
               <div className="mt-4 flex flex-wrap gap-2">

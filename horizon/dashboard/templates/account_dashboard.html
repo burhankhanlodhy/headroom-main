@@ -225,7 +225,7 @@
           <p id="account">Checking your session…</p>
         </div>
         <div class="actions">
-          <a class="button" href="http://192.168.0.64:8080/"
+          <a class="button" href="/"
             >← Back to Dashboard</a
           ><button id="theme" type="button">Change theme</button>
         </div>
@@ -389,7 +389,7 @@
             document.body.classList.add("light");
         } catch (_) {}
         function login() {
-          location.replace("http://192.168.0.64:8080/login?next=%2Fdashboard");
+          location.replace("/login?next=%2Fdashboard");
         }
         async function request(path, signal) {
           const r = await fetch(base + path, {
@@ -403,7 +403,7 @@
           }
           if (r.status === 403) {
             $("content").classList.add("hidden");
-            location.replace("http://192.168.0.64:8080/subscriptions");
+            location.replace("/subscriptions");
             throw Error("Advanced Analytics requires Pro or Team");
           }
           if (!r.ok)
@@ -583,7 +583,7 @@
           try {
             const user = await request("/auth/me").then((r) => r.json());
             if (!["pro", "team"].includes(user.plan) || user.subscription_status !== "active") {
-              location.replace("http://192.168.0.64:8080/subscriptions");
+              location.replace("/subscriptions");
               return;
             }
             $("account").textContent = user.name + " · " + user.email;

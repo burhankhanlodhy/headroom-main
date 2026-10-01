@@ -11,7 +11,7 @@ import {
   StatCard,
 } from "../components/ui";
 import { initials, PLANS, useAccount } from "../lib/account";
-import { compression, pct, useUsage } from "../lib/usage";
+import { compression, pct, useBillingEstimate, useUsage } from "../lib/usage";
 import { cn, fmtCompact, fmtUsd } from "../lib/utils";
 
 const fmtPercent = (v: number) => `${v.toFixed(1)}%`;
@@ -30,6 +30,7 @@ export default function Profile() {
   const { user, plan } = useAccount();
   const { series, t, previous, providers, sessions, error, loaded, loading } =
     useUsage(14);
+  const { estimate: billingEstimate } = useBillingEstimate();
   const profile = {
     ...user,
     plan: `Horizon ${PLANS.find((p) => p.id === plan)?.name ?? "Free"}`,
@@ -143,9 +144,8 @@ export default function Profile() {
         />
         <StatCard
           label="Est. savings"
-          value={t.savingsUsd}
-          format={loaded ? fmtUsd : () => "—"}
-          delta={pct(t.savingsUsd, previous.savingsUsd)}
+          value={billingEstimate?.estimated_savings_usd ?? 0}
+          format={billingEstimate ? fmtUsd : () => "—"}
           spark={series.map((d) => d.savingsUsd)}
           color="#c14d1b"
         />

@@ -26,6 +26,62 @@ interface UsageResponse {
     last_activity: string;
   })[];
 }
+export interface BillingEstimate {
+  plan: "free" | "pro" | "team";
+  period_start: string;
+  period_end: string;
+  period_source: "subscription" | "calendar_month";
+  estimated_savings_usd: number;
+  savings_fee_threshold_usd: number;
+  savings_fee_rate: number;
+  seat_count: number;
+  estimates: Record<"free" | "pro" | "team", {
+    seat_fee: number;
+    savings_fee: number;
+    total: number;
+  }>;
+  estimated_total_usd: number;
+  currency: "USD";
+}
+
+export function useBillingEstimate() {
+  const [estimate, setEstimate] = useState<BillingEstimate | null>(null);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+  useEffect(() => {
+    const controller = new AbortController();
+    let pending = false;
+    async function load() {
+      if (pending) return;
+      pending = true;
+      try {
+        const data = await apiFetch<BillingEstimate>("/billing/estimate", {
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) {
+          setEstimate(data);
+          setError("");
+        }
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        if (e instanceof ApiError && e.status === 401)
+          navigate("/login", { replace: true });
+        else setError(e instanceof Error ? e.message : "Unable to load billing estimate");
+      } finally {
+        pending = false;
+      }
+    }
+    void load();
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void load();
+    }, 30000);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, [navigate]);
+  return { estimate, error, loading: !estimate && !error };
+}
 const colors = ["#c14d1b", "#5f7452", "#8b7f6f", "#4a4137"];
 const mapped = (r?: LedgerTotals) => ({
   requests: Number(r?.requests ?? 0),

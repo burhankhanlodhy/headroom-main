@@ -45,10 +45,18 @@ CREATE TABLE IF NOT EXISTS core.subscriptions (
     user_id            UUID        NOT NULL UNIQUE REFERENCES core.users (id) ON DELETE CASCADE,
     plan               TEXT        NOT NULL DEFAULT 'free',
     status             TEXT        NOT NULL DEFAULT 'active',
+    seat_count         INTEGER     NOT NULL DEFAULT 1 CHECK (seat_count >= 1),
+    current_period_start TIMESTAMPTZ,
     current_period_end TIMESTAMPTZ,
     created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Keep existing installations compatible as the billing estimate evolves.
+ALTER TABLE core.subscriptions
+    ADD COLUMN IF NOT EXISTS seat_count INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE core.subscriptions
+    ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMPTZ;
 
 DO $$
 BEGIN

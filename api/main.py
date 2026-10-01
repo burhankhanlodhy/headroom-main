@@ -6,7 +6,8 @@ authenticated proxy service may submit usage events to the Postgres ledger.
 
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Literal
 
 import analytics
@@ -73,6 +74,58 @@ class AccountOut(UserOut):
 class SubscriptionIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     plan: Literal["free", "pro", "team"]
+
+
+def _money(value: Decimal) -> Decimal:
+    return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+async def account_billing_estimate(user: asyncpg.Record) -> dict:
+    """Calculate a private estimate from the authenticated account's proxy ledger."""
+    row = await db._conn().fetchrow(
+        "SELECT current_period_start, current_period_end, seat_count "
+        "FROM core.subscriptions WHERE user_id=$1",
+        user["user_id"],
+    )
+    now = datetime.now(timezone.utc)
+    start = row["current_period_start"] if row else None
+    end = row["current_period_end"] if row else None
+    if start is None or end is None or end <= now:
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if start.month == 12:
+            end = start.replace(year=start.year + 1, month=1)
+        else:
+            end = start.replace(month=start.month + 1)
+    seats = int(row["seat_count"] or 1) if row else 1
+    savings_row = await db._conn().fetchrow(
+        "SELECT COALESCE(SUM(NULLIF(data->>'savings_usd','')::numeric),0) AS savings "
+        "FROM metrics.proxy_events WHERE user_id=$1 AND occurred_at >= $2 AND occurred_at < $3",
+        user["user_id"], start, end,
+    )
+    savings = _money(Decimal(savings_row["savings"] or 0))
+    savings_fee = _money(savings * Decimal("0.05")) if savings > Decimal("20.00") else Decimal("0.00")
+    team_base = Decimal(seats * 5)
+    current_plan = user["plan"]
+    estimates = {
+        "free": {"seat_fee": Decimal("0.00"), "savings_fee": Decimal("0.00"), "total": Decimal("0.00")},
+        "pro": {"seat_fee": Decimal("0.00"), "savings_fee": savings_fee, "total": savings_fee},
+        "team": {"seat_fee": team_base, "savings_fee": savings_fee, "total": team_base + savings_fee},
+    }
+    def as_usd(value: Decimal) -> float:
+        return float(_money(value))
+    return {
+        "plan": current_plan,
+        "period_start": start.isoformat(),
+        "period_end": end.isoformat(),
+        "period_source": "subscription" if row and row["current_period_start"] and row["current_period_end"] else "calendar_month",
+        "estimated_savings_usd": as_usd(savings),
+        "savings_fee_threshold_usd": 20.0,
+        "savings_fee_rate": 0.05,
+        "seat_count": seats,
+        "estimates": {plan: {key: as_usd(value) for key, value in breakdown.items()} for plan, breakdown in estimates.items()},
+        "estimated_total_usd": as_usd(estimates.get(current_plan, estimates["free"])["total"]),
+        "currency": "USD",
+    }
 
 
 class AuthOut(BaseModel):
@@ -173,12 +226,22 @@ async def me(user: asyncpg.Record = Depends(current_user)):
 
 @app.get("/subscription")
 async def subscription(user: asyncpg.Record = Depends(current_user)):
-    return {"plan": user["plan"], "status": user["subscription_status"], "billing_mode": "manual"}
+    return {
+        "plan": user["plan"], "status": user["subscription_status"],
+        "billing_mode": "stripe_not_configured",
+        "estimate": await account_billing_estimate(user),
+    }
 
 
 @app.put("/subscription")
 async def change_subscription(body: SubscriptionIn, user: asyncpg.Record = Depends(current_user)):
-    # Self-service plan selection. No payment/renewal is claimed without a payment provider.
+    # Free is always self-serve. Paid plans require configured Stripe Checkout;
+    # never grant paid entitlements through a client-selected plan value.
+    if body.plan != "free":
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Paid plan checkout is not configured. Add Stripe sandbox billing settings before upgrading.",
+        )
     await db._conn().execute(
         "INSERT INTO core.subscriptions(user_id,plan,status) VALUES($1,$2,'active') "
         "ON CONFLICT(user_id) DO UPDATE SET plan=EXCLUDED.plan,status='active', "
@@ -186,7 +249,12 @@ async def change_subscription(body: SubscriptionIn, user: asyncpg.Record = Depen
         user["user_id"],
         body.plan,
     )
-    return {"plan": body.plan, "status": "active", "billing_mode": "manual"}
+    return {"plan": body.plan, "status": "active", "billing_mode": "free"}
+
+
+@app.get("/billing/estimate")
+async def billing_estimate(user: asyncpg.Record = Depends(current_user)):
+    return await account_billing_estimate(user)
 
 
 # --------------------------------------------------------- metrics routes

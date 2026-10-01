@@ -12,10 +12,13 @@ import {
   SectionHeader,
 } from "../components/ui";
 import { PLANS, useAccount, type Plan } from "../lib/account";
-import { cn } from "../lib/utils";
+import { useBillingEstimate } from "../lib/usage";
+import { cn, fmtUsd } from "../lib/utils";
 
 export default function Subscriptions() {
   const { plan, changePlan, user } = useAccount();
+  const { estimate, error: estimateError, loading: estimateLoading } =
+    useBillingEstimate();
   const current = PLANS.find((p) => p.id === plan)!;
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Plan>(plan);
@@ -94,6 +97,49 @@ export default function Subscriptions() {
           {notice}
         </p>
       )}
+
+      <Card hairline className="p-6">
+        <SectionHeader
+          eyebrow="Billing cycle"
+          title="Estimated bill"
+          action={<Badge tone={estimateError ? "red" : estimate ? "green" : "slate"}>{estimateError ? "Unavailable" : estimate ? "Account estimate" : "Loading…"}</Badge>}
+        />
+        {estimate ? (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-lg border border-ink/10 bg-ink/5 p-4">
+                <div className="text-xs text-ink-3">Est. savings this cycle</div>
+                <div className="mt-1 font-display text-2xl font-bold text-ink">{fmtUsd(estimate.estimated_savings_usd)}</div>
+              </div>
+              <div className="rounded-lg border border-ink/10 bg-ink/5 p-4">
+                <div className="text-xs text-ink-3">Current plan estimate · {current.name}</div>
+                <div className="mt-1 font-display text-2xl font-bold text-ink">{fmtUsd(estimate.estimated_total_usd)}</div>
+              </div>
+              <div className="rounded-lg border border-ink/10 bg-ink/5 p-4">
+                <div className="text-xs text-ink-3">Savings fee · Pro / Team</div>
+                <div className="mt-1 font-display text-2xl font-bold text-ink">{fmtUsd(estimate.estimates.pro.savings_fee)}</div>
+              </div>
+              <div className="rounded-lg border border-ink/10 bg-ink/5 p-4">
+                <div className="text-xs text-ink-3">Team seats · {estimate.seat_count} × $5</div>
+                <div className="mt-1 font-display text-2xl font-bold text-ink">{fmtUsd(estimate.estimates.team.seat_fee)}</div>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-2 text-sm text-ink-2 sm:grid-cols-3">
+              {PLANS.map((p) => (
+                <div key={p.id} className="flex items-center justify-between rounded-md border border-ink/10 px-3 py-2">
+                  <span>Potential {p.name} bill</span>
+                  <strong className="font-semibold text-ink">{fmtUsd(estimate.estimates[p.id].total)}</strong>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-ink-3">
+              The 5% savings fee is waived when cycle savings are $20 or less. Above $20, it is 5% of the full estimated savings. Team also includes $5 per account seat each month. Estimates cover {new Date(estimate.period_start).toLocaleDateString()}–{new Date(estimate.period_end).toLocaleDateString()} and are billed at cycle end.
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-ink-3">{estimateError || (estimateLoading ? "Loading your account billing estimate…" : "Billing estimate unavailable.")}</p>
+        )}
+      </Card>
 
       {/* provider subscriptions */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -200,8 +246,7 @@ export default function Subscriptions() {
         title="Manage billing"
       >
         <p className="mb-4 text-sm text-ink-3">
-          Choose your account subscription. Changes apply immediately. No
-          payment is collected.
+          Free never requires a payment method. Upgrading to Pro or Team requires Stripe Checkout and a payment method. Paid checkout is not configured yet, so paid plan changes are unavailable until sandbox billing settings are added.
         </p>
         <label
           className="mb-2 block text-xs font-semibold text-ink-2"

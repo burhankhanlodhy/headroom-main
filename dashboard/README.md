@@ -19,8 +19,9 @@ Tailwind v4 + Framer Motion + Recharts.
 
 Auth is real: the dashboard talks to the control-plane API (`../api/`,
 Postgres-backed) for signup, login, and sessions — see `src/lib/auth.ts` and
-`src/lib/api.ts`. Point `VITE_API_URL` at the API (default
-`http://127.0.0.1:8788`).
+`src/lib/api.ts`. Local development defaults to `http://127.0.0.1:8788`;
+production builds default to the same-origin `/api` reverse proxy. Set
+`VITE_API_URL` only when deploying to a different API origin.
 
 ## Run
 

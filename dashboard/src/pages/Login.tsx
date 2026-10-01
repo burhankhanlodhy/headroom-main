@@ -32,6 +32,10 @@ export default function Login() {
     setBusy(true);
     try {
       await signIn(email.trim(), password);
+      if (new URLSearchParams(location.search).get("next") === "/dashboard") {
+        window.location.assign("/dashboard");
+        return;
+      }
       navigate(getPostAuthDestination(location.state), { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sign in failed.");
@@ -106,7 +110,7 @@ export default function Login() {
       <p className="mt-5 text-center text-xs text-slate-500">
         No account yet?{" "}
         <button
-          onClick={() => navigate("/signup", { state: location.state })}
+          onClick={() => navigate(`/signup${location.search}`, { state: location.state })}
           className="font-medium text-indigo-300 transition hover:text-indigo-200"
         >
           Create one

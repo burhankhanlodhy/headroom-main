@@ -975,8 +975,6 @@
                         <template x-if="agentRows.length === 0">
                             <div class="rounded-lg border border-dashed border-border p-6 text-center text-sm text-gray-500">
                                 <div>Agent usage appears after Cursor, Claude, Codex, or another client sends traffic through this proxy.</div>
-                                <div class="mt-2 font-mono text-xs text-accent"
-                                     x-text="'ANTHROPIC_BASE_URL: ' + window.location.origin + '/p/&lt;project-name&gt;'"></div>
                             </div>
                         </template>
                     </div>
@@ -1633,9 +1631,6 @@
                     <template x-if="Object.keys(lifetimeStats.projects || {}).length === 0">
                         <div class="px-4 py-8 text-center">
                             <div class="text-xs text-gray-500 mb-3">No per-project data yet.</div>
-                            <div class="text-xs text-gray-600 font-mono leading-relaxed">
-                                <span class="text-accent" x-text="'ANTHROPIC_BASE_URL: ' + window.location.origin + '/p/&lt;project-name&gt;'"></span>
-                            </div>
                         </div>
                     </template>
 

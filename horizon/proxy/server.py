@@ -1638,7 +1638,10 @@ class HorizonProxy(
                 if quarantine_cleared:
                     logger.info("Compression quarantine cleared after all timed-out workers exited")
 
-        future = loop.run_in_executor(self._compression_executor, _wrapped)
+        from contextvars import copy_context
+
+        context = copy_context()
+        future = loop.run_in_executor(self._compression_executor, context.run, _wrapped)
         try:
             return await asyncio.wait_for(future, timeout=timeout)
         except asyncio.TimeoutError:
@@ -1663,7 +1666,10 @@ class HorizonProxy(
         Runs on the dedicated single-thread background executor.
         """
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(self._background_compression_executor, fn)
+        from contextvars import copy_context
+
+        context = copy_context()
+        return await loop.run_in_executor(self._background_compression_executor, context.run, fn)
 
     # How often the lazy TTL sweep in `_get_compression_cache` may run.
     _COMPRESSION_CACHE_CLEANUP_INTERVAL_SECONDS = 60.0
@@ -1723,6 +1729,9 @@ class HorizonProxy(
         recency (e.g. /v1/usage taking the session turn lock): an unknown
         session answers None instead of allocating an empty cache.
         """
+        from horizon.proxy.account_analytics import tenant_key
+
+        session_id = tenant_key(session_id)
         with self._compression_caches_lock:
             return self._compression_caches.get(session_id)
 
@@ -1740,6 +1749,9 @@ class HorizonProxy(
         gone quiet. Losing one costs at most a single cache-write turn
         upstream; it never fails a request.
         """
+        from horizon.proxy.account_analytics import tenant_key
+
+        session_id = tenant_key(session_id)
         with self._compression_caches_lock:
             now = time.time()
             self._maybe_cleanup_compression_caches(now)
@@ -2984,6 +2996,15 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
             "(telemetry, update check, license reporter, HuggingFace downloads)"
         )
 
+    from horizon.proxy.account_analytics import AccountAnalytics, AccountMiddleware
+    from horizon.proxy.identity import set_identity_resolver
+
+    account_analytics = AccountAnalytics()
+    if account_analytics.enabled:
+        # Provider credentials remain client-specific; raw message logging is
+        # never required to provide account analytics.
+        config.log_full_messages = False
+        set_identity_resolver(lambda request, default: request.scope.get("state", {}).get("account_user_id", default))
     proxy = HorizonProxy(config)
 
     # cc-switch reconciler (opt-in: HORIZON_CC_SWITCH_RECONCILE=1).
@@ -3089,6 +3110,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 previous_handler = _install_loop_exception_handler()
                 # Startup
                 await proxy.startup()
+                await account_analytics.start()
                 if config.periodic_toin_stats_enabled:
                     app.state.periodic_toin_stats_task = asyncio.create_task(
                         _log_toin_stats_periodically()
@@ -3135,6 +3157,7 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
                 loop.set_exception_handler(previous)
 
             app.state.ready = False
+            await account_analytics.stop()
             logger.info("event=proxy_shutdown reason=signal pid=%d", os.getpid())
 
             async def _timed(coro: Any, *, label: str, timeout: float) -> None:
@@ -4137,6 +4160,12 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
     async def dashboard():
         """Serve the Horizon dashboard UI."""
         return get_dashboard_html()
+
+    @app.get("/dashboard/account", response_class=HTMLResponse)
+    async def account_dashboard():
+        from horizon.dashboard import TEMPLATES_DIR
+
+        return HTMLResponse((TEMPLATES_DIR / "account_dashboard.html").read_text(encoding="utf-8"), headers={"Cache-Control": "no-store"})
 
     # --- Dashboard settings API (loopback-gated, registry-validated) ---------
     # Read/write the curated HORIZON_* knobs the settings GUI manages. Writes
@@ -5742,6 +5771,9 @@ def create_app(config: ProxyConfig | None = None) -> FastAPI:
 
     register_provider_routes(app, proxy)
 
+    # Added last so authentication runs outside prefix rewriting, HTTP and WS
+    # handlers, and captures one immutable owner for their child tasks.
+    app.add_middleware(AccountMiddleware, service=account_analytics)
     return app
 
 

@@ -1524,10 +1524,12 @@ class SessionTrackerStore:
         other session-sticky subsystem each time a reminder lands (#2085).
         """
         # Check for explicit session header
+        from horizon.proxy.account_analytics import tenant_key
+
         if hasattr(request, "headers"):
             session_header = request.headers.get("x-horizon-session-id")
             if session_header:
-                return str(session_header)
+                return tenant_key(str(session_header))
 
         # Fall back to hashing model + the leading system-text run.
         system_parts: list[str] = []
@@ -1544,7 +1546,7 @@ class SessionTrackerStore:
 
         system_content = json.dumps(system_parts, ensure_ascii=False, separators=(",", ":"))
         key = f"{model}:{system_content}"
-        return hashlib.md5(key.encode()).hexdigest()[:16]  # nosec B324
+        return tenant_key(hashlib.md5(key.encode()).hexdigest()[:16])  # nosec B324
 
     def _maybe_cleanup(self) -> None:
         """Remove expired trackers periodically."""

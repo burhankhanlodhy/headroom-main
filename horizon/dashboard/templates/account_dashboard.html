@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Horizon · Your Analytics</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #131a19;
+        --panel: #1c2523;
+        --ink: #e7eee8;
+        --muted: #a0b2a9;
+        --line: #34443e;
+        --accent: #ed9d72;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 system-ui,
+          sans-serif;
+      }
+      body.light {
+        color-scheme: light;
+        --bg: #faf8f2;
+        --panel: #fffdf8;
+        --ink: #192d23;
+        --muted: #65766c;
+        --line: #d9e0d6;
+        --accent: #b55432;
+      }
+      main {
+        max-width: 1320px;
+        margin: auto;
+        padding: 32px 24px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+      h1 {
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0;
+      }
+      h2 {
+        font-size: 17px;
+        margin: 0 0 16px;
+      }
+      p {
+        margin: 8px 0;
+        color: var(--muted);
+      }
+      .eyebrow {
+        color: var(--accent);
+        font-size: 12px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+      }
+      button,
+      a.button,
+      select {
+        color: var(--ink);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 9px 14px;
+        text-decoration: none;
+        font: inherit;
+        cursor: pointer;
+      }
+      button:hover,
+      a.button:hover {
+        border-color: var(--accent);
+      }
+      button:focus-visible,
+      a:focus-visible,
+      select:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+      .actions,
+      .tabs {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .toolbar {
+        margin: 28px 0;
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      button[aria-pressed="true"] {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .card,
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px;
+      }
+      .card label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .value {
+        font-size: 30px;
+        font-variant-numeric: tabular-nums;
+        margin: 8px 0;
+        color: var(--accent);
+      }
+      .card small {
+        color: var(--muted);
+      }
+      .panel {
+        margin-top: 20px;
+      }
+      .scroll {
+        overflow: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+      }
+      td {
+        font-variant-numeric: tabular-nums;
+      }
+      #error {
+        color: #ed937e;
+        min-height: 24px;
+      }
+      #status {
+        font-size: 12px;
+      }
+      #chart {
+        width: 100%;
+        height: 130px;
+        display: block;
+      }
+      #chart polygon {
+        fill: var(--accent);
+        opacity: 0.12;
+      }
+      #chart polyline {
+        stroke: var(--accent);
+        fill: none;
+        stroke-width: 2;
+      }
+      .foot {
+        font-size: 12px;
+        margin: 22px 0;
+      }
+      .empty {
+        text-align: center;
+        padding: 28px;
+        color: var(--muted);
+      }
+      .grouphead {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+      }
+      .hidden {
+        display: none !important;
+      }
+      @media (max-width: 850px) {
+        .cards {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 500px) {
+        main {
+          padding: 22px 14px;
+        }
+        .cards {
+          grid-template-columns: 1fr;
+        }
+        .value {
+          font-size: 28px;
+        }
+        h1 {
+          font-size: 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <div class="eyebrow">Horizon</div>
+          <h1>Your Advanced Analytics</h1>
+          <p id="account">Checking your session…</p>
+        </div>
+        <div class="actions">
+          <a class="button" href="http://192.168.0.64:8080/"
+            >← Back to Dashboard</a
+          ><button id="theme" type="button">Change theme</button>
+        </div>
+      </header>
+      <div class="toolbar">
+        <div class="tabs" aria-label="Analytics period">
+          <button data-scope="session">Current proxy run</button
+          ><button data-scope="lifetime" aria-pressed="true">Lifetime</button
+          ><button data-scope="history">History</button
+          ><select id="days" aria-label="History period" class="hidden">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="365">Last 365 days</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button id="refresh">Refresh</button
+          ><button id="export">Export CSV</button>
+        </div>
+      </div>
+      <p id="error" role="alert"></p>
+      <section id="content" class="hidden">
+        <div class="cards">
+          <div class="card">
+            <label>Requests</label>
+            <div class="value" id="requests">0</div>
+            <small id="requests-detail"></small>
+          </div>
+          <div class="card">
+            <label>Tokens saved</label>
+            <div class="value" id="saved">0</div>
+            <small>Novel compression + tool schema savings</small>
+          </div>
+          <div class="card">
+            <label>Estimated savings</label>
+            <div class="value" id="savings">$0</div>
+            <small>Catalog estimate, adjusted for provider cache</small>
+          </div>
+          <div class="card">
+            <label>Estimated provider spend</label>
+            <div class="value" id="cost">$0</div>
+            <small>Input and output token estimate</small>
+          </div>
+          <div class="card">
+            <label>Input / output tokens</label>
+            <div class="value" id="tokens">0 / 0</div>
+            <small>Provider-reported counts when available</small>
+          </div>
+          <div class="card">
+            <label>Provider cache read / write</label>
+            <div class="value" id="cache">0 / 0</div>
+            <small>Kept separate from compression savings</small>
+          </div>
+          <div class="card">
+            <label>Average latency</label>
+            <div class="value" id="latency">0 ms</div>
+            <small id="overhead"></small>
+          </div>
+          <div class="card">
+            <label>Response cache hits</label>
+            <div class="value" id="response-cache">0</div>
+            <small>Only responses from your account’s cache</small>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Daily activity · UTC</h2>
+          <svg
+            id="chart"
+            role="img"
+            aria-label="Daily request counts"
+            viewBox="0 0 1000 130"
+            preserveAspectRatio="none"
+          ></svg>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Requests</th>
+                  <th>Tokens saved</th>
+                  <th>Estimated savings</th>
+                </tr>
+              </thead>
+              <tbody id="daily"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="grouphead">
+            <h2>Usage breakdown</h2>
+            <select id="dimension" aria-label="Breakdown dimension">
+              <option value="model">Model</option>
+              <option value="provider">Provider</option>
+              <option value="project">Project</option>
+              <option value="agent">Agent</option>
+            </select>
+          </div>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Requests</th>
+                  <th>Input</th>
+                  <th>Output</th>
+                  <th>Saved tokens</th>
+                  <th>Estimated savings</th>
+                </tr>
+              </thead>
+              <tbody id="groups"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Your latest 50 requests</h2>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Model</th>
+                  <th>Project / agent</th>
+                  <th>Status</th>
+                  <th>Input / output</th>
+                  <th>Saved tokens</th>
+                  <th>Latency</th>
+                  <th>Transforms</th>
+                </tr>
+              </thead>
+              <tbody id="feed"></tbody>
+            </table>
+          </div>
+        </div>
+        <p class="foot">
+          All data belongs to your signed-in account, across your API keys. Old
+          combined test history has been reset. Current proxy run restarts when
+          the proxy restarts; Lifetime retains your recorded usage. Token and
+          cost measurements depend on provider reporting; dollar figures are
+          estimates, not invoices. Prompt and response contents are not stored
+          in this analytics ledger.
+        </p>
+      </section>
+      <p id="status" aria-live="polite"></p>
+    </main>
+    <script>
+      (() => {
+        "use strict";
+        const $ = (id) => document.getElementById(id),
+          num = (n) => Number(n || 0).toLocaleString(),
+          money = (n) => "$" + Number(n || 0).toFixed(4);
+        let scope = "lifetime",
+          summary = null,
+          generation = 0,
+          pending = null,
+          token = "";
+        const base = "/account-api";
+        try {
+          token = localStorage.getItem("cs_session_token") || "";
+          if (localStorage.getItem("horizon-theme") === "light")
+            document.body.classList.add("light");
+        } catch (_) {}
+        function login() {
+          location.replace("http://192.168.0.64:8080/login?next=%2Fdashboard");
+        }
+        async function request(path, signal) {
+          const r = await fetch(base + path, {
+            headers: { Authorization: "Bearer " + token },
+            cache: "no-store",
+            signal,
+          });
+          if (r.status === 401) {
+            login();
+            throw Error("Session expired");
+          }
+          if (!r.ok)
+            throw Error(
+              "Analytics unavailable (" + r.status + "). Please retry.",
+            );
+          return r;
+        }
+        function rows(target, items, columns) {
+          const body = $(target);
+          body.replaceChildren();
+          if (!items.length) {
+            const tr = document.createElement("tr"),
+              td = document.createElement("td");
+            td.colSpan = columns.length;
+            td.className = "empty";
+            td.textContent =
+              "No recorded usage in this period. Connect a tool with your account API key to start.";
+            tr.append(td);
+            body.append(tr);
+            return;
+          }
+          for (const item of items) {
+            const tr = document.createElement("tr");
+            for (const fn of columns) {
+              const td = document.createElement("td");
+              td.textContent = fn(item);
+              tr.append(td);
+            }
+            body.append(tr);
+          }
+        }
+        function groups() {
+          if (!summary) return;
+          rows("groups", summary.groups[$("dimension").value] || [], [
+            (r) => r.name,
+            (r) => num(r.requests),
+            (r) => num(r.tokens_in),
+            (r) => num(r.tokens_out),
+            (r) => num(r.tokens_saved),
+            (r) => money(r.savings_usd),
+          ]);
+        }
+        function render(s, feed) {
+          summary = s;
+          const t = s.totals;
+          $("requests").textContent = num(t.requests);
+          $("requests-detail").textContent =
+            `${num(t.completed)} completed · ${num(t.failed)} failed · ${num(t.rate_limited)} rate limited`;
+          $("saved").textContent = num(t.tokens_saved);
+          $("savings").textContent = money(t.savings_usd);
+          $("cost").textContent = money(t.cost_usd);
+          $("tokens").textContent =
+            num(t.tokens_in) + " / " + num(t.tokens_out);
+          $("cache").textContent =
+            num(t.cache_read) + " / " + num(t.cache_write);
+          $("latency").textContent = num(Math.round(t.latency_ms)) + " ms";
+          $("overhead").textContent =
+            "Average compression overhead " +
+            num(Math.round(t.overhead_ms)) +
+            " ms";
+          $("response-cache").textContent = num(t.response_cached);
+          rows("daily", s.series, [
+            (r) => r.date,
+            (r) => num(r.requests),
+            (r) => num(r.tokens_saved),
+            (r) => money(r.savings_usd),
+          ]);
+          groups();
+          rows("feed", feed, [
+            (r) => new Date(r.occurred_at).toLocaleString(),
+            (r) => r.model,
+            (r) => [r.project, r.agent].filter(Boolean).join(" / ") || "—",
+            (r) => r.status,
+            (r) => num(r.tokens_in) + " / " + num(r.tokens_out),
+            (r) => num(r.tokens_saved),
+            (r) => num(Math.round(r.latency_ms)) + " ms",
+            (r) => (r.transforms || []).join(", ") || "—",
+          ]);
+          const chart = $("chart");
+          chart.replaceChildren();
+          if (s.series.length) {
+            const max = Math.max(...s.series.map((r) => r.requests), 1),
+              points = s.series
+                .map(
+                  (r, i) =>
+                    `${s.series.length === 1 ? 500 : (i * 1000) / (s.series.length - 1)},${120 - (r.requests / max) * 110}`,
+                )
+                .join(" ");
+            for (const [tag, pts] of [
+              ["polygon", "0,130 " + points + " 1000,130"],
+              ["polyline", points],
+            ]) {
+              const el = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                tag,
+              );
+              el.setAttribute("points", pts);
+              chart.append(el);
+            }
+          }
+          $("content").classList.remove("hidden");
+        }
+        function query() {
+          return "?scope=" + scope + "&days=" + $("days").value;
+        }
+        async function refresh() {
+          if (pending) pending.abort();
+          pending = new AbortController();
+          const id = ++generation;
+          const signal = pending.signal;
+          $("status").textContent = "Loading your analytics…";
+          try {
+            const [s, f] = await Promise.all([
+              request("/analytics/summary" + query(), signal).then((r) =>
+                r.json(),
+              ),
+              request("/analytics/feed" + query(), signal).then((r) =>
+                r.json(),
+              ),
+            ]);
+            if (id !== generation) return;
+            render(s, f);
+            $("error").textContent = "";
+            $("status").textContent =
+              "Updated " +
+              new Date().toLocaleTimeString() +
+              " · refreshes every 10 seconds";
+          } catch (e) {
+            if (e.name === "AbortError") return;
+            $("error").textContent = e.message;
+            $("status").textContent = "Last displayed data may be out of date";
+          } finally {
+            if (id === generation) pending = null;
+          }
+        }
+        for (const button of document.querySelectorAll("[data-scope]"))
+          button.addEventListener("click", () => {
+            scope = button.dataset.scope;
+            document
+              .querySelectorAll("[data-scope]")
+              .forEach((b) =>
+                b.setAttribute("aria-pressed", String(b === button)),
+              );
+            $("days").classList.toggle("hidden", scope !== "history");
+            $("content").classList.add("hidden");
+            refresh();
+          });
+        $("days").onchange = refresh;
+        $("dimension").onchange = groups;
+        $("refresh").onclick = refresh;
+        $("theme").onclick = () => {
+          document.body.classList.toggle("light");
+          try {
+            localStorage.setItem(
+              "horizon-theme",
+              document.body.classList.contains("light") ? "light" : "dark",
+            );
+          } catch (_) {}
+        };
+        $("export").onclick = async () => {
+          try {
+            const r = await request("/analytics/history.csv" + query());
+            const blob = await r.blob(),
+              url = URL.createObjectURL(blob),
+              a = document.createElement("a");
+            a.href = url;
+            a.download = "my-analytics.csv";
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          } catch (e) {
+            $("error").textContent = e.message;
+          }
+        };
+        (async () => {
+          if (!token) return login();
+          try {
+            const user = await request("/auth/me").then((r) => r.json());
+            $("account").textContent = user.name + " · " + user.email;
+            await refresh();
+            setInterval(() => {
+              if (!document.hidden && !pending) refresh();
+            }, 10000);
+          } catch (e) {
+            $("error").textContent = e.message;
+            $("account").textContent = "Unable to verify session";
+          }
+        })();
+        window.addEventListener("storage", (e) => {
+          if (e.key === "cs_session_token") {
+            if (pending) pending.abort();
+            $("content").classList.add("hidden");
+            login();
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

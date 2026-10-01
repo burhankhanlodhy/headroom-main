@@ -1,28 +1,28 @@
-# Dashboard-only gateway on Pi 5. The explicit bind keeps the listener on the
-# Pi 5 LAN interface; the Horizon proxy itself remains bound to 127.0.0.1.
+# Pi 5 LAN gateway. Account analytics never reaches Horizon's global /stats.
 :8787 {
 	bind 192.168.0.71
 
-	@horizon_settings path /dashboard/settings /dashboard/settings/*
-	handle @horizon_settings {
-		respond "Not Found" 404
-	}
-
-	@horizon_dashboard path /dashboard /dashboard/*
-	handle @horizon_dashboard {
+	@account_dashboard path /dashboard /dashboard/
+	handle @account_dashboard {
+		rewrite * /dashboard/account
 		reverse_proxy 127.0.0.1:8787 {
 			header_up Host 127.0.0.1:8787
 		}
 	}
 
-	@horizon_analytics {
+	@account_reads {
 		method GET
-		path /stats /stats-lifetime /stats-history /health /transformations/feed
+		path /account-api/auth/me /account-api/analytics/summary /account-api/analytics/feed /account-api/analytics/history.csv
 	}
-	handle @horizon_analytics {
-		forward_auth 127.0.0.1:8788 {
-			uri /auth/me
-		}
+	handle @account_reads {
+		uri strip_prefix /account-api
+		reverse_proxy 127.0.0.1:8788
+	}
+
+	# Only supported provider operations may reach the data plane.
+	# The outer ASGI middleware validates the account key, including on loopback.
+	@proxy_operations path_regexp provider ^(/p/[^/]+)?(/(anthropic/)?v1/messages|/(v1/)?chat/completions|/(v1/(codex/)?|backend-api/(codex/)?)?responses|/v1(beta)?/models/[^/]+:(generateContent|streamGenerateContent|countTokens)|/v1/models(/[^/]+)?|/v1/messages/count_tokens)/?$
+	handle @proxy_operations {
 		reverse_proxy 127.0.0.1:8787 {
 			header_up Host 127.0.0.1:8787
 		}

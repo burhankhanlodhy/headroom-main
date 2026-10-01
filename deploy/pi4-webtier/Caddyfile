@@ -1,9 +1,4 @@
 # ContextShrink web tier — Pi 4 (192.168.0.64)
-# Landing page on :80, dashboard SPA on :8080.
-# The dashboard calls the control plane via same-origin /api, which Caddy
-# strips and reverse-proxies to the API on Pi 5. No CORS anywhere.
-
-# ---------------------------------------------------------------- landing
 :80 {
 	encode gzip
 	root * /var/www/contextshrink/landing
@@ -11,23 +6,22 @@
 	file_server
 }
 
-# ------------------------------------------------------------- dashboard
 :8080 {
 	encode gzip
 
-	# Horizon UI and analytics are routed through the Pi 5 LAN-scoped gateway.
-	@horizon_dashboard path /dashboard /dashboard/*
-	handle @horizon_dashboard {
+	@analytics path /dashboard /dashboard/* /account-api/*
+	handle @analytics {
 		reverse_proxy 192.168.0.71:8787
 	}
 
-	# Only the analytics reads requested by the Horizon page are forwarded.
-	@horizon_analytics {
-		method GET
-		path /stats /stats-lifetime /stats-history /health /transformations/feed
-	}
-	handle @horizon_analytics {
+	# Separate data-plane URL; browser session tokens are not proxy keys.
+	handle_path /proxy/* {
 		reverse_proxy 192.168.0.71:8787
+	}
+
+	@private_routes path /api/internal/* /api/ingest/* /stats /stats-lifetime /stats-history /health /transformations/* /metrics /admin/* /debug/*
+	handle @private_routes {
+		respond "Not Found" 404
 	}
 
 	handle_path /api/* {
@@ -40,27 +34,3 @@
 		file_server
 	}
 }
-
-# ------------------------------------------------------------ domain day
-# When you point DNS and want HTTPS, replace the two blocks above with:
-#
-# contextshrink.com {
-# 	encode gzip
-# 	root * /var/www/contextshrink/landing
-# 	try_files {path} /index.html
-# 	file_server
-# }
-#
-# app.contextshrink.com {
-# 	encode gzip
-# 	handle_path /api/* {
-# 		reverse_proxy 192.168.0.71:8788
-# 	}
-# 	handle {
-# 		root * /var/www/contextshrink/dashboard
-# 		try_files {path} /index.html
-# 		file_server
-# 	}
-# }
-#
-# Caddy obtains and renews certificates automatically.

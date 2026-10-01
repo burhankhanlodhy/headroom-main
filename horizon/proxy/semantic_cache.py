@@ -50,7 +50,9 @@ class SemanticCache:
         untouched). Absent fields don't contribute, so truly-identical requests
         still hit.
         """
-        return compute_semantic_cache_key(messages, model, **key_fields)
+        from horizon.proxy.account_analytics import tenant_key
+
+        return tenant_key(compute_semantic_cache_key(messages, model, **key_fields))
 
     async def get(self, messages: list[dict], model: str, **key_fields: Any) -> CacheEntry | None:
         """Get cached response if exists and not expired."""

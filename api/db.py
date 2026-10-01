@@ -1,8 +1,8 @@
-"""Database pool, schema bootstrap, and all queries."""
+"""Database pool, schema bootstrap, authentication and legacy metrics helpers."""
 
 import os
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 import asyncpg
 
@@ -11,7 +11,7 @@ DATABASE_URL = os.environ.get(
 )
 SESSION_TTL_DAYS = int(os.environ.get("SESSION_TTL_DAYS", "30"))
 
-_pool: Optional[asyncpg.Pool] = None
+_pool: asyncpg.Pool | None = None
 
 SCHEMA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.sql")
 
@@ -20,7 +20,7 @@ async def init_pool() -> asyncpg.Pool:
     global _pool
     _pool = await asyncpg.create_pool(DATABASE_URL, min_size=1, max_size=5)
     async with _pool.acquire() as conn:
-        with open(SCHEMA_FILE, "r", encoding="utf-8") as fh:
+        with open(SCHEMA_FILE, encoding="utf-8") as fh:
             await conn.execute(fh.read())
     return _pool
 
@@ -41,7 +41,7 @@ def _conn() -> asyncpg.Pool:
 # ------------------------------------------------------------------- users
 
 
-async def get_user_by_email(email: str) -> Optional[asyncpg.Record]:
+async def get_user_by_email(email: str) -> asyncpg.Record | None:
     return await _conn().fetchrow("SELECT * FROM core.users WHERE email = $1", email)
 
 
@@ -75,7 +75,7 @@ async def create_session(user_id: str, token_hash: str) -> datetime:
     return expires
 
 
-async def resolve_session(token_hash: str) -> Optional[asyncpg.Record]:
+async def resolve_session(token_hash: str) -> asyncpg.Record | None:
     query = """
         SELECT u.id AS user_id, u.email, u.name, s.id AS session_id
         FROM core.sessions s
@@ -104,9 +104,9 @@ async def revoke_session(token_hash: str) -> None:
 # ---------------------------------------------------------------- api keys
 
 
-async def resolve_api_key(key_hash: str) -> Optional[asyncpg.Record]:
+async def resolve_api_key(key_hash: str) -> asyncpg.Record | None:
     row = await _conn().fetchrow(
-        "SELECT id, user_id FROM core.api_keys "
+        "SELECT id, user_id, scopes FROM core.api_keys "
         "WHERE key_hash = $1 AND revoked_at IS NULL",
         key_hash,
     )

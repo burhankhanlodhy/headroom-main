@@ -539,6 +539,9 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
     # (issue #3696). ``outcome.provider`` is the already-Copilot-relabelled
     # value, matching every other provider-labelled metric on this path.
     if outcome.status_code >= 400:
+        from horizon.proxy.account_analytics import record_account_outcome
+
+        await record_account_outcome(outcome, project=outcome.project or get_current_project())
         if outcome.status_code == 429:
             await handler.metrics.record_rate_limited(provider=outcome.provider, source="upstream")
         else:
@@ -617,8 +620,10 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
     # token is counted once per conversation instead of once per turn. Falls
     # back to ``tokens_saved`` on paths that do not distinguish, which is
     # already the novel figure there. See ``conversation_savings``.
+    from horizon.proxy.account_analytics import record_account_outcome, tenant_key
+
     novel_tokens_saved = get_conversation_savings().novel(
-        outcome.conversation_key, outcome.conversation_tokens_saved
+        tenant_key(outcome.conversation_key), outcome.conversation_tokens_saved
     )
     if novel_tokens_saved is None:
         novel_tokens_saved = outcome.tokens_saved
@@ -627,6 +632,7 @@ async def emit_request_outcome(handler: Any, outcome: RequestOutcome) -> None:
     # tags and never move tok_before/after; aggregate them into Metrics so the
     # session summary / cost summary / all-layers total can surface the layer.
     tool_search_saved = tool_schema_saved_from_tags(outcome.tags or {})
+    await record_account_outcome(outcome, saved=novel_tokens_saved, tool_saved=tool_search_saved, project=project)
     savings_breakdown = from_tags(outcome.tags)
 
     # Stage timings contributed from OUTSIDE the handler, folded in here rather

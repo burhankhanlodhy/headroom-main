@@ -53,6 +53,28 @@ CREATE TABLE IF NOT EXISTS core.subscriptions (
 -- ========================================================== metrics schema
 CREATE SCHEMA IF NOT EXISTS metrics;
 
+-- Authoritative account analytics. No monthly partition maintenance required.
+CREATE TABLE IF NOT EXISTS metrics.proxy_runs (
+    runtime_id UUID PRIMARY KEY,
+    started_at TIMESTAMPTZ NOT NULL
+);
+CREATE TABLE IF NOT EXISTS metrics.proxy_events (
+    event_id UUID PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES core.users(id) ON DELETE CASCADE,
+    key_id UUID NOT NULL REFERENCES core.api_keys(id),
+    runtime_id UUID NOT NULL,
+    occurred_at TIMESTAMPTZ NOT NULL,
+    status INTEGER NOT NULL CHECK (status BETWEEN 100 AND 599),
+    model TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    project TEXT,
+    agent TEXT,
+    data JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_proxy_events_user_time ON metrics.proxy_events(user_id,occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_proxy_events_user_run ON metrics.proxy_events(user_id,runtime_id);
+CREATE INDEX IF NOT EXISTS idx_proxy_events_key ON metrics.proxy_events(key_id);
+
 -- Append-only per-request ledger, partitioned monthly. Proxies batch-upload
 -- rows every 30-60s; the dashboard reads rollups, never this table directly.
 CREATE TABLE IF NOT EXISTS metrics.usage_events (

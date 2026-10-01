@@ -1,22 +1,23 @@
 # =============================================================================
 # Horizon proxy compose (trimmed: proxy only, optional TLS front)
 # =============================================================================
-# Quick start:
-#   1. cp .env.example .env   # then set HORIZON_PROXY_TOKEN (openssl rand -hex 32)
-#   2. docker compose up -d
-#   3. point your LLM client at http://localhost:8787  (proxy)
+# Pi account deployment:
+#   1. Set strong proxy/service secrets and Postgres credentials in .env.
+#   2. Start docker-compose.controlplane.yml, then this proxy stack.
+#   3. Create an account key on Pi 4; configure X-Horizon-Proxy-Token in the tool.
+# See deploy/ACCOUNT_ANALYTICS.md for the complete connection and deployment flow.
 #
 # The proxy listens on loopback only. The optional dashboard gateway below
-# binds to the Pi 5 LAN address and exposes only authenticated dashboard reads.
+# binds to the Pi 5 LAN address and exposes private account analytics and a
+# provider operation allowlist. The proxy authenticates all tool requests.
 #
 # TLS front (VPS with a DNS name):
 #   1. set HORIZON_PUBLIC_DOMAIN in .env (e.g. horizon.example.com)
 #   2. docker compose --profile tls up -d
 #   3. Caddy terminates TLS on 80/443 and obtains certificates automatically
 #
-# Per-user keys live in the horizon_workspace volume (keys.db), so issuing a
-# key from the host is: docker compose exec horizon-proxy horizon keys issue <name>
-# See DEPLOY.md for the full walkthrough.
+# Account keys live in Postgres and are managed on Pi 4. The OSS keys.db/CLI
+# remains available for standalone deployments with account integration disabled.
 # =============================================================================
 
 services:
@@ -35,6 +36,8 @@ services:
       - HOME=/home/nonroot
       - HORIZON_WORKSPACE_DIR=/home/nonroot/.horizon
       - HORIZON_CONFIG_DIR=/home/nonroot/.horizon/config
+      - CONTEXTSHRINK_API_URL=${CONTEXTSHRINK_API_URL:-http://127.0.0.1:8788}
+      - CONTEXTSHRINK_SERVICE_TOKEN=${CONTEXTSHRINK_SERVICE_TOKEN:?set CONTEXTSHRINK_SERVICE_TOKEN}
     volumes:
       - horizon_workspace:/home/nonroot/.horizon
     healthcheck:
@@ -44,9 +47,9 @@ services:
       retries: 3
       start_period: 20s
 
-  # LAN-scoped read-only gateway for the separate Pi 4 account dashboard.
-  # Its Caddyfile binds only 192.168.0.71:8787, validates dashboard sessions
-  # on analytics requests, and forwards an explicit allowlist to loopback.
+  # LAN gateway for private analytics and authenticated provider operations.
+  # Its Caddyfile binds only 192.168.0.71:8787 and forwards an explicit
+  # allowlist. The account API validates sessions; the proxy validates tool keys.
   # Enable with: docker compose --profile dashboard up -d horizon-dashboard-gateway
   horizon-dashboard-gateway:
     image: caddy:2-alpine

@@ -42,6 +42,18 @@ export interface BillingEstimate {
   }>;
   estimated_total_usd: number;
   currency: "USD";
+  compression: CompressionEntitlement;
+}
+
+/** Free-plan compression allowance for the current UTC month. */
+export interface CompressionEntitlement {
+  plan: "free" | "pro" | "team";
+  capped: boolean;
+  cap_usd: number;
+  cycle_savings_usd: number | null;
+  cycle_start: string;
+  cycle_end: string;
+  compression_allowed: boolean;
 }
 
 export function useBillingEstimate() {

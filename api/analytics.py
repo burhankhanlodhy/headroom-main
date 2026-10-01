@@ -82,6 +82,56 @@ def public_key(row):
     return {**dict(row), "id": str(row["id"])}
 
 
+# Free accounts get compression until they have saved this much in the
+# current UTC calendar month; later requests pass through uncompressed.
+FREE_SAVINGS_CAP_USD = float(os.environ.get("FREE_SAVINGS_CAP_USD", "20"))
+
+
+async def compression_entitlement(user_id) -> dict:
+    """Whether the proxy may compress for this account right now.
+
+    Active Pro/Team plans are uncapped. Everything else, including a paid plan
+    that is not active (e.g. a failed payment), gets the Free cap.
+    """
+    row = await db._conn().fetchrow(
+        """
+        SELECT COALESCE(s.plan,'free') AS plan, COALESCE(s.status,'active') AS status,
+               date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS cycle_start
+        FROM core.users u LEFT JOIN core.subscriptions s ON s.user_id=u.id
+        WHERE u.id=$1
+        """,
+        user_id,
+    )
+    cycle_start = row["cycle_start"]
+    month = cycle_start.month
+    cycle_end = (
+        cycle_start.replace(year=cycle_start.year + 1, month=1)
+        if month == 12
+        else cycle_start.replace(month=month + 1)
+    )
+    base = {
+        "plan": row["plan"],
+        "cap_usd": FREE_SAVINGS_CAP_USD,
+        "cycle_start": cycle_start.isoformat(),
+        "cycle_end": cycle_end.isoformat(),
+    }
+    if row["plan"] in ("pro", "team") and row["status"] == "active":
+        return {**base, "capped": False, "cycle_savings_usd": None, "compression_allowed": True}
+    saved = await db._conn().fetchval(
+        "SELECT COALESCE(SUM(NULLIF(data->>'savings_usd','')::numeric),0) "
+        "FROM metrics.proxy_events WHERE user_id=$1 AND occurred_at >= $2",
+        user_id,
+        cycle_start,
+    )
+    saved = float(saved or 0)
+    return {
+        **base,
+        "capped": True,
+        "cycle_savings_usd": round(saved, 2),
+        "compression_allowed": saved < FREE_SAVINGS_CAP_USD,
+    }
+
+
 # No untrusted string enters these SQL expressions.
 TOTALS = """
  count(*)::bigint AS requests,
@@ -241,7 +291,13 @@ def install(app, current_user):
             raise HTTPException(401, "Invalid or revoked proxy key")
         if body.scope not in row["scopes"]:
             raise HTTPException(403, "Proxy key does not have the required scope")
-        return {"user_id": str(row["user_id"]), "key_id": str(row["id"])}
+        entitlement = await compression_entitlement(row["user_id"])
+        return {
+            "user_id": str(row["user_id"]),
+            "key_id": str(row["id"]),
+            "plan": entitlement["plan"],
+            "compression_allowed": entitlement["compression_allowed"],
+        }
 
     @app.post("/internal/analytics/run", dependencies=[Depends(service_auth)])
     async def register_run(body: RunIn):

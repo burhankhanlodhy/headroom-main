@@ -21,16 +21,22 @@ export const PLANS: {
   {
     id: "free",
     name: "Free",
-    description: "Account access, API keys and your usage overview.",
-    features: ["Account profile", "Account API keys", "Usage & savings"],
+    description:
+      "Compression until you save $20 in a month, then requests pass through.",
+    features: [
+      "Compression up to $20 saved / month",
+      "Account API keys",
+      "Usage & savings",
+    ],
     accent: "from-ember to-ember-2",
   },
   {
     id: "pro",
     name: "Pro",
-    description: "Your usage overview plus detailed Advanced Analytics.",
+    description:
+      "Unlimited compression. 5% of savings, only when you save over $20.",
     features: [
-      "All Free features",
+      "Unlimited compression",
       "Advanced Analytics",
       "Analytics CSV export",
     ],

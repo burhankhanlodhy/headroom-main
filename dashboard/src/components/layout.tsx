@@ -1,10 +1,17 @@
 import { useState, type ReactNode } from "react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
   BookOpen,
   CreditCard,
+  Gauge,
   LineChart,
   KeyRound,
   LogOut,
@@ -13,9 +20,55 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { cn } from "../lib/utils";
+import { cn, fmtUsd } from "../lib/utils";
 import { EASE } from "./ui";
 import { initials, useAccount } from "../lib/account";
+import { useBillingEstimate } from "../lib/usage";
+
+/** Free-plan cap notice: shown when close to, or past, the monthly cap. */
+function CompressionCapNotice() {
+  const { estimate } = useBillingEstimate();
+  const cap = estimate?.compression;
+  if (!cap?.capped || cap.cycle_savings_usd === null) return null;
+  const paused = !cap.compression_allowed;
+  if (!paused && cap.cycle_savings_usd < cap.cap_usd * 0.75) return null;
+  const resets = new Date(cap.cycle_end).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return (
+    <div
+      className={cn(
+        "mb-6 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 text-sm",
+        paused
+          ? "border-ember/40 bg-ember-soft text-ink"
+          : "border-ink/15 bg-ink/5 text-ink-2",
+      )}
+    >
+      <Gauge size={17} className="shrink-0 text-ember" />
+      <p className="min-w-0 flex-1">
+        {paused ? (
+          <>
+            <strong>Free compression cap reached.</strong> You've saved{" "}
+            {fmtUsd(cap.cycle_savings_usd)} this month, so requests now pass
+            through uncompressed until {resets}.
+          </>
+        ) : (
+          <>
+            You've saved {fmtUsd(cap.cycle_savings_usd)} of your{" "}
+            {fmtUsd(cap.cap_usd)} Free compression allowance this month.
+          </>
+        )}
+      </p>
+      <Link
+        to="/subscriptions"
+        className="font-semibold text-ember underline-offset-2 hover:underline"
+      >
+        Get unlimited with Pro
+      </Link>
+    </div>
+  );
+}
 
 export function AuroraBackground() {
   return <div className="paper-grid fixed inset-0" aria-hidden />;
@@ -245,6 +298,9 @@ export function Shell() {
         </header>
 
         <main className="min-h-0 flex-1 overflow-y-auto px-6 pb-10 pt-6 lg:px-10">
+          <div className="mx-auto max-w-[1180px]">
+            <CompressionCapNotice />
+          </div>
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0, y: 16 }}

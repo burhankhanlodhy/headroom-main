@@ -304,12 +304,8 @@ def extract_tags(headers: Any) -> dict[str, str]:
     }
 
 
-def _horizon_bypass_enabled(headers: Any) -> bool:
-    """Return True when inbound headers request full Horizon passthrough.
-
-    This is transport-neutral policy: HTTP and WebSocket handlers both call
-    it on original inbound headers before request-body mutation.
-    """
+def _horizon_bypass_header(headers: Any) -> bool:
+    """Return True when inbound headers explicitly request passthrough."""
 
     try:
         bypass = str(headers.get("x-horizon-bypass", "")).strip().lower() == "true"
@@ -317,6 +313,22 @@ def _horizon_bypass_enabled(headers: Any) -> bool:
     except AttributeError:
         return False
     return bypass or passthrough
+
+
+def _horizon_bypass_enabled(headers: Any) -> bool:
+    """Return True when the request must receive full Horizon passthrough.
+
+    Either the inbound headers ask for it, or the verified account has reached
+    its plan's compression cap. This is transport-neutral policy: HTTP and
+    WebSocket handlers both call it on original inbound headers before
+    request-body mutation, so every compression path honours the cap.
+    """
+
+    if _horizon_bypass_header(headers):
+        return True
+    from horizon.proxy.account_analytics import compression_paused
+
+    return compression_paused()
 
 
 # Response headers that describe how the *upstream* framed its body on the

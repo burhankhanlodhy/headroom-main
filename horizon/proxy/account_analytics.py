@@ -31,6 +31,9 @@ class AccountContext:
     user_id: str
     key_id: str
     service: AccountAnalytics
+    # False once the account's plan cap is reached (Free: $20 saved per UTC
+    # month). The control plane decides; the proxy only honours it.
+    compression_allowed: bool = True
     emitted: set[str] = field(default_factory=set)
 
 
@@ -40,6 +43,15 @@ _account: ContextVar[AccountContext | None] = ContextVar("verified_proxy_account
 def account_id() -> str | None:
     context = _account.get()
     return context.user_id if context else None
+
+
+def compression_paused() -> bool:
+    """True when the verified account must be served as plain passthrough."""
+    context = _account.get()
+    return context is not None and not context.compression_allowed
+
+
+COMPRESSION_STATUS_HEADER = (b"x-contextshrink-compression", b"paused")
 
 
 def tenant_key(key: str | None) -> str | None:
@@ -314,7 +326,12 @@ class AccountMiddleware:
                 status,
                 "Invalid/revoked proxy key or unavailable authentication service",
             )
-        context = AccountContext(data["user_id"], data["key_id"], self.service)
+        context = AccountContext(
+            data["user_id"],
+            data["key_id"],
+            self.service,
+            compression_allowed=data.get("compression_allowed", True) is not False,
+        )
         scope.setdefault("state", {})["account_user_id"] = context.user_id
         # Never send account or service credentials upstream, or trust identity hints.
         excluded = {
@@ -335,6 +352,11 @@ class AccountMiddleware:
             nonlocal response_status
             if message["type"] == "http.response.start":
                 response_status = message["status"]
+                if not context.compression_allowed:
+                    message = {
+                        **message,
+                        "headers": [*message.get("headers", []), COMPRESSION_STATUS_HEADER],
+                    }
             await send(message)
 
         async def wrapped_receive():
@@ -350,6 +372,9 @@ class AccountMiddleware:
                 ):
                     await send({"type": "websocket.close", "code": 1008})
                     return {"type": "websocket.disconnect", "code": 1008}
+                # Picks up a cap reached mid-socket; per-connection policy
+                # computed at accept time applies again on reconnect.
+                context.compression_allowed = owner.get("compression_allowed", True) is not False
             return message
 
         try:

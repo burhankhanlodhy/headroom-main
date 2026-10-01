@@ -53,6 +53,18 @@
   enforce this entitlement server-side on every request; Free remains able
   to access its own basic Usage/Profile data. Direct advanced links redirect
   Free accounts to Subscriptions, including after a downgrade.
+- Free compression is capped at `FREE_SAVINGS_CAP_USD` ($20 by default) of
+  savings per UTC calendar month. The control plane returns
+  `compression_allowed` from `/internal/proxy/authorize` on every request; once
+  the cap is reached the proxy serves the account as full passthrough (the same
+  path as `x-horizon-bypass: true`), tags the decision `plan_cap_reached` and
+  adds `X-ContextShrink-Compression: paused` to responses. Requests keep
+  working and are still recorded, with zero savings. Active Pro/Team plans are
+  uncapped; a paid plan that is not active falls back to the cap. Because
+  savings are known only after a response, a burst of concurrent requests can
+  end slightly above the cap. An open WebSocket picks up the cap on its next
+  turn; per-connection compression settings apply again on reconnect. The
+  dashboard shows a notice from 75% of the cap and when compression is paused.
 
 - `metrics.proxy_events` is the authoritative ledger, indexed by account/time,
   account/run and key. It needs no monthly partition job. Existing accounts,

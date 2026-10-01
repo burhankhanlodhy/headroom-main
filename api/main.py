@@ -125,6 +125,7 @@ async def account_billing_estimate(user: asyncpg.Record) -> dict:
         "estimates": {plan: {key: as_usd(value) for key, value in breakdown.items()} for plan, breakdown in estimates.items()},
         "estimated_total_usd": as_usd(estimates.get(current_plan, estimates["free"])["total"]),
         "currency": "USD",
+        "compression": await analytics.compression_entitlement(user["user_id"]),
     }
 
 

@@ -31,7 +31,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from horizon.proxy.helpers import _horizon_bypass_enabled
+from horizon.proxy.account_analytics import compression_paused
+from horizon.proxy.helpers import _horizon_bypass_header
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,8 @@ class CompressionDecision:
     #   * ``"bypass_header"``      — user set x-horizon-bypass or
     #                                x-horizon-mode=passthrough
     #   * ``"compression_disabled"`` — operator set config.optimize=False
+    #   * ``"plan_cap_reached"``    — account reached its plan's monthly
+    #                                compression cap (Free tier)
     #   * ``"no_messages"``         — empty / missing messages on body
     #   * ``"license_denied"``      — usage reporter said no
     # When ``should_compress`` is True, this is ``None``.
@@ -67,6 +70,7 @@ class CompressionDecision:
     config_optimize_enabled: bool
     license_allows: bool
     has_messages: bool
+    plan_cap_reached: bool = False
 
     @classmethod
     def decide(
@@ -88,10 +92,12 @@ class CompressionDecision:
           2. ``compression_disabled`` — operator-level kill switch
              (``config.optimize=False``). Honoured next so the operator
              can run the proxy in pure-observability mode.
-          3. ``no_messages`` — nothing to compress; surfaced before
+          3. ``plan_cap_reached`` — the verified account used its plan's
+             monthly compression allowance; the request passes through.
+          4. ``no_messages`` — nothing to compress; surfaced before
              license because license-denial on an empty request would
              be misleading.
-          4. ``license_denied`` — commercial gating. Only meaningful
+          5. ``license_denied`` — commercial gating. Only meaningful
              when there's something to compress, which is why it comes
              last.
 
@@ -102,7 +108,8 @@ class CompressionDecision:
             ``.get(key)`` method (dict, starlette Headers, MutableMapping).
             Both ``x-horizon-bypass: true`` and
             ``x-horizon-mode: passthrough`` trigger bypass — semantics
-            mirrored from :func:`horizon.proxy.helpers._horizon_bypass_enabled`.
+            mirrored from :func:`horizon.proxy.helpers._horizon_bypass_header`.
+            The account plan cap is read from the verified account context.
         config
             ``HorizonConfig``-shaped object; only ``optimize: bool``
             is read.
@@ -115,17 +122,21 @@ class CompressionDecision:
             Messages list from the request body. ``None`` and ``[]`` are
             both "no messages" — equivalent in the decision.
         """
-        bypass = _horizon_bypass_enabled(headers)
+        bypass = _horizon_bypass_header(headers)
         config_ok = bool(getattr(config, "optimize", False))
+        cap_reached = compression_paused()
         license_ok = usage_reporter.should_compress if usage_reporter is not None else True
         has_msgs = bool(messages)
 
-        # Precedence: bypass > config > no_messages > license
+        # Precedence: bypass > config > plan cap > no_messages > license
         if bypass:
             reason: str | None = "bypass_header"
             should = False
         elif not config_ok:
             reason = "compression_disabled"
+            should = False
+        elif cap_reached:
+            reason = "plan_cap_reached"
             should = False
         elif not has_msgs:
             reason = "no_messages"
@@ -144,6 +155,7 @@ class CompressionDecision:
             config_optimize_enabled=config_ok,
             license_allows=license_ok,
             has_messages=has_msgs,
+            plan_cap_reached=cap_reached,
         )
 
     def apply_to_tags(self, tags: dict[str, str]) -> None:

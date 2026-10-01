@@ -5,6 +5,7 @@ import {
   BarChart3,
   BookOpen,
   CreditCard,
+  LineChart,
   KeyRound,
   LogOut,
   Menu,
@@ -92,6 +93,12 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
           )}
         </NavLink>
       ))}
+      <a href="/dashboard" onClick={onNavigate}>
+        <div className="relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-3 transition-colors hover:text-ink">
+          <LineChart size={17} />
+          <span>Advanced Analytics</span>
+        </div>
+      </a>
       <NavLink to="/signout" onClick={onNavigate}>
         {({ isActive }) => (
           <div
@@ -216,18 +223,15 @@ export function Shell() {
         </header>
 
         <main className="min-h-0 flex-1 overflow-y-auto px-6 pb-10 pt-6 lg:px-10">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.32, ease: EASE }}
-              className="mx-auto max-w-[1180px]"
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.32, ease: EASE }}
+            className="mx-auto max-w-[1180px]"
+          >
+            <Outlet />
+          </motion.div>
         </main>
       </div>
     </div>

@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { AuroraBackground, FullPageCenter, Shell } from "./components/layout";
 import Profile from "./pages/Profile";
 import ApiKeys from "./pages/ApiKeys";
@@ -8,19 +9,92 @@ import Documentation from "./pages/Documentation";
 import SignOut from "./pages/SignOut";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import { refreshUser } from "./lib/auth";
+
+type SessionState = "checking" | "authenticated" | "unauthenticated" | "error";
+
+function RequireAuth() {
+  const location = useLocation();
+  const [sessionState, setSessionState] = useState<SessionState>("checking");
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setSessionState("checking");
+
+    refreshUser().then(
+      (user) => {
+        if (active) setSessionState(user ? "authenticated" : "unauthenticated");
+      },
+      () => {
+        if (active) setSessionState("error");
+      },
+    );
+
+    return () => {
+      active = false;
+    };
+  }, [attempt]);
+
+  if (sessionState === "checking") {
+    return (
+      <div className="relative z-10 grid h-screen place-items-center px-6">
+        <div
+          className="paper-panel flex items-center gap-3 rounded-lg px-5 py-4 text-sm text-ink-2"
+          role="status"
+        >
+          <span className="live-dot" aria-hidden="true" />
+          Checking your session…
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionState === "error") {
+    return (
+      <div className="relative z-10 grid h-screen place-items-center px-6">
+        <div className="paper-panel max-w-md rounded-lg p-6 text-center" role="alert">
+          <h1 className="font-display text-xl font-semibold text-ink">
+            We couldn’t verify your session
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-ink-3">
+            The account service couldn’t verify your session. Check the connection and try again.
+          </p>
+          <button
+            className="btn btn-ink mt-5"
+            onClick={() => {
+              setSessionState("checking");
+              setAttempt((current) => current + 1);
+            }}
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionState === "unauthenticated") {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  return <Outlet />;
+}
 
 export default function App() {
   return (
     <>
       <AuroraBackground />
       <Routes>
-        <Route element={<Shell />}>
-          <Route index element={<Profile />} />
-          <Route path="keys" element={<ApiKeys />} />
-          <Route path="usage" element={<Usage />} />
-          <Route path="subscriptions" element={<Subscriptions />} />
-          <Route path="docs" element={<Documentation />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+        <Route element={<RequireAuth />}>
+          <Route element={<Shell />}>
+            <Route index element={<Profile />} />
+            <Route path="keys" element={<ApiKeys />} />
+            <Route path="usage" element={<Usage />} />
+            <Route path="subscriptions" element={<Subscriptions />} />
+            <Route path="docs" element={<Documentation />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
         </Route>
         <Route
           path="/login"

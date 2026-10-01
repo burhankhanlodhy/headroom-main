@@ -4,6 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Horizon Dashboard</title>
+    <script>
+        // Attach the signed-in account token only to same-origin analytics calls.
+        // The Pi 5 gateway validates it with /auth/me before analytics reads.
+        (function() {
+            try {
+                if (localStorage.getItem('cs_session_token')) {
+                    document.documentElement.dataset.contextshrinkSession = 'true';
+                }
+            } catch (_) {
+                // Storage can be unavailable in privacy-restricted browsers.
+            }
+            const nativeFetch = window.fetch.bind(window);
+            window.fetch = function(input, init) {
+                let requestUrl;
+                try {
+                    requestUrl = new URL(
+                        typeof input === 'string' ? input : input.url,
+                        window.location.href
+                    );
+                } catch (_) {
+                    return nativeFetch(input, init);
+                }
+                if (requestUrl.origin !== window.location.origin) {
+                    return nativeFetch(input, init);
+                }
+
+                let token = null;
+                try {
+                    token = localStorage.getItem('cs_session_token');
+                } catch (_) {
+                    // Storage can be unavailable in privacy-restricted browsers.
+                }
+                if (!token) return nativeFetch(input, init);
+
+                const headers = new Headers(
+                    init && init.headers ? init.headers :
+                    (input instanceof Request ? input.headers : undefined)
+                );
+                if (!headers.has('Authorization')) {
+                    headers.set('Authorization', `Bearer ${token}`);
+                }
+                return nativeFetch(input, { ...init, headers });
+            };
+        })();
+    </script>
     <script src="/dashboard/static/tailwind.min.js"></script>
     <script src="/dashboard/static/alpine.min.js" defer></script>
     <script>
@@ -73,6 +118,7 @@
         h1, h2, h3, .font-display { font-family: 'Fraunces', Georgia, serif; }
         /* Accessibility: visible keyboard focus on every operable element (WCAG 2.4.7 / 2.4.11) */
         :focus-visible { outline: 2px solid #c14d1b; outline-offset: 2px; border-radius: 4px; }
+        html[data-contextshrink-session="true"] #settings-link { display: none; }
         html:not(.dark) :focus-visible { outline-color: #a03d13; }
         [role="button"]:focus-visible { outline-offset: -2px; }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
@@ -187,6 +233,9 @@
     <!-- Header -->
     <header class="border-b border-border px-6 py-4 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
         <div class="flex items-center gap-4">
+            <a href="/" class="px-3 py-1.5 text-sm rounded-md border border-border bg-surface text-gray-400 hover:text-gray-200 transition-colors">
+                &larr; Back to Pi 4 Dashboard
+            </a>
             <h1 class="text-xl font-semibold tracking-tight">HORIZON</h1>
             <span class="text-xs text-gray-500 font-mono" x-text="formatVersion(version)"></span>
         </div>
@@ -212,7 +261,7 @@
                 <div class="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-1"
                      :title="'Current proxy profile: ' + stats.config.savings_profile">
                     <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                    <span class="text-xs text-cyan-100">
+                    <span class="text-xs text-black">
                         <span x-text="stats.config.savings_profile"></span>
                         <template x-if="stats.config.target_savings_percent !== null">
                             <span x-text="' · target ' + stats.config.target_savings_percent + '%'"></span>
@@ -2062,18 +2111,6 @@
         </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="border-t border-border px-6 py-4 mt-8">
-        <div class="flex justify-between items-center text-xs text-gray-500">
-            <div>
-                Press <kbd class="px-1.5 py-0.5 bg-border rounded text-gray-400">R</kbd> to refresh
-            </div>
-            <div>
-                <a href="https://docs.horizon.invalid/docs" target="_blank" class="hover:text-gray-300 transition-colors">Documentation</a>
-            </div>
-        </div>
-    </footer>
-
     <script>
         function dashboard() {
             return {
@@ -2179,6 +2216,7 @@
                 formatVersion(value) {
                     const label = String(value || 'unknown').trim();
                     if (label === 'loading' || label === 'unknown') return label;
+                    if (label.startsWith('source-build+')) return '';
                     return /^\d+\.\d+\.\d+$/.test(label) ? 'v' + label : label;
                 },
 

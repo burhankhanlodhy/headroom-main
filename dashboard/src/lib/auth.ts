@@ -4,7 +4,7 @@
  * instantly and /auth/me can re-verify when needed.
  */
 
-import { apiFetch, getToken, setToken } from "./api";
+import { ApiError, apiFetch, getToken, setToken } from "./api";
 
 export interface SessionUser {
   id: string;
@@ -69,12 +69,42 @@ export async function logout(): Promise<void> {
 
 /** Re-verify the cached session against the API (e.g. on app mount). */
 export async function refreshUser(): Promise<SessionUser | null> {
-  if (!getToken()) return null;
+  if (!getToken()) {
+    cacheUser(null);
+    return null;
+  }
+
   try {
     const user = await apiFetch<SessionUser>("/auth/me");
     cacheUser(user);
     return user;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      setToken(null);
+      cacheUser(null);
+      return null;
+    }
+    throw error;
   }
+}
+
+/** Keep the originally requested dashboard route through login or signup. */
+export function getPostAuthDestination(state: unknown): string | {
+  pathname: string;
+  search: string;
+  hash: string;
+} {
+  const from = (state as {
+    from?: { pathname?: string; search?: string; hash?: string };
+  } | null)?.from;
+
+  if (!from?.pathname || !from.pathname.startsWith("/") || from.pathname.startsWith("//")) {
+    return "/";
+  }
+
+  return {
+    pathname: from.pathname,
+    search: from.search ?? "",
+    hash: from.hash ?? "",
+  };
 }

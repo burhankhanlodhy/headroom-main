@@ -1,0 +1,34 @@
+# Dashboard-only gateway on Pi 5. The explicit bind keeps the listener on the
+# Pi 5 LAN interface; the Horizon proxy itself remains bound to 127.0.0.1.
+:8787 {
+	bind 192.168.0.71
+
+	@horizon_settings path /dashboard/settings /dashboard/settings/*
+	handle @horizon_settings {
+		respond "Not Found" 404
+	}
+
+	@horizon_dashboard path /dashboard /dashboard/*
+	handle @horizon_dashboard {
+		reverse_proxy 127.0.0.1:8787 {
+			header_up Host 127.0.0.1:8787
+		}
+	}
+
+	@horizon_analytics {
+		method GET
+		path /stats /stats-lifetime /stats-history /health /transformations/feed
+	}
+	handle @horizon_analytics {
+		forward_auth 127.0.0.1:8788 {
+			uri /auth/me
+		}
+		reverse_proxy 127.0.0.1:8787 {
+			header_up Host 127.0.0.1:8787
+		}
+	}
+
+	handle {
+		respond "Not Found" 404
+	}
+}

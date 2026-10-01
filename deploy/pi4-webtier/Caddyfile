@@ -15,6 +15,21 @@
 :8080 {
 	encode gzip
 
+	# Horizon UI and analytics are routed through the Pi 5 LAN-scoped gateway.
+	@horizon_dashboard path /dashboard /dashboard/*
+	handle @horizon_dashboard {
+		reverse_proxy 192.168.0.71:8787
+	}
+
+	# Only the analytics reads requested by the Horizon page are forwarded.
+	@horizon_analytics {
+		method GET
+		path /stats /stats-lifetime /stats-history /health /transformations/feed
+	}
+	handle @horizon_analytics {
+		reverse_proxy 192.168.0.71:8787
+	}
+
 	handle_path /api/* {
 		reverse_proxy 192.168.0.71:8788
 	}

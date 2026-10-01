@@ -6,8 +6,8 @@
 #   2. docker compose up -d
 #   3. point your LLM client at http://localhost:8787  (proxy)
 #
-# The published port is loopback-only. For network access put a TLS reverse
-# proxy in front AND require HORIZON_PROXY_TOKEN - never one without the other.
+# The proxy listens on loopback only. The optional dashboard gateway below
+# binds to the Pi 5 LAN address and exposes only authenticated dashboard reads.
 #
 # TLS front (VPS with a DNS name):
 #   1. set HORIZON_PUBLIC_DOMAIN in .env (e.g. horizon.example.com)
@@ -25,12 +25,7 @@ services:
       context: .
       args:
         HORIZON_BUILD_VERSION: ${HORIZON_BUILD_VERSION:-source-build}
-    # Host networking (Linux): the proxy binds host loopback directly, so
-    # SSH-tunneled clients present as 127.0.0.1 and pass the loopback trust
-    # boundary (auth gate, dashboard fields) without a token. In a bridge
-    # network the DNAT'd peer is the gateway IP, which the gate treats as
-    # untrusted and 401s every tunnelled request. The loopback bind itself
-    # is the confinement - nothing off-box can reach the port.
+    # Host networking (Linux): loopback confines the proxy data plane to Pi 5.
     network_mode: host
     command: ["--host", "127.0.0.1"]
     restart: unless-stopped
@@ -48,6 +43,20 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+
+  # LAN-scoped read-only gateway for the separate Pi 4 account dashboard.
+  # Its Caddyfile binds only 192.168.0.71:8787, validates dashboard sessions
+  # on analytics requests, and forwards an explicit allowlist to loopback.
+  # Enable with: docker compose --profile dashboard up -d horizon-dashboard-gateway
+  horizon-dashboard-gateway:
+    image: caddy:2-alpine
+    profiles: ["dashboard"]
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./deploy/pi5-webtier/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - horizon-proxy
 
   # Optional TLS front. Activated with: docker compose --profile tls up -d
   # NOTE: with horizon-proxy in host-network mode, caddy must also use

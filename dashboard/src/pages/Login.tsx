@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, LogIn } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { EASE, GradientButton } from "../components/ui";
-import { signIn } from "../lib/auth";
+import { getPostAuthDestination, signIn } from "../lib/auth";
 
 const LANDING_URL =
   (import.meta.env.VITE_LANDING_URL as string | undefined) ?? "http://127.0.0.1:5174";
@@ -16,6 +16,7 @@ const backLinkCls =
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export default function Login() {
     setBusy(true);
     try {
       await signIn(email.trim(), password);
-      navigate("/");
+      navigate(getPostAuthDestination(location.state), { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sign in failed.");
     } finally {
@@ -105,7 +106,7 @@ export default function Login() {
       <p className="mt-5 text-center text-xs text-slate-500">
         No account yet?{" "}
         <button
-          onClick={() => navigate("/signup")}
+          onClick={() => navigate("/signup", { state: location.state })}
           className="font-medium text-indigo-300 transition hover:text-indigo-200"
         >
           Create one

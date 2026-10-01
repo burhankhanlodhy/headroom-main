@@ -37,10 +37,21 @@
   from account usage. The displayed timezone is the browser timezone, and
   the dashboard link uses the browser's actual origin.
 - The three plans are `free`, `pro` and `team`. Free can be selected without a
-  payment method. Until Stripe Checkout and verified webhooks are configured,
-  the API rejects Pro/Team activation; a browser request cannot grant paid
-  entitlement. Team currently represents one account seat because team
-  membership and invitations are not implemented.
+  payment method. Pro starts at `POST /billing/checkout`: Stripe Checkout
+  saves a card on a $0/month subscription (`STRIPE_PRO_PRICE_LOOKUP_KEY`).
+  The plan is granted only by verified webhooks at `/api/stripe/webhook`
+  (`STRIPE_WEBHOOK_SECRET`), which sync plan, status and period from Stripe;
+  a browser request cannot grant paid entitlement. Cancelling goes through the
+  Customer Portal (`POST /billing/portal`, at period end). Team is "coming
+  soon" until team membership and invitations exist.
+- Savings fee (option A, no Stripe metering): on each renewal invoice
+  (`invoice.created`, `subscription_cycle`) the API computes the ended period's
+  savings from `metrics.proxy_events` and, above $20, finalizes a separate
+  Stripe invoice for 5% of the whole amount. When a subscription ends, the
+  final partial period is billed the same way. `billing.savings_fees` holds one
+  row per account per period, so redelivered events never charge twice.
+  `api/stripe_setup.py` creates the Pro price, Customer Portal settings and the
+  webhook endpoint idempotently.
 - `/billing/estimate` calculates each account's savings from its own proxy
   events over its subscription period when one is recorded, or the current UTC
   calendar month before Stripe periods are available. Profile and Subscription

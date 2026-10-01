@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowUpRight, Check, Sparkles } from "lucide-react";
 import {
@@ -12,30 +13,89 @@ import {
   SectionHeader,
 } from "../components/ui";
 import { PLANS, useAccount, type Plan } from "../lib/account";
+import { openPortal, startCheckout, useBilling } from "../lib/billing";
 import { useBillingEstimate } from "../lib/usage";
 import { cn, fmtUsd } from "../lib/utils";
 
 export default function Subscriptions() {
-  const { plan, changePlan, user } = useAccount();
+  const { plan, changePlan, reloadAccount, user } = useAccount();
   const { estimate, error: estimateError, loading: estimateLoading } =
     useBillingEstimate();
+  const { info, invoices, reload: reloadBilling } = useBilling();
+  const [params, setParams] = useSearchParams();
   const current = PLANS.find((p) => p.id === plan)!;
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Plan>(plan);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  // Returning from Stripe Checkout: Pro is granted by the webhook, so poll
+  // briefly until the account reflects it.
+  const checkout = params.get("checkout");
+  useEffect(() => {
+    if (!checkout) return;
+    setParams({}, { replace: true });
+    if (checkout !== "success") {
+      setNotice("Checkout cancelled. Your plan has not changed.");
+      return;
+    }
+    setNotice("Payment method saved. Activating Pro…");
+    let cancelled = false;
+    void (async () => {
+      for (let attempt = 0; attempt < 20 && !cancelled; attempt++) {
+        const fresh = await reloadAccount().catch(() => null);
+        if (fresh?.plan === "pro") {
+          setNotice("You're on Pro: unlimited compression is active.");
+          void reloadBilling();
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      if (!cancelled)
+        setNotice(
+          "Your payment method is saved. Pro activation is taking longer than usual; refresh in a minute.",
+        );
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkout]);
+
   function manage(next: Plan = plan) {
     setSelected(next);
     setError("");
     setNotice("");
     setOpen(true);
   }
+  const upgrading = selected === "pro" && plan !== "pro";
+  const cancelling = selected === "free" && Boolean(info?.has_subscription);
+  async function portal() {
+    setError("");
+    try {
+      await openPortal();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to open billing");
+    }
+  }
   async function save() {
     if (saving) return;
     setSaving(true);
     setError("");
     try {
+      if (selected === "team") {
+        setError("Team is coming soon.");
+        return;
+      }
+      if (upgrading) {
+        await startCheckout("pro"); // leaves the page
+        return;
+      }
+      if (cancelling) {
+        await openPortal(); // cancellation bills the final savings fee
+        return;
+      }
       await changePlan(selected);
       setOpen(false);
       setNotice(
@@ -69,6 +129,13 @@ export default function Subscriptions() {
               <p className="mt-1.5 max-w-lg text-sm text-ink-3">
                 {current.description}
               </p>
+              {info?.cancel_at_period_end && info.current_period_end && (
+                <p className="mt-2 text-sm text-ember">
+                  {current.name} ends on{" "}
+                  {new Date(info.current_period_end).toLocaleDateString()}. Your
+                  final savings fee is billed then.
+                </p>
+              )}
               <div className="mt-4 flex flex-wrap gap-2">
                 {current.features.map((f) => (
                   <span
@@ -210,7 +277,13 @@ export default function Subscriptions() {
           <SectionHeader
             eyebrow="Billing"
             title="Payment history"
-            action={<Badge tone="slate">0 payments</Badge>}
+            action={
+              <Badge tone="slate">
+                {invoices === null
+                  ? "Loading…"
+                  : `${invoices.length} invoice${invoices.length === 1 ? "" : "s"}`}
+              </Badge>
+            }
           />
         </div>
         <table className="w-full text-left text-sm">
@@ -223,21 +296,56 @@ export default function Subscriptions() {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td colSpan={4} className="px-6 py-3.5 text-ink-3">
-                No payments recorded. Plan selection does not collect payment; a
-                payment processor is not connected.
-              </td>
-            </tr>
+            {invoices && invoices.length > 0 ? (
+              invoices.map((inv) => (
+                <tr key={inv.id} className="border-b border-ink/5 last:border-0">
+                  <td className="px-6 py-3.5 text-ink-2">
+                    {new Date(inv.created).toLocaleDateString()}
+                  </td>
+                  <td className="py-3.5 text-ink">
+                    {inv.url ? (
+                      <a
+                        href={inv.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:text-ember"
+                      >
+                        {inv.description}
+                      </a>
+                    ) : (
+                      inv.description
+                    )}
+                  </td>
+                  <td className="py-3.5 text-right font-medium text-ink">
+                    {fmtUsd(inv.total)}
+                  </td>
+                  <td className="px-6 py-3.5 text-right">
+                    <Badge tone={inv.status === "paid" ? "green" : "slate"}>
+                      {inv.status}
+                    </Badge>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="px-6 py-3.5 text-ink-3">
+                  {invoices === null
+                    ? "Loading invoices…"
+                    : "No invoices yet. Pro has no base fee; a savings fee invoice appears only for months where you save more than $20."}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </Card>
 
-      <div className="flex justify-center">
-        <GhostButton disabled className="text-ink-3">
-          No invoices available
-        </GhostButton>
-      </div>
+      {info?.has_billing_account && (
+        <div className="flex justify-center">
+          <GhostButton onClick={() => void portal()}>
+            Payment method &amp; invoices <ArrowUpRight size={14} />
+          </GhostButton>
+        </div>
+      )}
       <Modal
         open={open}
         onClose={() => {
@@ -246,7 +354,10 @@ export default function Subscriptions() {
         title="Manage billing"
       >
         <p className="mb-4 text-sm text-ink-3">
-          Free never requires a payment method. Upgrading to Pro or Team requires Stripe Checkout and a payment method. Paid checkout is not configured yet, so paid plan changes are unavailable until sandbox billing settings are added.
+          Free never needs a payment method. Pro has no base fee: you add a card
+          in Stripe Checkout and are charged only 5% of a month's savings when
+          they exceed $20. Cancel any time from the billing portal; Pro stays
+          active until the end of the period.
         </p>
         <label
           className="mb-2 block text-xs font-semibold text-ink-2"
@@ -262,8 +373,8 @@ export default function Subscriptions() {
           className="w-full rounded-lg border border-ink/20 bg-card px-3 py-2 text-sm text-ink"
         >
           {PLANS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
+            <option key={p.id} value={p.id} disabled={p.id === "team"}>
+              {p.id === "team" ? `${p.name} (coming soon)` : p.name}
             </option>
           ))}
         </select>
@@ -283,7 +394,15 @@ export default function Subscriptions() {
             }
             onClick={() => void save()}
           >
-            {saving ? "Saving…" : "Save subscription"}
+            {saving
+              ? upgrading || cancelling
+                ? "Opening Stripe…"
+                : "Saving…"
+              : upgrading
+                ? "Continue to checkout"
+                : cancelling
+                  ? "Cancel in billing portal"
+                  : "Save subscription"}
           </GradientButton>
         </div>
       </Modal>

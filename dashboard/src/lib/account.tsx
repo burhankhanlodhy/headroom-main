@@ -46,7 +46,7 @@ export const PLANS: {
     id: "team",
     name: "Team",
     description:
-      "The Team subscription includes Advanced Analytics for your account.",
+      "Coming soon: combined analytics across your team's seats.",
     features: [
       "All Pro features",
       "Team subscription",
@@ -70,6 +70,7 @@ const AccountContext = createContext<{
   plan: Plan;
   advanced: boolean;
   changePlan: (plan: Plan) => Promise<void>;
+  reloadAccount: () => Promise<SessionUser | null>;
 } | null>(null);
 
 export function AccountProvider({
@@ -139,6 +140,15 @@ export function AccountProvider({
       changing.current = false;
     }
   }
+  /** Re-read the plan now, e.g. while a Stripe webhook activates it. */
+  async function reloadAccount() {
+    const fresh = await refreshUser();
+    if (fresh) {
+      revision.current++;
+      setUser(fresh);
+    }
+    return fresh;
+  }
   return (
     <AccountContext.Provider
       value={{
@@ -148,6 +158,7 @@ export function AccountProvider({
           (plan === "pro" || plan === "team") &&
           user.subscription_status === "active",
         changePlan,
+        reloadAccount,
       }}
     >
       {children}

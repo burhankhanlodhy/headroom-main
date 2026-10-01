@@ -12,6 +12,7 @@ from typing import Literal
 
 import analytics
 import asyncpg
+import billing
 import db
 import security
 from fastapi import Depends, FastAPI, Header, HTTPException, status
@@ -90,20 +91,17 @@ async def account_billing_estimate(user: asyncpg.Record) -> dict:
     now = datetime.now(timezone.utc)
     start = row["current_period_start"] if row else None
     end = row["current_period_end"] if row else None
-    if start is None or end is None or end <= now:
+    from_subscription = start is not None and end is not None and end > now
+    if not from_subscription:
         start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         if start.month == 12:
             end = start.replace(year=start.year + 1, month=1)
         else:
             end = start.replace(month=start.month + 1)
     seats = int(row["seat_count"] or 1) if row else 1
-    savings_row = await db._conn().fetchrow(
-        "SELECT COALESCE(SUM(NULLIF(data->>'savings_usd','')::numeric),0) AS savings "
-        "FROM metrics.proxy_events WHERE user_id=$1 AND occurred_at >= $2 AND occurred_at < $3",
-        user["user_id"], start, end,
-    )
-    savings = _money(Decimal(savings_row["savings"] or 0))
-    savings_fee = _money(savings * Decimal("0.05")) if savings > Decimal("20.00") else Decimal("0.00")
+    # Same ledger query and fee rule that billing.charge_savings_fee invoices.
+    savings = _money(await billing.ledger_savings(user["user_id"], start, end))
+    savings_fee = billing.savings_fee(savings)
     team_base = Decimal(seats * 5)
     current_plan = user["plan"]
     estimates = {
@@ -117,7 +115,7 @@ async def account_billing_estimate(user: asyncpg.Record) -> dict:
         "plan": current_plan,
         "period_start": start.isoformat(),
         "period_end": end.isoformat(),
-        "period_source": "subscription" if row and row["current_period_start"] and row["current_period_end"] else "calendar_month",
+        "period_source": "subscription" if from_subscription else "calendar_month",
         "estimated_savings_usd": as_usd(savings),
         "savings_fee_threshold_usd": 20.0,
         "savings_fee_rate": 0.05,
@@ -227,26 +225,43 @@ async def me(user: asyncpg.Record = Depends(current_user)):
 
 @app.get("/subscription")
 async def subscription(user: asyncpg.Record = Depends(current_user)):
+    row = await db._conn().fetchrow(
+        "SELECT stripe_customer_id, stripe_subscription_id, cancel_at_period_end, current_period_end "
+        "FROM core.subscriptions WHERE user_id=$1",
+        user["user_id"],
+    )
     return {
         "plan": user["plan"], "status": user["subscription_status"],
-        "billing_mode": "stripe_not_configured",
+        "billing_mode": "stripe" if billing.SECRET_KEY else "stripe_not_configured",
+        "has_billing_account": bool(row and row["stripe_customer_id"]),
+        "has_subscription": bool(row and row["stripe_subscription_id"]),
+        "cancel_at_period_end": bool(row and row["cancel_at_period_end"]),
+        "current_period_end": row["current_period_end"] if row else None,
         "estimate": await account_billing_estimate(user),
     }
 
 
 @app.put("/subscription")
 async def change_subscription(body: SubscriptionIn, user: asyncpg.Record = Depends(current_user)):
-    # Free is always self-serve. Paid plans require configured Stripe Checkout;
-    # never grant paid entitlements through a client-selected plan value.
+    # Only Free is self-serve here. Paid plans start in Stripe Checkout
+    # (POST /billing/checkout) and are granted solely by verified webhooks.
     if body.plan != "free":
         raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "Paid plan checkout is not configured. Add Stripe sandbox billing settings before upgrading.",
+            status.HTTP_409_CONFLICT, "Upgrade through checkout to add a payment method."
+        )
+    has_subscription = await db._conn().fetchval(
+        "SELECT stripe_subscription_id IS NOT NULL FROM core.subscriptions WHERE user_id=$1",
+        user["user_id"],
+    )
+    if has_subscription:
+        # Cancelling must go through Stripe so the final savings fee is billed.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Cancel your paid plan from Manage billing."
         )
     await db._conn().execute(
         "INSERT INTO core.subscriptions(user_id,plan,status) VALUES($1,$2,'active') "
         "ON CONFLICT(user_id) DO UPDATE SET plan=EXCLUDED.plan,status='active', "
-        "current_period_end=NULL,updated_at=now()",
+        "current_period_start=NULL,current_period_end=NULL,updated_at=now()",
         user["user_id"],
         body.plan,
     )
@@ -281,3 +296,4 @@ async def usage_summary(
 
 
 analytics.install(app, current_user)
+billing.install(app, current_user)

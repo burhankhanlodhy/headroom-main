@@ -58,6 +58,35 @@ ALTER TABLE core.subscriptions
 ALTER TABLE core.subscriptions
     ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMPTZ;
 
+-- Stripe linkage. Plan state is written only by verified Stripe webhooks.
+ALTER TABLE core.subscriptions
+    ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT UNIQUE;
+ALTER TABLE core.subscriptions
+    ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT UNIQUE;
+ALTER TABLE core.subscriptions
+    ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT false;
+
+CREATE SCHEMA IF NOT EXISTS billing;
+
+-- Webhook events already applied (Stripe redelivers on failure).
+CREATE TABLE IF NOT EXISTS billing.stripe_events (
+    event_id     TEXT PRIMARY KEY,
+    type         TEXT        NOT NULL,
+    processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- One savings-fee charge per account per ended billing period.
+CREATE TABLE IF NOT EXISTS billing.savings_fees (
+    user_id           UUID          NOT NULL REFERENCES core.users (id) ON DELETE CASCADE,
+    period_start      TIMESTAMPTZ   NOT NULL,
+    period_end        TIMESTAMPTZ   NOT NULL,
+    savings_usd       NUMERIC(14,4) NOT NULL,
+    fee_cents         INTEGER       NOT NULL CHECK (fee_cents >= 0),
+    stripe_invoice_id TEXT,
+    created_at        TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, period_start)
+);
+
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='subscriptions_plan_tier'

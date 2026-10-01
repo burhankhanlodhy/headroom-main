@@ -35,6 +35,7 @@ class FakeConn:
         self.events: set[str] = set()
         self.fees: dict[tuple, dict] = {}
         self.customers = {"cus_1": UID}
+        self.plan_updates: list[tuple] = []
 
     async def fetchval(self, sql, *args):
         if "billing.stripe_events" in sql:
@@ -57,6 +58,8 @@ class FakeConn:
             )
         elif "UPDATE billing.savings_fees" in sql:
             self.fees[(args[0], args[1])]["stripe_invoice_id"] = args[2]
+        elif "UPDATE core.subscriptions SET plan=" in sql:
+            self.plan_updates.append(args)
         else:
             raise AssertionError(sql)
 
@@ -173,6 +176,47 @@ def test_first_invoice_is_not_a_fee_period(env, monkeypatch):
     monkeypatch.setattr(billing, "charge_savings_fee", charge)
     asyncio.run(billing.handle_event(_event("invoice.created", _invoice("subscription_create"))))
     assert charged == []
+
+
+# ── Plan sync from real Stripe object types ───────────────────────────
+
+
+def _subscription(status, metadata):
+    # construct_from yields the same StripeObject types the API returns.
+    return stripe.Subscription.construct_from(
+        {
+            "id": "sub_1",
+            "object": "subscription",
+            "customer": "cus_1",
+            "status": status,
+            "cancel_at_period_end": False,
+            "metadata": metadata,
+            "items": {
+                "object": "list",
+                "data": [
+                    {
+                        "object": "subscription_item",
+                        "price": {"object": "price", "id": "price_pro"},
+                        "current_period_start": int(START.timestamp()),
+                        "current_period_end": int(END.timestamp()),
+                    }
+                ],
+            },
+        },
+        "sk_test_x",
+    )
+
+
+@pytest.mark.parametrize("metadata", [{}, {"user_id": UID}])
+@pytest.mark.parametrize("status, stored", [("active", "active"), ("trialing", "active"), ("past_due", "past_due")])
+def test_sync_grants_pro_from_stripe_state(env, monkeypatch, metadata, status, stored):
+    async def price_id(_):
+        return "price_pro"
+
+    monkeypatch.setattr(billing, "_price_id", price_id)
+    env.stripe.v1.subscriptions.retrieve = lambda _id: _subscription(status, metadata)
+    asyncio.run(billing.sync_subscription("sub_1"))
+    assert env.conn.plan_updates == [(UID, "pro", stored, "sub_1", START, END, False)]
 
 
 # ── Webhook endpoint ──────────────────────────────────────────────────

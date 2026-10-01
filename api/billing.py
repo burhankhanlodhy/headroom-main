@@ -149,7 +149,9 @@ async def sync_subscription(subscription_id: str) -> None:
     """Mirror a Stripe subscription onto the account, from Stripe's current state."""
     sub = await _call(_stripe().v1.subscriptions.retrieve, subscription_id)
     customer_id = _expandable_id(sub.customer)
-    user_id = await _user_for_customer(customer_id, (sub.metadata or {}).get("user_id"))
+    # StripeObject is not a dict in stripe-python 16; convert before .get().
+    metadata = sub.metadata.to_dict() if sub.metadata else {}
+    user_id = await _user_for_customer(customer_id, metadata.get("user_id"))
     if user_id is None:
         logger.warning("Stripe subscription %s has no matching account", subscription_id)
         return

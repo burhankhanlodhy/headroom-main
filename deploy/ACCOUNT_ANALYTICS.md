@@ -26,6 +26,28 @@
 
 ## Data and access boundaries
 
+- Pi 4 Usage and Profile read `/api/usage/summary` on all plans. The API filters
+  the authenticated account before computing totals, model mix and recorded
+  proxy activity spans. Dates are UTC; comparisons use the preceding equal
+  number of calendar days. Missing dates render as zero, and fetch failures
+  display an error rather than generated data. Data refreshes every 10 seconds
+  while the page is visible. Recorded activity spans are per proxy run/agent,
+  not a count of active client connections or conversation sessions.
+- Profile identity and membership date come from `/auth/me`; providers come
+  from account usage. The displayed timezone is the browser timezone, and
+  the dashboard link uses the browser's actual origin.
+- The three plans are `free`, `pro` and `team`. Manage billing saves the
+  selected plan through session-authenticated `PUT /subscription`; only that
+  session's account can be updated. This is manual self-service selection:
+  no processor is connected, no charges are collected and no invoices or
+  provider quotas are fabricated. Team is currently an account subscription;
+  organization membership and shared billing are not implemented.
+- Advanced Analytics is available only on active Pro/Team plans. The menu
+  updates immediately after a plan change. Summary, feed and CSV endpoints
+  enforce this entitlement server-side on every request; Free remains able
+  to access its own basic Usage/Profile data. Direct advanced links redirect
+  Free accounts to Subscriptions, including after a downgrade.
+
 - `metrics.proxy_events` is the authoritative ledger, indexed by account/time,
   account/run and key. It needs no monthly partition job. Existing accounts,
   sessions, subscriptions and keys survive migration.

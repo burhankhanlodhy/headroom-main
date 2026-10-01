@@ -1,7 +1,8 @@
 /** Control-plane API client. Point VITE_API_URL at the api container. */
 
 export const API_URL: string =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? "http://127.0.0.1:8788";
+  (import.meta.env.VITE_API_URL as string | undefined) ??
+  "http://127.0.0.1:8788";
 
 const TOKEN_KEY = "cs_session_token";
 
@@ -32,9 +33,11 @@ export class ApiError extends Error {
 
 export async function apiFetch<T>(
   path: string,
-  opts: { method?: string; body?: unknown } = {},
+  opts: { method?: string; body?: unknown; signal?: AbortSignal } = {},
 ): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
@@ -44,9 +47,14 @@ export async function apiFetch<T>(
       method: opts.method ?? "GET",
       headers,
       body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+      signal: opts.signal,
+      cache: "no-store",
     });
   } catch {
-    throw new ApiError(0, "Cannot reach the ContextShrink API. Is the control plane running?");
+    throw new ApiError(
+      0,
+      "Cannot reach the ContextShrink API. Is the control plane running?",
+    );
   }
 
   if (!res.ok) {

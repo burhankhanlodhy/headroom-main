@@ -77,9 +77,11 @@ async def create_session(user_id: str, token_hash: str) -> datetime:
 
 async def resolve_session(token_hash: str) -> asyncpg.Record | None:
     query = """
-        SELECT u.id AS user_id, u.email, u.name, s.id AS session_id
+        SELECT u.id AS user_id, u.email, u.name, u.created_at, s.id AS session_id,
+               COALESCE(sub.plan, 'free') AS plan, COALESCE(sub.status, 'active') AS subscription_status
         FROM core.sessions s
         JOIN core.users u ON u.id = s.user_id
+        LEFT JOIN core.subscriptions sub ON sub.user_id = u.id
         WHERE s.token_hash = $1
           AND s.revoked_at IS NULL
           AND s.expires_at > now()
@@ -95,8 +97,7 @@ async def resolve_session(token_hash: str) -> asyncpg.Record | None:
 
 async def revoke_session(token_hash: str) -> None:
     await _conn().execute(
-        "UPDATE core.sessions SET revoked_at = now() "
-        "WHERE token_hash = $1 AND revoked_at IS NULL",
+        "UPDATE core.sessions SET revoked_at = now() WHERE token_hash = $1 AND revoked_at IS NULL",
         token_hash,
     )
 
@@ -106,8 +107,7 @@ async def revoke_session(token_hash: str) -> None:
 
 async def resolve_api_key(key_hash: str) -> asyncpg.Record | None:
     row = await _conn().fetchrow(
-        "SELECT id, user_id, scopes FROM core.api_keys "
-        "WHERE key_hash = $1 AND revoked_at IS NULL",
+        "SELECT id, user_id, scopes FROM core.api_keys WHERE key_hash = $1 AND revoked_at IS NULL",
         key_hash,
     )
     if row:
@@ -148,10 +148,14 @@ async def insert_usage_events(rows: list[dict[str, Any]]) -> None:
                     for r in rows
                 ],
             )
-            touched = {(r["user_id"], (r.get("ts") or datetime.now(timezone.utc)).date()) for r in rows}
+            touched = {
+                (r["user_id"], (r.get("ts") or datetime.now(timezone.utc)).date()) for r in rows
+            }
             for uid, day in touched:
                 await conn.execute(
-                    "SELECT metrics.refresh_usage_daily($1, $2)", uid, date(day.year, day.month, day.day)
+                    "SELECT metrics.refresh_usage_daily($1, $2)",
+                    uid,
+                    date(day.year, day.month, day.day),
                 )
 
 

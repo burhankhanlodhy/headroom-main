@@ -18,7 +18,13 @@ export function Card({
   hairline?: boolean;
 }) {
   return (
-    <div className={cn("ink-card rounded-lg", hairline && "border-t-2 border-t-ember", className)}>
+    <div
+      className={cn(
+        "ink-card rounded-lg",
+        hairline && "border-t-2 border-t-ember",
+        className,
+      )}
+    >
       {children}
     </div>
   );
@@ -128,7 +134,10 @@ export function Spark({
   const gid = useId();
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data.map((v, i) => ({ i, v }))} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+      <AreaChart
+        data={data.map((v, i) => ({ i, v }))}
+        margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
+      >
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.4} />
@@ -284,7 +293,11 @@ export function CopyButton({
       )}
     >
       {copied ? (
-        <motion.span key="ok" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+        <motion.span
+          key="ok"
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+        >
           <Check size={13} className="text-sage" />
         </motion.span>
       ) : (
@@ -297,7 +310,13 @@ export function CopyButton({
 
 /* --------------------------------------------------------------- CodeBlock */
 
-export function CodeBlock({ code, className }: { code: string; className?: string }) {
+export function CodeBlock({
+  code,
+  className,
+}: {
+  code: string;
+  className?: string;
+}) {
   return (
     <div className={cn("codeblock relative", className)}>
       <CopyButton text={code} className="absolute right-3 top-3" />
@@ -340,7 +359,9 @@ export function Modal({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-display text-lg font-semibold text-ink">{title}</h3>
+              <h3 className="font-display text-lg font-semibold text-ink">
+                {title}
+              </h3>
               <button
                 onClick={onClose}
                 className="rounded-lg p-1.5 text-ink-3 transition hover:bg-ink/10 hover:text-ink"
@@ -362,16 +383,19 @@ export function GradientButton({
   children,
   onClick,
   className,
+  disabled,
 }: {
   children: ReactNode;
   onClick?: () => void;
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <motion.button
       whileHover={{ scale: 1.03 }}
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "btn-ink inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold",
         className,
@@ -386,14 +410,17 @@ export function GhostButton({
   children,
   onClick,
   className,
+  disabled,
 }: {
   children: ReactNode;
   onClick?: () => void;
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "btn-ghost inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium",
         className,

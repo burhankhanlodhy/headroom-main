@@ -10,6 +10,9 @@ export interface SessionUser {
   id: string;
   name: string;
   email: string;
+  created_at?: string;
+  plan?: "free" | "pro" | "team";
+  subscription_status?: string;
 }
 
 const USER_KEY = "cs_session_user";
@@ -37,7 +40,11 @@ interface AuthResponse {
   user: SessionUser;
 }
 
-export async function signUp(name: string, email: string, password: string): Promise<SessionUser> {
+export async function signUp(
+  name: string,
+  email: string,
+  password: string,
+): Promise<SessionUser> {
   const out = await apiFetch<AuthResponse>("/auth/signup", {
     method: "POST",
     body: { name, email, password },
@@ -47,7 +54,10 @@ export async function signUp(name: string, email: string, password: string): Pro
   return out.user;
 }
 
-export async function signIn(email: string, password: string): Promise<SessionUser> {
+export async function signIn(
+  email: string,
+  password: string,
+): Promise<SessionUser> {
   const out = await apiFetch<AuthResponse>("/auth/login", {
     method: "POST",
     body: { email, password },
@@ -79,7 +89,10 @@ export async function refreshUser(): Promise<SessionUser | null> {
     cacheUser(user);
     return user;
   } catch (error) {
-    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+    if (
+      error instanceof ApiError &&
+      (error.status === 401 || error.status === 403)
+    ) {
       setToken(null);
       cacheUser(null);
       return null;
@@ -89,16 +102,24 @@ export async function refreshUser(): Promise<SessionUser | null> {
 }
 
 /** Keep the originally requested dashboard route through login or signup. */
-export function getPostAuthDestination(state: unknown): string | {
-  pathname: string;
-  search: string;
-  hash: string;
-} {
-  const from = (state as {
-    from?: { pathname?: string; search?: string; hash?: string };
-  } | null)?.from;
+export function getPostAuthDestination(state: unknown):
+  | string
+  | {
+      pathname: string;
+      search: string;
+      hash: string;
+    } {
+  const from = (
+    state as {
+      from?: { pathname?: string; search?: string; hash?: string };
+    } | null
+  )?.from;
 
-  if (!from?.pathname || !from.pathname.startsWith("/") || from.pathname.startsWith("//")) {
+  if (
+    !from?.pathname ||
+    !from.pathname.startsWith("/") ||
+    from.pathname.startsWith("//")
+  ) {
     return "/";
   }
 

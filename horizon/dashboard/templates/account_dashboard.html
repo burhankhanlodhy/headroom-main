@@ -401,6 +401,11 @@
             login();
             throw Error("Session expired");
           }
+          if (r.status === 403) {
+            $("content").classList.add("hidden");
+            location.replace("http://192.168.0.64:8080/subscriptions");
+            throw Error("Advanced Analytics requires Pro or Team");
+          }
           if (!r.ok)
             throw Error(
               "Analytics unavailable (" + r.status + "). Please retry.",
@@ -577,6 +582,10 @@
           if (!token) return login();
           try {
             const user = await request("/auth/me").then((r) => r.json());
+            if (!["pro", "team"].includes(user.plan) || user.subscription_status !== "active") {
+              location.replace("http://192.168.0.64:8080/subscriptions");
+              return;
+            }
             $("account").textContent = user.name + " · " + user.email;
             await refresh();
             setInterval(() => {

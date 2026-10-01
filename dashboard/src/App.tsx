@@ -9,7 +9,8 @@ import Documentation from "./pages/Documentation";
 import SignOut from "./pages/SignOut";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import { refreshUser } from "./lib/auth";
+import { refreshUser, type SessionUser } from "./lib/auth";
+import { AccountProvider } from "./lib/account";
 
 type SessionState = "checking" | "authenticated" | "unauthenticated" | "error";
 
@@ -17,6 +18,7 @@ function RequireAuth() {
   const location = useLocation();
   const [sessionState, setSessionState] = useState<SessionState>("checking");
   const [attempt, setAttempt] = useState(0);
+  const [user, setUser] = useState<SessionUser | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -24,7 +26,10 @@ function RequireAuth() {
 
     refreshUser().then(
       (user) => {
-        if (active) setSessionState(user ? "authenticated" : "unauthenticated");
+        if (active) {
+          setUser(user);
+          setSessionState(user ? "authenticated" : "unauthenticated");
+        }
       },
       () => {
         if (active) setSessionState("error");
@@ -53,12 +58,16 @@ function RequireAuth() {
   if (sessionState === "error") {
     return (
       <div className="relative z-10 grid h-screen place-items-center px-6">
-        <div className="paper-panel max-w-md rounded-lg p-6 text-center" role="alert">
+        <div
+          className="paper-panel max-w-md rounded-lg p-6 text-center"
+          role="alert"
+        >
           <h1 className="font-display text-xl font-semibold text-ink">
             We couldn’t verify your session
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-ink-3">
-            The account service couldn’t verify your session. Check the connection and try again.
+            The account service couldn’t verify your session. Check the
+            connection and try again.
           </p>
           <button
             className="btn btn-ink mt-5"
@@ -78,7 +87,11 @@ function RequireAuth() {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  return <Outlet />;
+  return user ? (
+    <AccountProvider initialUser={user}>
+      <Outlet />
+    </AccountProvider>
+  ) : null;
 }
 
 export default function App() {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowUpRight, Check, Sparkles } from "lucide-react";
 import {
@@ -6,21 +7,45 @@ import {
   EASE,
   GhostButton,
   GradientButton,
+  Modal,
   ProgressRing,
   SectionHeader,
 } from "../components/ui";
-import { billingHistory, subscriptions } from "../data/mock";
+import { PLANS, useAccount, type Plan } from "../lib/account";
 import { cn } from "../lib/utils";
 
-const FEATURES = [
-  "Unlimited compression",
-  "All providers",
-  "Priority routing",
-  "Team seats",
-  "Audit log",
-];
-
 export default function Subscriptions() {
+  const { plan, changePlan, user } = useAccount();
+  const current = PLANS.find((p) => p.id === plan)!;
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Plan>(plan);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  function manage(next: Plan = plan) {
+    setSelected(next);
+    setError("");
+    setNotice("");
+    setOpen(true);
+  }
+  async function save() {
+    if (saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await changePlan(selected);
+      setOpen(false);
+      setNotice(
+        `Your subscription is now ${PLANS.find((p) => p.id === selected)!.name}.`,
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Unable to change subscription",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
   return (
     <div className="flex flex-col gap-6">
       {/* plan banner */}
@@ -36,14 +61,13 @@ export default function Subscriptions() {
                 <Sparkles size={11} /> current plan
               </Badge>
               <h2 className="font-display text-2xl font-bold text-ink">
-                Horizon <span className="text-ember">Pro</span>
+                Horizon <span className="text-ember">{current.name}</span>
               </h2>
               <p className="mt-1.5 max-w-lg text-sm text-ink-3">
-                Every compression feature unlocked, with priority routing and team
-                sharing for your whole crew.
+                {current.description}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {FEATURES.map((f) => (
+                {current.features.map((f) => (
                   <span
                     key={f}
                     className="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-ink/5 px-3 py-1 text-[11px] text-ink-2"
@@ -55,21 +79,27 @@ export default function Subscriptions() {
             </div>
             <div className="text-center">
               <div className="font-display text-4xl font-bold text-ink">
-                $20<span className="text-base font-medium text-ink-3">/mo</span>
+                {current.name}
+                <span className="text-base font-medium text-ink-3"> plan</span>
               </div>
-              <GradientButton className="mt-4">
+              <GradientButton className="mt-4" onClick={() => manage()}>
                 Manage billing <ArrowUpRight size={14} />
               </GradientButton>
             </div>
           </div>
         </Card>
       </motion.div>
+      {notice && (
+        <p role="status" className="text-sm text-sage">
+          {notice}
+        </p>
+      )}
 
       {/* provider subscriptions */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {subscriptions.map((s, i) => (
+        {PLANS.map((s, i) => (
           <motion.div
-            key={s.provider}
+            key={s.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: EASE, delay: 0.1 + i * 0.09 }}
@@ -82,29 +112,44 @@ export default function Subscriptions() {
                     s.accent,
                   )}
                 >
-                  {s.provider.slice(0, 1)}
+                  {s.name.slice(0, 1)}
                 </div>
-                <Badge tone={s.status === "active" ? "green" : "amber"}>
-                  {s.status === "active" ? "active" : "quota high"}
+                <Badge tone={s.id === plan ? "green" : "slate"}>
+                  {s.id === plan
+                    ? (user.subscription_status ?? "active")
+                    : "available"}
                 </Badge>
               </div>
               <div className="mt-4">
-                <div className="text-sm font-semibold text-ink">{s.product}</div>
-                <div className="text-xs text-ink-3">
-                  {s.provider} · {s.plan}
+                <div className="text-sm font-semibold text-ink">
+                  Horizon {s.name}
                 </div>
+                <div className="text-xs text-ink-3">{s.description}</div>
               </div>
               <div className="my-5 flex justify-center">
-                <ProgressRing pct={s.usedPct} size={116}>
+                <ProgressRing
+                  key={`${s.id}-${plan}`}
+                  pct={s.id === plan ? 100 : 0}
+                  size={116}
+                >
                   <div className="text-center">
-                    <div className="font-display text-xl font-bold text-ink">{s.usedPct}%</div>
-                    <div className="text-[9px] uppercase tracking-wider text-ink-3">used</div>
+                    <div className="font-display text-xl font-bold text-ink">
+                      {s.name}
+                    </div>
+                    <div className="text-[9px] uppercase tracking-wider text-ink-3">
+                      {s.id === plan ? "current" : "available"}
+                    </div>
                   </div>
                 </ProgressRing>
               </div>
               <div className="mt-auto flex items-center justify-between border-t border-ink/10 pt-4 text-xs text-ink-3">
-                <span>renews {s.renews}</span>
-                <button className="font-medium text-ember transition hover:text-ember-2">
+                <span>
+                  {s.id === "free" ? "Usage overview" : "Advanced Analytics"}
+                </span>
+                <button
+                  onClick={() => manage(s.id)}
+                  className="font-medium text-ember transition hover:text-ember-2"
+                >
                   Manage →
                 </button>
               </div>
@@ -119,7 +164,7 @@ export default function Subscriptions() {
           <SectionHeader
             eyebrow="Billing"
             title="Payment history"
-            action={<Badge tone="slate">last 3</Badge>}
+            action={<Badge tone="slate">0 payments</Badge>}
           />
         </div>
         <table className="w-full text-left text-sm">
@@ -132,26 +177,71 @@ export default function Subscriptions() {
             </tr>
           </thead>
           <tbody>
-            {billingHistory.map((b) => (
-              <tr
-                key={b.date}
-                className="border-b border-ink/10 transition last:border-0 hover:bg-ink/5"
-              >
-                <td className="px-6 py-3.5 text-ink-3">{b.date}</td>
-                <td className="py-3.5 text-ink-2">{b.item}</td>
-                <td className="py-3.5 text-right font-semibold text-ink">{b.amount}</td>
-                <td className="px-6 py-3.5 text-right">
-                  <Badge tone="green">{b.status}</Badge>
-                </td>
-              </tr>
-            ))}
+            <tr>
+              <td colSpan={4} className="px-6 py-3.5 text-ink-3">
+                No payments recorded. Plan selection does not collect payment; a
+                payment processor is not connected.
+              </td>
+            </tr>
           </tbody>
         </table>
       </Card>
 
       <div className="flex justify-center">
-        <GhostButton className="text-ink-3">Download all invoices</GhostButton>
+        <GhostButton disabled className="text-ink-3">
+          No invoices available
+        </GhostButton>
       </div>
+      <Modal
+        open={open}
+        onClose={() => {
+          if (!saving) setOpen(false);
+        }}
+        title="Manage billing"
+      >
+        <p className="mb-4 text-sm text-ink-3">
+          Choose your account subscription. Changes apply immediately. No
+          payment is collected.
+        </p>
+        <label
+          className="mb-2 block text-xs font-semibold text-ink-2"
+          htmlFor="subscription-plan"
+        >
+          Subscription
+        </label>
+        <select
+          id="subscription-plan"
+          value={selected}
+          disabled={saving}
+          onChange={(e) => setSelected(e.target.value as Plan)}
+          className="w-full rounded-lg border border-ink/20 bg-card px-3 py-2 text-sm text-ink"
+        >
+          {PLANS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-ember">
+            {error}
+          </p>
+        )}
+        <div className="mt-5 flex justify-end gap-3">
+          <GhostButton disabled={saving} onClick={() => setOpen(false)}>
+            Cancel
+          </GhostButton>
+          <GradientButton
+            disabled={
+              saving ||
+              (selected === plan && user.subscription_status === "active")
+            }
+            onClick={() => void save()}
+          >
+            {saving ? "Saving…" : "Save subscription"}
+          </GradientButton>
+        </div>
+      </Modal>
     </div>
   );
 }

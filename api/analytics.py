@@ -91,6 +91,8 @@ TOTALS = """
  COALESCE(sum((data->>'tokens_in')::bigint),0)::bigint AS tokens_in,
  COALESCE(sum((data->>'tokens_out')::bigint),0)::bigint AS tokens_out,
  COALESCE(sum((data->>'tokens_saved')::bigint),0)::bigint AS tokens_saved,
+ COALESCE(sum((data->>'tokens_before')::bigint),0)::bigint AS tokens_before,
+ COALESCE(sum((data->>'tokens_after')::bigint),0)::bigint AS tokens_after,
  COALESCE(sum((data->>'cache_read')::bigint),0)::bigint AS cache_read,
  COALESCE(sum((data->>'cache_write')::bigint),0)::bigint AS cache_write,
  COALESCE(sum((data->>'savings_usd')::double precision),0) AS savings_usd,
@@ -113,7 +115,75 @@ def scope_filter(user, scope, days):
     )
 
 
+async def basic_usage(user, days):
+    """Calendar-day usage available on every plan; all dates and comparisons are UTC."""
+    current = "user_id=$1 AND occurred_at >= $2 AND occurred_at <= $3"
+    async with (
+        db._conn().acquire() as conn,
+        conn.transaction(isolation="repeatable_read", readonly=True),
+    ):
+        bounds = await conn.fetchrow(
+            "SELECT now() AS as_of, "
+            "(date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') "
+            "- (($1::int - 1) * interval '1 day') AS start",
+            days,
+        )
+        args = (user["user_id"], bounds["start"], bounds["as_of"])
+        totals = await conn.fetchrow(
+            f"SELECT {TOTALS} FROM metrics.proxy_events WHERE {current}", *args
+        )
+        previous = await conn.fetchrow(
+            f"SELECT {TOTALS} FROM metrics.proxy_events WHERE user_id=$1 "
+            "AND occurred_at >= $2::timestamptz - ($3::int * interval '1 day') AND occurred_at < $2::timestamptz",
+            user["user_id"],
+            bounds["start"],
+            days,
+        )
+        series = await conn.fetch(
+            f"SELECT to_char(occurred_at AT TIME ZONE 'UTC','YYYY-MM-DD') AS date,{TOTALS} "
+            f"FROM metrics.proxy_events WHERE {current} GROUP BY 1 ORDER BY 1",
+            *args,
+        )
+        models = await conn.fetch(
+            f"SELECT model AS name,count(*)::bigint AS requests FROM metrics.proxy_events "
+            f"WHERE {current} GROUP BY 1 ORDER BY requests DESC,name",
+            *args,
+        )
+        providers = await conn.fetch(
+            f"SELECT DISTINCT provider AS name FROM metrics.proxy_events WHERE {current} ORDER BY 1",
+            *args,
+        )
+        # These are recorded activity spans per proxy process/agent, not live connections.
+        sessions = await conn.fetch(
+            f"SELECT runtime_id::text || ':' || COALESCE(agent,'Unspecified') AS id, "
+            f"COALESCE(agent,'Unspecified') AS agent,{TOTALS}, "
+            "min(occurred_at) AS started_at,max(occurred_at) AS last_activity, "
+            "extract(epoch FROM (max(occurred_at)-min(occurred_at)))/60 AS minutes "
+            f"FROM metrics.proxy_events WHERE {current} GROUP BY runtime_id,agent "
+            "ORDER BY last_activity DESC,id LIMIT 5",
+            *args,
+        )
+    return {
+        "days": days,
+        "as_of": bounds["as_of"],
+        "start": bounds["start"],
+        "totals": dict(totals),
+        "previous": dict(previous),
+        "series": [dict(r) for r in series],
+        "models": [dict(r) for r in models],
+        "providers": [dict(r) for r in providers],
+        "sessions": [dict(r) for r in sessions],
+    }
+
+
 def install(app, current_user):
+    async def advanced_user(user=Depends(current_user)):
+        if user["plan"] not in ("pro", "team") or user["subscription_status"] != "active":
+            raise HTTPException(
+                403, "Advanced Analytics requires an active Pro or Team subscription"
+            )
+        return user
+
     @app.middleware("http")
     async def private_responses(request, call_next):
         response = await call_next(request)
@@ -218,7 +288,7 @@ def install(app, current_user):
     async def summary(
         scope: Literal["session", "lifetime", "history"] = "lifetime",
         days: int = Query(30, ge=1, le=365),
-        user=Depends(current_user),
+        user=Depends(advanced_user),
     ):
         where, args = scope_filter(user, scope, days)
         async with (
@@ -252,7 +322,7 @@ def install(app, current_user):
         scope: Literal["session", "lifetime", "history"] = "lifetime",
         days: int = Query(30, ge=1, le=365),
         limit: int = Query(50, ge=1, le=200),
-        user=Depends(current_user),
+        user=Depends(advanced_user),
     ):
         where, args = scope_filter(user, scope, days)
         rows = await db._conn().fetch(
@@ -266,7 +336,7 @@ def install(app, current_user):
     async def export(
         scope: Literal["session", "lifetime", "history"] = "lifetime",
         days: int = Query(30, ge=1, le=365),
-        user=Depends(current_user),
+        user=Depends(advanced_user),
     ):
         where, args = scope_filter(user, scope, days)
         fields = [

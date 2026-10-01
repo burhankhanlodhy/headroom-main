@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Area,
@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { Badge, Card, SectionHeader, StatCard } from "../components/ui";
-import { dailySeries, modelShares, sessions, totals } from "../data/mock";
+import { compression, pct, useUsage } from "../lib/usage";
 import { cn, dayLabel, fmtCompact, fmtUsd } from "../lib/utils";
 
 const RANGES = [7, 14, 30] as const;
@@ -41,7 +41,10 @@ function ChartTip({ active, payload }: { active?: boolean; payload?: any[] }) {
         const color = p.stroke ?? p.payload?.color ?? p.fill ?? "#c14d1b";
         return (
           <div key={i} className="flex items-center gap-2 py-0.5">
-            <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ background: color }}
+            />
             <span className="text-ink-3">{name}</span>
             <span className="ml-auto pl-4 font-semibold text-ink">{value}</span>
           </div>
@@ -72,13 +75,17 @@ function FunnelBar({
       </div>
       <div className="h-9 overflow-hidden rounded-lg border border-ink/10 bg-ink/5">
         <motion.div
-          className={cn("flex h-full items-center rounded-lg bg-gradient-to-r px-3", gradient)}
+          className={cn(
+            "flex h-full items-center rounded-lg bg-gradient-to-r px-3",
+            gradient,
+          )}
           initial={{ width: 0 }}
-          whileInView={{ width: `${width}%` }}
-          viewport={{ once: true }}
+          animate={{ width: `${Math.min(100, Math.max(0, width))}%` }}
           transition={{ duration: 1.3, ease: [0.22, 1, 0.36, 1], delay }}
         >
-          <span className="whitespace-nowrap text-sm font-bold text-paper">{width}%</span>
+          <span className="whitespace-nowrap text-sm font-bold text-paper">
+            {width}%
+          </span>
         </motion.div>
       </div>
     </div>
@@ -87,12 +94,12 @@ function FunnelBar({
 
 export default function Usage() {
   const [range, setRange] = useState<(typeof RANGES)[number]>(14);
-  const series = useMemo(() => dailySeries(range), [range]);
-  const t = useMemo(() => totals(series), [series]);
-  const prevHalf = useMemo(() => totals(series.slice(0, Math.floor(range / 2))), [series, range]);
-  const pct = (a: number, b: number) => (b === 0 ? 0 : ((a - b) / b) * 100);
-
-  const pieData = modelShares;
+  const { series, t, previous, pieData, sessions, error, loaded, loading } =
+    useUsage(range);
+  const savedPct = compression(t);
+  const deliveredPct = t.tokensBefore
+    ? (t.tokensAfter / t.tokensBefore) * 100
+    : 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -119,40 +126,56 @@ export default function Usage() {
             </button>
           ))}
         </div>
-        <Badge tone="green">
-          <span className="live-dot !h-1.5 !w-1.5" /> streaming live
+        <Badge tone={error ? "red" : loaded ? "green" : "slate"}>
+          <span className="live-dot !h-1.5 !w-1.5" />{" "}
+          {error
+            ? "Refresh unavailable"
+            : loading
+              ? "Loading usage…"
+              : "Live usage · UTC"}
         </Badge>
       </div>
+      {error && (
+        <p role="alert" className="text-sm text-ember">
+          {error}
+          {loaded
+            ? " · Showing the last successful update."
+            : " · Usage is unavailable."}
+        </p>
+      )}
 
       {/* stat row */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={`Requests · ${range}d`}
           value={t.requests}
-          delta={pct(t.requests, prevHalf.requests)}
+          format={loaded ? undefined : () => "—"}
+          delta={pct(t.requests, previous.requests)}
           spark={series.map((d) => d.requests)}
         />
         <StatCard
           label="Tokens saved"
           value={t.tokensSaved}
-          format={fmtCompact}
-          delta={pct(t.tokensSaved, prevHalf.tokensSaved)}
+          format={loaded ? fmtCompact : () => "—"}
+          delta={pct(t.tokensSaved, previous.tokensSaved)}
           spark={series.map((d) => d.tokensSaved)}
           color="#5f7452"
         />
         <StatCard
           label="Est. savings"
           value={t.savingsUsd}
-          format={fmtUsd}
-          delta={pct(t.savingsUsd, prevHalf.savingsUsd)}
+          format={loaded ? fmtUsd : () => "—"}
+          delta={pct(t.savingsUsd, previous.savingsUsd)}
           spark={series.map((d) => d.savingsUsd)}
           color="#c14d1b"
         />
         <StatCard
           label="Avg saved / request"
           value={Math.round(t.tokensSaved / Math.max(1, t.requests))}
-          format={fmtCompact}
-          spark={series.map((d) => Math.round(d.tokensSaved / Math.max(1, d.requests)))}
+          format={loaded ? fmtCompact : () => "—"}
+          spark={series.map((d) =>
+            Math.round(d.tokensSaved / Math.max(1, d.requests)),
+          )}
           color="#c14d1b"
         />
       </div>
@@ -163,7 +186,10 @@ export default function Usage() {
           <SectionHeader eyebrow="Traffic" title="Requests & tokens saved" />
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={series} margin={{ top: 8, right: 8, bottom: 0, left: -14 }}>
+              <AreaChart
+                data={series}
+                margin={{ top: 8, right: 8, bottom: 0, left: -14 }}
+              >
                 <defs>
                   <linearGradient id="reqFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#c14d1b" stopOpacity={0.45} />
@@ -198,7 +224,10 @@ export default function Usage() {
                   tickLine={false}
                   tickFormatter={(v: number) => fmtCompact(v)}
                 />
-                <Tooltip content={<ChartTip />} cursor={{ stroke: "rgba(29,23,18,0.15)" }} />
+                <Tooltip
+                  content={<ChartTip />}
+                  cursor={{ stroke: "rgba(29,23,18,0.15)" }}
+                />
                 <Area
                   yAxisId="tok"
                   type="monotone"
@@ -250,16 +279,28 @@ export default function Usage() {
                 <div className="font-display text-xl font-bold text-ink">
                   {fmtCompact(t.requests)}
                 </div>
-                <div className="text-[10px] uppercase tracking-wider text-ink-3">requests</div>
+                <div className="text-[10px] uppercase tracking-wider text-ink-3">
+                  requests
+                </div>
               </div>
             </div>
           </div>
           <div className="mt-4 flex flex-col gap-2.5">
-            {modelShares.map((m) => (
+            {loaded && !pieData.length && (
+              <p className="text-xs text-ink-3">
+                No recorded requests in this period.
+              </p>
+            )}
+            {pieData.map((m) => (
               <div key={m.name} className="flex items-center gap-2.5 text-xs">
-                <span className="h-2.5 w-2.5 rounded-[4px]" style={{ background: m.color }} />
+                <span
+                  className="h-2.5 w-2.5 rounded-[4px]"
+                  style={{ background: m.color }}
+                />
                 <span className="text-ink-2">{m.name}</span>
-                <span className="ml-auto font-semibold text-ink">{Math.round(m.share * 100)}%</span>
+                <span className="ml-auto font-semibold text-ink">
+                  {Math.round(m.share * 100)}%
+                </span>
               </div>
             ))}
           </div>
@@ -272,22 +313,22 @@ export default function Usage() {
         <div className="flex flex-col gap-4">
           <FunnelBar
             label="Original context"
-            sub="what the model would have read"
-            width={100}
+            sub={`${fmtCompact(t.tokensBefore)} tokens before compression`}
+            width={t.tokensBefore ? 100 : 0}
             gradient="from-ember/70 to-ember/40"
             delay={0}
           />
           <FunnelBar
             label="Delivered to model"
-            sub={`${fmtCompact(t.tokensSaved)} tokens after compression`}
-            width={36.2}
+            sub={`${fmtCompact(t.tokensAfter)} tokens after compression`}
+            width={Number(deliveredPct.toFixed(1))}
             gradient="from-sage/70 to-sage/40"
             delay={0.15}
           />
           <FunnelBar
             label="Saved by Horizon"
             sub={`${fmtUsd(t.savingsUsd)} est. cost avoided`}
-            width={63.8}
+            width={Number(savedPct.toFixed(1))}
             gradient="from-ember/70 to-ember/40"
             delay={0.3}
           />
@@ -315,14 +356,34 @@ export default function Usage() {
               </tr>
             </thead>
             <tbody>
+              {!sessions.length && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-3.5 text-sm text-ink-3">
+                    {loaded
+                      ? "No recorded proxy activity in this period."
+                      : loading
+                        ? "Loading recorded activity…"
+                        : "Activity is unavailable."}
+                  </td>
+                </tr>
+              )}
               {sessions.map((s) => (
                 <tr
                   key={s.id}
                   className="border-b border-ink/10 transition last:border-0 hover:bg-ink/5"
                 >
-                  <td className="px-6 py-3.5 font-mono text-xs text-ink-3">{s.id}</td>
+                  <td
+                    title={s.id}
+                    className="px-6 py-3.5 font-mono text-xs text-ink-3"
+                  >
+                    {s.id.slice(0, 8)}
+                  </td>
                   <td className="py-3.5">
-                    <Badge tone={s.agent === "Claude Code" ? "indigo" : "slate"}>{s.agent}</Badge>
+                    <Badge
+                      tone={s.agent === "Claude Code" ? "indigo" : "slate"}
+                    >
+                      {s.agent}
+                    </Badge>
                   </td>
                   <td className="py-3.5 text-right tabular-nums text-ink-2">
                     {fmtCompact(s.requests)}

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { EASE } from "./ui";
+import { initials, useAccount } from "../lib/account";
 
 export function AuroraBackground() {
   return <div className="paper-grid fixed inset-0" aria-hidden />;
@@ -30,10 +31,22 @@ const nav = [
 
 const pageMeta: Record<string, { title: string; subtitle: string }> = {
   "/": { title: "Profile", subtitle: "Your account and session overview" },
-  "/keys": { title: "API Keys", subtitle: "Credentials that route through your proxy" },
-  "/usage": { title: "Usage", subtitle: "Requests, compression and savings over time" },
-  "/subscriptions": { title: "Subscriptions", subtitle: "Providers, quotas and billing" },
-  "/docs": { title: "Documentation", subtitle: "Quickstarts, endpoints and wiring guides" },
+  "/keys": {
+    title: "API Keys",
+    subtitle: "Credentials that route through your proxy",
+  },
+  "/usage": {
+    title: "Usage",
+    subtitle: "Requests, compression and savings over time",
+  },
+  "/subscriptions": {
+    title: "Subscriptions",
+    subtitle: "Providers, quotas and billing",
+  },
+  "/docs": {
+    title: "Documentation",
+    subtitle: "Quickstarts, endpoints and wiring guides",
+  },
   "/signout": { title: "Sign out", subtitle: "" },
 };
 
@@ -60,6 +73,7 @@ function Logo() {
 }
 
 function NavItems({ onNavigate }: { onNavigate?: () => void }) {
+  const { advanced } = useAccount();
   return (
     <nav className="mt-8 flex flex-1 flex-col gap-1">
       {nav.map(({ to, label, icon: Icon }) => (
@@ -93,12 +107,14 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
           )}
         </NavLink>
       ))}
-      <a href="/dashboard" onClick={onNavigate}>
-        <div className="relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-3 transition-colors hover:text-ink">
-          <LineChart size={17} />
-          <span>Advanced Analytics</span>
-        </div>
-      </a>
+      {advanced && (
+        <a href="/dashboard" onClick={onNavigate}>
+          <div className="relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-3 transition-colors hover:text-ink">
+            <LineChart size={17} />
+            <span>Advanced Analytics</span>
+          </div>
+        </a>
+      )}
       <NavLink to="/signout" onClick={onNavigate}>
         {({ isActive }) => (
           <div
@@ -129,9 +145,13 @@ function ProxyStatus() {
 }
 
 export function Shell() {
+  const { user } = useAccount();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const meta = pageMeta[location.pathname] ?? { title: "ContextShrink", subtitle: "" };
+  const meta = pageMeta[location.pathname] ?? {
+    title: "ContextShrink",
+    subtitle: "",
+  };
 
   return (
     <div className="relative z-10 flex h-screen">
@@ -195,7 +215,9 @@ export function Shell() {
             >
               {meta.title}
             </motion.h1>
-            {meta.subtitle && <p className="text-[13px] text-ink-3">{meta.subtitle}</p>}
+            {meta.subtitle && (
+              <p className="text-[13px] text-ink-3">{meta.subtitle}</p>
+            )}
           </div>
           <div className="paper-panel hidden items-center gap-2 rounded-lg px-3 py-2 text-xs text-ink-3 md:flex">
             <svg
@@ -218,7 +240,7 @@ export function Shell() {
             whileHover={{ scale: 1.05 }}
             className="grid h-10 w-10 cursor-pointer place-items-center rounded-full bg-ink text-[13px] font-bold text-paper"
           >
-            BK
+            {initials(user.name)}
           </motion.div>
         </header>
 

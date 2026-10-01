@@ -50,6 +50,15 @@ CREATE TABLE IF NOT EXISTS core.subscriptions (
     updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='subscriptions_plan_tier'
+                   AND conrelid='core.subscriptions'::regclass) THEN
+        ALTER TABLE core.subscriptions ADD CONSTRAINT subscriptions_plan_tier
+            CHECK (plan IN ('free','pro','team'));
+    END IF;
+END $$;
+
 -- ========================================================== metrics schema
 CREATE SCHEMA IF NOT EXISTS metrics;
 

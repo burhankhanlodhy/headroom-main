@@ -9,6 +9,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import re
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -33,6 +34,34 @@ from horizon.proxy.thinking_tokens import ThinkingTokens, extract_thinking_token
 from horizon.utils import format_exception_message
 
 logger = logging.getLogger("horizon.proxy")
+
+_SECRETISH = re.compile(r"(sk-[A-Za-z0-9_-]{8,}|eyJ[A-Za-z0-9._-]{10,}|Bearer\s+\S+)")
+
+
+def upstream_error_preview(content: bytes, limit: int = 200) -> str:
+    """Short, log-safe summary of an upstream error body.
+
+    HTML pages (e.g. a Cloudflare block) are reduced to their <title>; JSON
+    errors to their message/code. Token-like strings are redacted.
+    """
+    text = content.decode("utf-8", errors="replace").strip()
+    lowered = text[:4096].lower()
+    if "<html" in lowered or "<!doctype" in lowered:
+        match = re.search(r"<title[^>]*>(.*?)</title>", text, re.IGNORECASE | re.DOTALL)
+        title = " ".join(match.group(1).split()) if match else ""
+        text = f"html title={title!r}"
+    else:
+        with contextlib.suppress(ValueError, AttributeError):
+            data = json.loads(text)
+            err = data.get("error", data) if isinstance(data, dict) else data
+            if isinstance(err, dict):
+                text = " ".join(
+                    f"{k}={err[k]!r}" for k in ("type", "code", "message", "detail") if err.get(k)
+                ) or text
+            elif isinstance(err, str):
+                text = err
+    text = _SECRETISH.sub("<redacted>", " ".join(text.split()))
+    return text[:limit]
 
 
 def _thinking_for_stream(payload: object) -> ThinkingTokens:
@@ -1146,6 +1175,17 @@ class StreamingMixin:
                 response_headers["content-type"] = "application/json"
             finally:
                 await upstream_response.aclose()
+
+            # Say *why* the upstream refused (e.g. a Cloudflare block page vs a
+            # JSON auth error) without logging request content or secrets.
+            logger.warning(
+                "[%s] Upstream error detail status=%s content_type=%s cf_mitigated=%s preview=%s",
+                request_id,
+                upstream_response.status_code,
+                upstream_response.headers.get("content-type", ""),
+                upstream_response.headers.get("cf-mitigated", ""),
+                upstream_error_preview(error_content),
+            )
 
             if _codex_wire_debug:
                 _error_text: str | None = None

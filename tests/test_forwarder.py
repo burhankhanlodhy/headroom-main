@@ -161,3 +161,67 @@ def test_run_forwarder_fails_fast_without_credential(monkeypatch: pytest.MonkeyP
 
     with pytest.raises(ValueError, match="horizon vault set"):
         run_forwarder("https://remote.example.test", port=18788)
+
+
+# ── Plugin-tagged traffic: model calls to the proxy, everything else direct ──
+
+
+def _capture(seen: list):
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"ok": True})
+
+    return handler
+
+
+def test_tagged_non_model_call_goes_direct_without_credential() -> None:
+    """Sign-in (e.g. ChatGPT device auth) must reach its real host, keyless."""
+    seen: list = []
+    client = _make_client(_capture(seen))
+    resp = client.post(
+        "/api/accounts/deviceauth/usercode",
+        params={"x": "1"},
+        json={"client_id": "abc"},
+        headers={
+            "x-horizon-base-url": "https://auth.openai.com",
+            "x-horizon-project": "demo",
+            "authorization": "Bearer provider-token",
+        },
+    )
+    assert resp.status_code == 200
+    (req,) = seen
+    assert str(req.url) == "https://auth.openai.com/api/accounts/deviceauth/usercode?x=1"
+    assert "x-horizon-proxy-token" not in req.headers
+    assert not any(name.startswith("x-horizon-") for name in req.headers)
+    assert req.headers["authorization"] == "Bearer provider-token"
+
+
+def test_tagged_model_call_still_goes_to_the_proxy_with_credential() -> None:
+    seen: list = []
+    client = _make_client(_capture(seen))
+    client.post(
+        "/v1/chat/completions",
+        json={"model": "glm"},
+        headers={"x-horizon-base-url": "https://api.oneprovider.dev"},
+    )
+    (req,) = seen
+    assert str(req.url).startswith(REMOTE + "/v1/chat/completions")
+    assert req.headers["x-horizon-proxy-token"] == "hz_feedface"
+    assert req.headers["x-horizon-base-url"] == "https://api.oneprovider.dev"
+
+
+def test_untagged_non_model_call_still_goes_to_the_proxy() -> None:
+    """Without a plugin tag there is no real destination to go to."""
+    seen: list = []
+    client = _make_client(_capture(seen))
+    client.get("/v1/models")
+    client.get("/something/else")
+    assert all(str(r.url).startswith(REMOTE) for r in seen)
+
+
+def test_tag_with_unsafe_scheme_is_not_followed() -> None:
+    seen: list = []
+    client = _make_client(_capture(seen))
+    client.get("/catalog", headers={"x-horizon-base-url": "file:///etc"})
+    (req,) = seen
+    assert str(req.url).startswith(REMOTE)

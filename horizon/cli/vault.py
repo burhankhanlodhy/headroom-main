@@ -22,9 +22,16 @@ def vault() -> None:
 
 
 @vault.command("set")
-def vault_set() -> None:
+@click.option(
+    "--stdin",
+    "from_stdin",
+    is_flag=True,
+    help="Read the key from standard input instead of prompting (for the desktop app).",
+)
+def vault_set(from_stdin: bool) -> None:
     """Prompt for the remote ``hz_...`` key and store it (input hidden)."""
-    value = getpass.getpass("Remote Horizon key (hz_...): ")
+    # --stdin keeps the key out of argv, where other processes could read it.
+    value = sys.stdin.readline() if from_stdin else getpass.getpass("Remote Horizon key (hz_...): ")
     try:
         set_credential(value)
     except VaultError as exc:

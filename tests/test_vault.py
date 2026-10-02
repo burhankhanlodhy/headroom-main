@@ -88,3 +88,14 @@ def test_failing_backend_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(keyring, "get_keyring", lambda: _Fail())
     with pytest.raises(VaultError, match="no usable OS credential-store backend"):
         vault.get_credential()
+
+
+def test_cli_set_reads_key_from_stdin(fake_keyring: FakeKeyring) -> None:
+    """The desktop app pipes the device key in; it must never need a TTY."""
+    from click.testing import CliRunner
+
+    from horizon.cli.vault import vault_set
+
+    result = CliRunner().invoke(vault_set, ["--stdin"], input="cs_live_device123\n")
+    assert result.exit_code == 0, result.output
+    assert vault.get_credential() == "cs_live_device123"

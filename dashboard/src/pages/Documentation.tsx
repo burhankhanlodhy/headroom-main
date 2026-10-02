@@ -6,7 +6,7 @@ const ENDPOINTS = [
   { method: "POST", path: "/v1/messages", desc: "Anthropic Messages (Claude)", scope: "messages" },
   { method: "POST", path: "/v1/messages/count_tokens", desc: "Anthropic token counting", scope: "messages" },
   { method: "POST", path: "/v1/chat/completions", desc: "OpenAI-compatible Chat Completions", scope: "messages" },
-  { method: "POST", path: "/v1/responses", desc: "OpenAI Responses", scope: "responses" },
+  { method: "POST", path: "/v1/responses", desc: "OpenAI Responses (incl. ChatGPT sign-in)", scope: "responses" },
   {
     method: "POST",
     path: "/v1beta/models/{model}:generateContent",
@@ -135,9 +135,9 @@ export default function Documentation() {
             </li>
             <li>
               <strong className="text-ink">OpenCode</strong> gets a small plugin that
-              routes every provider you have configured, including custom ones, through
-              ContextShrink. Sign-in and model catalogue requests still go to the
-              provider directly.
+              routes every provider you have configured, including custom ones and
+              OpenAI with a ChatGPT sign-in, through ContextShrink. Sign-in and model
+              catalogue requests still go to the provider directly.
             </li>
             <li>
               Your tools are never bundled with the app. Install them yourself; the app

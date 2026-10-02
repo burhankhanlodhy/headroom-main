@@ -37,13 +37,22 @@ class FakeConn:
         self.customers = {"cus_1": UID}
         self.plan_updates: list[tuple] = []
         self.failures: list[str] = []
+        self.overdue: list[str] = []
+        self.ended: list[tuple] = []
 
     def _by_invoice(self, invoice_id):
         return next((r for r in self.fees.values() if r["stripe_invoice_id"] == invoice_id), None)
 
+    async def fetch(self, sql, *args):
+        if "billing.fee_overdue" in sql:
+            return [{"user_id": UID, "stripe_subscription_id": s} for s in self.overdue]
+        raise AssertionError(sql)
+
     async def fetchval(self, sql, *args):
         if "billing.stripe_events" in sql:
             return 1 if args[0] in self.events else None
+        if "payment_status='failed' LIMIT 1" in sql:
+            return 1 if any(r["payment_status"] == "failed" for r in self.fees.values()) else None
         if "SELECT user_id FROM core.subscriptions WHERE stripe_customer_id" in sql:
             return self.customers.get(args[0])
         raise AssertionError(sql)
@@ -82,6 +91,8 @@ class FakeConn:
             row = self._by_invoice(args[0])
             if row:
                 row.update(payment_status=args[1], payment_failed_at=None)
+        elif "UPDATE core.subscriptions SET plan='free'" in sql:
+            self.ended.append(args)
         elif "UPDATE core.subscriptions SET plan=" in sql:
             self.plan_updates.append(args)
         else:
@@ -348,6 +359,57 @@ def test_renew_refuses_an_ended_subscription(env):
     with pytest.raises(billing.HTTPException) as exc:
         asyncio.run(billing.renew_subscription("sub_1"))
     assert exc.value.status_code == 409
+
+
+# ── Unpaid fee past grace: downgrade to Free ──────────────────────────
+
+
+def test_overdue_plan_is_tagged_cancelled_and_downgraded(env, monkeypatch):
+    calls = []
+    state = {"sub": _subscription("active", {})}
+
+    def update(sub_id, params):
+        calls.append(("update", params))
+
+    def cancel(sub_id, params):
+        calls.append(("cancel", params))
+        state["sub"] = _subscription("canceled", {})
+
+    env.conn.overdue = ["sub_1"]
+    env.stripe.v1.subscriptions.retrieve = lambda _id: state["sub"]
+    env.stripe.v1.subscriptions.update = update
+    env.stripe.v1.subscriptions.cancel = cancel
+    assert asyncio.run(billing.enforce_unpaid_fees()) == 1
+    # Tagged before cancelling, so the deletion webhook skips the final fee.
+    assert calls[0] == ("update", {"metadata": {"cancel_reason": "unpaid_savings_fee"}})
+    assert calls[1][0] == "cancel" and calls[1][1]["prorate"] is False
+    assert env.conn.ended == [(UID, "sub_1")]  # plan='free' locally right away
+
+
+def _deleted(reason=None):
+    sub = _subscription("canceled", {"cancel_reason": reason} if reason else {}).to_dict()
+    sub.update(ended_at=int(END.timestamp()), canceled_at=int(END.timestamp()), default_payment_method=None)
+    return sub
+
+
+@pytest.mark.parametrize("reason, billed", [(None, True), ("unpaid_savings_fee", False)])
+def test_final_fee_skipped_only_for_unpaid_fee_cancellations(env, monkeypatch, reason, billed):
+    charged = []
+
+    async def charge(*args):
+        charged.append(args)
+
+    monkeypatch.setattr(billing, "charge_savings_fee", charge)
+    env.stripe.v1.subscriptions.retrieve = lambda _id: _subscription("canceled", {})
+    asyncio.run(billing.handle_event(_event("customer.subscription.deleted", _deleted(reason))))
+    assert bool(charged) is billed
+
+
+def test_upgrade_blocked_until_the_unpaid_fee_is_paid(env, charged):
+    asyncio.run(billing.handle_event(_event("invoice.payment_failed", _fee_invoice())))
+    assert asyncio.run(billing.has_unpaid_fee(UID)) is True
+    asyncio.run(billing.handle_event(_event("invoice.paid", _fee_invoice())))
+    assert asyncio.run(billing.has_unpaid_fee(UID)) is False
 
 
 # ── Webhook endpoint ──────────────────────────────────────────────────

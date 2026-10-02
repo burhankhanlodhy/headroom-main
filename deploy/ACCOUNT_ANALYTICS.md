@@ -55,11 +55,14 @@
 - Unpaid fees: the $0 subscription renews regardless, so `invoice.payment_failed`
   / `invoice.paid` / `invoice.voided` on fee invoices are tracked per row in
   `billing.savings_fees` (first failure time kept across Stripe's retries).
-  After `FEE_GRACE_DAYS` (7) unpaid, the account's effective status is
-  `past_due` wherever plan access is checked (`billing.fee_overdue` in SQL):
-  Free compression cap and no Advanced Analytics. The subscription is not
-  cancelled, and full Pro returns as soon as the invoice is paid. The dashboard
-  shows the failed payment with Pay invoice / Update card actions throughout.
+  After `FEE_GRACE_DAYS` (7) unpaid, a background check in the API (every 10
+  minutes) cancels the Stripe subscription, tagged `cancel_reason:
+  unpaid_savings_fee` so no final-period fee is billed, and the account drops
+  to Free. Until that check runs, `billing.fee_overdue` already treats the
+  account as `past_due`. Checkout is refused while any fee is unpaid; once the
+  invoice is paid the banner clears and the customer can upgrade again. The
+  dashboard shows the failed payment with Pay invoice / Update card actions
+  throughout.
 - `/billing/estimate` calculates each account's savings from its own proxy
   events over its subscription period when one is recorded, or the current UTC
   calendar month before Stripe periods are available. Profile and Subscription

@@ -53,7 +53,8 @@ function PaymentIssueNotice({ issue }: { issue: PaymentIssue }) {
           <>
             <strong>Pro features are paused.</strong> Your{" "}
             {fmtUsd(issue.amount_usd)} savings fee is unpaid, so compression is
-            capped and Advanced Analytics is off until it is paid.
+            capped and Advanced Analytics is off until it is paid. Once it is
+            paid, you can upgrade to Pro again.
           </>
         ) : (
           <>

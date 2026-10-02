@@ -4,6 +4,7 @@ Session auth, account-owned proxy keys and private analytics. Only the
 authenticated proxy service may submit usage events to the Postgres ledger.
 """
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -31,7 +32,11 @@ CORS_ORIGINS = [
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await db.init_pool()
+    # Downgrades plans whose savings fee stays unpaid past the grace period.
+    enforcer = asyncio.create_task(billing.enforce_unpaid_fees_forever())
     yield
+    enforcer.cancel()
+    await asyncio.gather(enforcer, return_exceptions=True)
     await db.close_pool()
 
 

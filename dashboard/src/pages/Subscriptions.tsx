@@ -80,7 +80,10 @@ export default function Subscriptions() {
   const cancelsOn = cancelDate
     ? new Date(cancelDate).toLocaleDateString()
     : null;
-  const upgrading = selected === "pro" && plan !== "pro";
+  // An unpaid savings fee must be paid before upgrading again.
+  const unpaidFee = estimate?.payment_issue ?? null;
+  const upgradeBlocked = plan !== "pro" && Boolean(unpaidFee);
+  const upgrading = selected === "pro" && plan !== "pro" && !upgradeBlocked;
   const renewing = selected === plan && plan !== "free" && Boolean(cancelsOn);
   const cancelling =
     selected === "free" && Boolean(info?.has_subscription) && !cancelsOn;
@@ -398,6 +401,22 @@ export default function Subscriptions() {
           they exceed $20. Cancel any time from the billing portal; Pro stays
           active until the end of the period.
         </p>
+        {upgradeBlocked && unpaidFee && (
+          <p className="mb-4 rounded-md border border-ember/30 bg-ember-soft px-3 py-2 text-sm text-ink">
+            Pro is unavailable until your {fmtUsd(unpaidFee.amount_usd)}{" "}
+            savings fee is paid.{" "}
+            {unpaidFee.invoice_url && (
+              <a
+                href={unpaidFee.invoice_url}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-ember underline underline-offset-2"
+              >
+                Pay invoice
+              </a>
+            )}
+          </p>
+        )}
         {cancelsOn && (
           <p className="mb-4 rounded-md border border-ember/30 bg-ember-soft px-3 py-2 text-sm text-ink">
             {current.name} is cancelled and ends on {cancelsOn}. Keep{" "}
@@ -418,8 +437,16 @@ export default function Subscriptions() {
           className="w-full rounded-lg border border-ink/20 bg-card px-3 py-2 text-sm text-ink"
         >
           {PLANS.map((p) => (
-            <option key={p.id} value={p.id} disabled={p.id === "team"}>
-              {p.id === "team" ? `${p.name} (coming soon)` : p.name}
+            <option
+              key={p.id}
+              value={p.id}
+              disabled={p.id === "team" || (p.id === "pro" && upgradeBlocked)}
+            >
+              {p.id === "team"
+                ? `${p.name} (coming soon)`
+                : p.id === "pro" && upgradeBlocked
+                  ? `${p.name} (pay outstanding fee first)`
+                  : p.name}
             </option>
           ))}
         </select>

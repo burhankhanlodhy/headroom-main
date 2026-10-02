@@ -14,7 +14,10 @@ export function fmtFull(n: number): string {
 }
 
 export function fmtUsd(n: number): string {
-  return n >= 1000 ? `$${compact.format(n)}` : `$${n.toLocaleString("en", { maximumFractionDigits: 2 })}`;
+  if (n >= 1000) return `$${compact.format(n)}`;
+  // Whole dollars stay short ($5); any cents show both digits ($2.50).
+  const cents = Number.isInteger(Math.round(n * 100) / 100) ? 0 : 2;
+  return `$${n.toLocaleString("en", { minimumFractionDigits: cents, maximumFractionDigits: 2 })}`;
 }
 
 /** Deterministic pseudo-random from a string seed — keeps mock charts stable across reloads. */

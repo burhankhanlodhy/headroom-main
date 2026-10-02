@@ -33,6 +33,11 @@ CHECKOUT_INTEGRATION_ID = "contextshrink-pro-checkout-qhzvmtra"
 SAVINGS_FEE_RATE = Decimal("0.05")
 SAVINGS_FEE_THRESHOLD_USD = Decimal("20.00")
 
+# Subscriptions cancelled because a savings fee stayed unpaid past the grace
+# period are tagged with this so no final-period fee is billed to the same card.
+UNPAID_FEE_CANCEL_REASON = "unpaid_savings_fee"
+ENFORCE_INTERVAL_SECONDS = 600
+
 # Stripe statuses that keep paid entitlements; everything else is not "active".
 ENTITLED_STATUSES = {"active", "trialing"}
 ENDED_STATUSES = {"canceled", "incomplete_expired"}
@@ -300,6 +305,67 @@ async def record_fee_payment(invoice, outcome: Literal["paid", "failed", "void"]
         )
 
 
+async def has_unpaid_fee(user_id) -> bool:
+    return bool(
+        await db._conn().fetchval(
+            "SELECT 1 FROM billing.savings_fees WHERE user_id=$1 AND payment_status='failed' LIMIT 1",
+            user_id,
+        )
+    )
+
+
+async def enforce_unpaid_fees() -> int:
+    """Cancel paid plans whose savings fee is unpaid past the grace period.
+
+    The account drops to Free; it can upgrade again once the fee is paid.
+    """
+    rows = await db._conn().fetch(
+        "SELECT user_id, stripe_subscription_id FROM core.subscriptions "
+        "WHERE stripe_subscription_id IS NOT NULL AND billing.fee_overdue(user_id, $1)",
+        db.FEE_GRACE_DAYS,
+    )
+    cancelled = 0
+    for row in rows:
+        sub_id = row["stripe_subscription_id"]
+        try:
+            sub = await _call(_stripe().v1.subscriptions.retrieve, sub_id)
+            if sub.status not in ENDED_STATUSES:
+                # Tag first so the deletion webhook skips the final-period fee.
+                await _call(
+                    _stripe().v1.subscriptions.update,
+                    sub_id,
+                    {"metadata": {"cancel_reason": UNPAID_FEE_CANCEL_REASON}},
+                )
+                await _call(
+                    _stripe().v1.subscriptions.cancel,
+                    sub_id,
+                    {
+                        "prorate": False,
+                        "cancellation_details": {
+                            "comment": f"Savings fee unpaid after {db.FEE_GRACE_DAYS}-day grace period"
+                        },
+                    },
+                )
+            await sync_subscription(sub_id)
+            cancelled += 1
+            logger.warning("Cancelled subscription %s: savings fee unpaid past grace", sub_id)
+        except Exception:
+            logger.exception("Could not cancel overdue subscription %s; will retry", sub_id)
+    return cancelled
+
+
+async def enforce_unpaid_fees_forever() -> None:
+    while True:
+        try:
+            if _client is not None:
+                await enforce_unpaid_fees()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Unpaid-fee enforcement failed; retrying")
+        await asyncio.sleep(ENFORCE_INTERVAL_SECONDS)
+
+
 async def fee_payment_issue(user_id) -> dict | None:
     """The oldest unpaid savings fee, for the dashboard; None when all are settled."""
     row = await db._conn().fetchrow(
@@ -339,10 +405,12 @@ async def handle_event(event) -> None:
         await sync_subscription(obj.id)
     elif kind == "customer.subscription.deleted":
         await sync_subscription(obj.id)
-        # Cancellation creates no renewal invoice: bill the final partial period.
+        # Cancellation creates no renewal invoice: bill the final partial period,
+        # unless the plan was cancelled for an unpaid fee (same card would fail).
         user_id = await _user_for_customer(_expandable_id(obj.customer), None)
         item = obj["items"].data[0]
-        if user_id:
+        metadata = obj.metadata.to_dict() if obj.metadata else {}
+        if user_id and metadata.get("cancel_reason") != UNPAID_FEE_CANCEL_REASON:
             ended = _ts(obj.ended_at or obj.canceled_at) or datetime.now(timezone.utc)
             await charge_savings_fee(
                 user_id,
@@ -393,6 +461,8 @@ def install(app, current_user):
         row = await _billing_row(user["user_id"])
         if row and row["stripe_subscription_id"]:
             raise HTTPException(409, "You already have a subscription. Use Manage billing to change it.")
+        if await has_unpaid_fee(user["user_id"]):
+            raise HTTPException(409, "Pay your outstanding savings fee before upgrading.")
         customer_id = await _ensure_customer(user)
         session = await _call(
             _stripe().v1.checkout.sessions.create,

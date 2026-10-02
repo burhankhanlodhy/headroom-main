@@ -33,9 +33,21 @@ New-Item -ItemType Directory -Force $staging | Out-Null
 $latest = Join-Path $staging "latest.json"
 [IO.File]::WriteAllText($latest, ($release | ConvertTo-Json))
 
-$remote = (ssh -o BatchMode=yes $Pi4 "mktemp -d /tmp/cs-release.XXXXXX").Trim()
-scp -o BatchMode=yes -q $installer.FullName "${Pi4}:$remote/"
-scp -o BatchMode=yes -q $latest "${Pi4}:$remote/"
+# Windows PowerShell 5.1 turns any stderr line from a native command (e.g.
+# OpenSSH's harmless "IO is still pending on closed socket") into a terminating
+# error under "Stop"; judge ssh/scp by their exit codes instead.
+$ErrorActionPreference = "Continue"
+function Assert-Ok([string]$what) {
+    if ($LASTEXITCODE -ne 0) { throw "$what failed (exit $LASTEXITCODE)" }
+}
+
+$remote = ssh -o BatchMode=yes $Pi4 "mktemp -d /tmp/cs-release.XXXXXX" 2>$null
+Assert-Ok "Creating the staging folder on the Pi 4"
+$remote = "$remote".Trim()
+scp -o BatchMode=yes -q $installer.FullName "${Pi4}:$remote/" 2>$null
+Assert-Ok "Uploading the installer"
+scp -o BatchMode=yes -q $latest "${Pi4}:$remote/" 2>$null
+Assert-Ok "Uploading latest.json"
 
 $script = @'
 #!/bin/bash
@@ -55,7 +67,8 @@ rm -f -- "$0"
 # Windows PowerShell 5.1 prefixes piped text with a UTF-8 BOM, which breaks the
 # shebang: send BOM-less UTF-8, and strip CRs and any BOM on arrival as well.
 $OutputEncoding = New-Object System.Text.UTF8Encoding $false
-$script | ssh -o BatchMode=yes $Pi4 "tr -d '\r' | sed '1s/^\xEF\xBB\xBF//' > /tmp/cs-publish-release.sh && chmod 755 /tmp/cs-publish-release.sh && bash -n /tmp/cs-publish-release.sh"
+$script | ssh -o BatchMode=yes $Pi4 "tr -d '\r' | sed '1s/^\xEF\xBB\xBF//' > /tmp/cs-publish-release.sh && chmod 755 /tmp/cs-publish-release.sh && bash -n /tmp/cs-publish-release.sh" 2>$null
+Assert-Ok "Staging the publish script"
 
 "Staged $($installer.Name) ($([math]::Round($installer.Length / 1MB)) MB, sha256 $($release.sha256))"
 "Run this to publish (asks for the Pi 4 sudo password):"

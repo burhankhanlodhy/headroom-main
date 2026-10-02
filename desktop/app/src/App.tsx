@@ -1,0 +1,331 @@
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import "./App.css";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  plan?: "free" | "pro" | "team" | null;
+  subscription_status?: string | null;
+}
+
+interface Session {
+  user: User;
+  device: string;
+  dashboard_url: string;
+}
+
+interface Tool {
+  id: string;
+  name: string;
+  description: string;
+  installed: boolean;
+  install_url: string;
+}
+
+interface Summary {
+  user: User;
+  estimate: {
+    estimated_savings_usd: number;
+    compression: {
+      capped: boolean;
+      cap_usd: number;
+      cycle_savings_usd: number | null;
+      compression_allowed: boolean;
+    };
+    payment_issue: { amount_usd: number; paused: boolean; pause_at: string } | null;
+  };
+}
+
+const FOLDER_KEY = "cs_project_folder";
+const usd = (n: number) =>
+  `$${n.toLocaleString("en", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`;
+const message = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : "Something went wrong");
+
+function readFolder(): string {
+  try {
+    return localStorage.getItem(FOLDER_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [booting, setBooting] = useState(true);
+  const [bootError, setBootError] = useState("");
+
+  const restore = useCallback(async () => {
+    setBooting(true);
+    setBootError("");
+    try {
+      setSession(await invoke<Session | null>("restore_session"));
+    } catch (e) {
+      setBootError(message(e));
+    } finally {
+      setBooting(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void restore();
+  }, [restore]);
+
+  if (booting) return <Splash text="Connecting to ContextShrink…" />;
+  if (bootError)
+    return (
+      <Splash text={bootError}>
+        <button className="primary" onClick={() => void restore()}>
+          Try again
+        </button>
+      </Splash>
+    );
+  if (!session) return <Login onSignedIn={setSession} />;
+  return <Home session={session} onSignedOut={() => setSession(null)} />;
+}
+
+function Logo() {
+  return (
+    <div className="logo">
+      <span className="mark">CS</span>
+      <span>
+        Context<span className="ember">Shrink</span>
+      </span>
+    </div>
+  );
+}
+
+function Splash({ text, children }: { text: string; children?: React.ReactNode }) {
+  return (
+    <main className="center">
+      <Logo />
+      <p className="muted">{text}</p>
+      {children}
+    </main>
+  );
+}
+
+function Login({ onSignedIn }: { onSignedIn: (s: Session) => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      onSignedIn(await invoke<Session>("login", { email, password }));
+    } catch (err) {
+      setError(message(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="center">
+      <form className="card login" onSubmit={submit}>
+        <Logo />
+        <h1>Sign in</h1>
+        <p className="muted">Use your ContextShrink account. This computer gets its own proxy key.</p>
+        <label>
+          Email
+          <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        </label>
+        <label>
+          Password
+          <input
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
+        {error && <p className="error">{error}</p>}
+        <button className="primary" disabled={busy}>
+          {busy ? "Signing in…" : "Sign in"}
+        </button>
+        <p className="muted small">
+          No account?{" "}
+          <a href="#" onClick={() => void openUrl("https://app.contextshrink.com/signup")}>
+            Create one
+          </a>
+        </p>
+      </form>
+    </main>
+  );
+}
+
+function Home({ session, onSignedOut }: { session: Session; onSignedOut: () => void }) {
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [tools, setTools] = useState<Tool[]>([]);
+  const [folder, setFolder] = useState(readFolder);
+  const [connected, setConnected] = useState(true);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [launching, setLaunching] = useState("");
+
+  const refresh = useCallback(async () => {
+    setTools(await invoke<Tool[]>("list_tools"));
+    setConnected(await invoke<boolean>("forwarder_running"));
+    try {
+      setSummary(await invoke<Summary>("account_summary"));
+    } catch {
+      /* keep the last summary during a brief outage */
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 30000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [refresh]);
+
+  async function chooseFolder() {
+    const picked = await open({ directory: true, multiple: false, title: "Choose your project folder" });
+    if (typeof picked === "string") {
+      setFolder(picked);
+      try {
+        localStorage.setItem(FOLDER_KEY, picked);
+      } catch {
+        /* remembered for this session only */
+      }
+    }
+  }
+
+  async function launch(tool: Tool) {
+    setError("");
+    setNotice("");
+    if (!folder) {
+      setError("Choose a project folder first.");
+      return;
+    }
+    setLaunching(tool.id);
+    try {
+      await invoke("launch_tool", { tool: tool.id, folder });
+      setNotice(`${tool.name} opened in a new window, routed through ContextShrink.`);
+      setConnected(true);
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setLaunching("");
+    }
+  }
+
+  async function signOut() {
+    await invoke("logout").catch(() => undefined);
+    onSignedOut();
+  }
+
+  const user = summary?.user ?? session.user;
+  const plan = user.plan ?? "free";
+  const est = summary?.estimate;
+  const cap = est?.compression;
+
+  return (
+    <main className="home">
+      <header>
+        <Logo />
+        <div className="who">
+          <span>{user.name}</span>
+          <span className="muted small">{user.email}</span>
+        </div>
+      </header>
+
+      {est?.payment_issue && (
+        <div className="banner warn">
+          {est.payment_issue.paused
+            ? `Pro features are paused until your ${usd(est.payment_issue.amount_usd)} savings fee is paid.`
+            : `Your ${usd(est.payment_issue.amount_usd)} savings fee payment failed. Pay it from the dashboard to keep Pro.`}{" "}
+          <a href="#" onClick={() => void openUrl(`${session.dashboard_url}/subscriptions`)}>
+            Open billing
+          </a>
+        </div>
+      )}
+
+      <section className="stats">
+        <div className="card stat">
+          <span className="label">Plan</span>
+          <strong className="cap">{plan}</strong>
+          {user.subscription_status && user.subscription_status !== "active" && (
+            <span className="muted small">{user.subscription_status.replace("_", " ")}</span>
+          )}
+        </div>
+        <div className="card stat">
+          <span className="label">Saved this cycle</span>
+          <strong>{est ? usd(est.estimated_savings_usd) : "—"}</strong>
+        </div>
+        <div className="card stat">
+          <span className="label">Compression</span>
+          <strong>
+            {!cap ? "—" : !cap.capped ? "Unlimited" : cap.compression_allowed ? "Active" : "Paused"}
+          </strong>
+          {cap?.capped && cap.cycle_savings_usd !== null && (
+            <span className="muted small">
+              {usd(cap.cycle_savings_usd)} of {usd(cap.cap_usd)} Free allowance
+            </span>
+          )}
+        </div>
+      </section>
+
+      <section className="card folder">
+        <div>
+          <span className="label">Project folder</span>
+          <p className={folder ? "path" : "muted"}>{folder || "No folder chosen"}</p>
+        </div>
+        <button onClick={() => void chooseFolder()}>{folder ? "Change" : "Choose folder"}</button>
+      </section>
+
+      {notice && <p className="ok">{notice}</p>}
+      {error && <p className="error">{error}</p>}
+
+      <section className="tools">
+        {tools.map((tool) => (
+          <div key={tool.id} className="card tool">
+            <div className="tool-head">
+              <span className="mark small-mark">{tool.name.slice(0, 1)}</span>
+              <div>
+                <strong>{tool.name}</strong>
+                <p className="muted small">{tool.description}</p>
+              </div>
+            </div>
+            {tool.installed ? (
+              <button className="primary" disabled={launching === tool.id} onClick={() => void launch(tool)}>
+                {launching === tool.id ? "Opening…" : `Launch ${tool.name}`}
+              </button>
+            ) : (
+              <div className="missing">
+                <span className="muted small">Not installed on this computer</span>
+                <button onClick={() => void openUrl(tool.install_url)}>Install {tool.name}</button>
+              </div>
+            )}
+          </div>
+        ))}
+      </section>
+
+      <footer>
+        <span className={connected ? "status on" : "status"}>
+          {connected ? "Connected" : "Not connected"} · {session.device}
+        </span>
+        <span className="links">
+          <a href="#" onClick={() => void openUrl(session.dashboard_url)}>
+            Open dashboard
+          </a>
+          <a href="#" onClick={() => void signOut()}>
+            Sign out
+          </a>
+        </span>
+      </footer>
+    </main>
+  );
+}

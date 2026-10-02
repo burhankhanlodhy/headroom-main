@@ -1,0 +1,15 @@
+# Frozen Horizon client build output (rebuilt by client/build-client.ps1)
+client/build/
+client/dist/
+client/*.spec
+
+# Tauri / Vite build output
+app/node_modules/
+app/dist/
+app/src-tauri/target/
+app/src-tauri/gen/schemas/
+
+# The repo-root "Icon?" rule (macOS Icon\r files) also matches "icons" on
+# case-insensitive filesystems; the app icons are needed to build.
+!app/src-tauri/icons/
+!app/src-tauri/icons/**

@@ -1,0 +1,296 @@
+:root {
+  --paper: #f6f1e7;
+  --card: #fffdf8;
+  --ink: #1d1712;
+  --ink-2: #4a4137;
+  --ink-3: #8b7f6f;
+  --line: rgba(29, 23, 18, 0.12);
+  --ember: #c14d1b;
+  --ember-soft: #f6dfcf;
+  --sage: #5f7452;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #15120f;
+    --card: #1f1a15;
+    --ink: #f1eadf;
+    --ink-2: #cfc4b4;
+    --ink-3: #998c7b;
+    --line: rgba(241, 234, 223, 0.14);
+    --ember: #e07a4a;
+    --ember-soft: #3a2418;
+    --sage: #9cb38c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+}
+
+a {
+  color: var(--ember);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+h1 {
+  margin: 8px 0 0;
+  font-size: 22px;
+}
+
+.muted {
+  color: var(--ink-3);
+}
+
+.small {
+  font-size: 12px;
+}
+
+.ember {
+  color: var(--ember);
+}
+
+.error {
+  color: var(--ember);
+  margin: 0;
+}
+
+.ok {
+  color: var(--sage);
+  margin: 0;
+}
+
+.center {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.small-mark {
+  width: 38px;
+  height: 38px;
+  background: var(--ember);
+  color: #fff;
+  font-size: 16px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.login {
+  width: min(380px, 100vw - 32px);
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+input {
+  font: inherit;
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+input:focus,
+button:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 1px;
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--ember);
+  border-color: var(--ember);
+  color: #fff;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.home {
+  display: grid;
+  gap: 14px;
+  padding: 20px 24px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.who {
+  display: grid;
+  text-align: right;
+}
+
+.banner {
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.banner.warn {
+  background: var(--ember-soft);
+  border: 1px solid var(--ember);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.stat {
+  display: grid;
+  gap: 4px;
+}
+
+.stat strong {
+  font-size: 22px;
+}
+
+.label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+
+.cap {
+  text-transform: capitalize;
+}
+
+.folder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.folder p {
+  margin: 4px 0 0;
+}
+
+.path {
+  font-family: Consolas, monospace;
+  word-break: break-all;
+}
+
+.tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.tool {
+  display: grid;
+  gap: 14px;
+}
+
+.tool-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.tool-head p {
+  margin: 2px 0 0;
+}
+
+.missing {
+  display: grid;
+  gap: 8px;
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  font-size: 12px;
+}
+
+.links {
+  display: flex;
+  gap: 16px;
+}
+
+.status::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: var(--ink-3);
+}
+
+.status.on::before {
+  background: var(--sage);
+}

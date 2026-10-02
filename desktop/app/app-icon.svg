@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="#1d1712"/>
+  <g fill="none" stroke="#c14d1b" stroke-width="72" stroke-linecap="round" stroke-linejoin="round">
+    <!-- four arrows pointing inward: context being shrunk -->
+    <path d="M260 260 L430 430 M430 300 L430 430 L300 430"/>
+    <path d="M764 260 L594 430 M724 430 L594 430 L594 300"/>
+    <path d="M260 764 L430 594 M300 594 L430 594 L430 724"/>
+    <path d="M764 764 L594 594 M594 724 L594 594 L724 594"/>
+  </g>
+</svg>

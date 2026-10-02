@@ -1,84 +1,61 @@
 # Two-Pi Deployment — ContextShrink
 
 ```
-            PC / agents (SSH tunnel)
-                     |
-                     v
-+-------------------------------------------+
-|  Pi 5  192.168.0.71        DATA PLANE     |
-|  horizon proxy   127.0.0.1:8787           |
-|  Postgres (docker) 127.0.0.1:5432         |
-|  control API (docker) 0.0.0.0:8788        |
-+-------------------------------------------+
-                     ^  /api reverse_proxy
-                     |
-+-------------------------------------------+
-|  Pi 4  192.168.0.64        WEB TIER       |
-|  Caddy :80    -> landing (static)         |
-|  Caddy :8080  -> dashboard (static)       |
-|            /api -> 192.168.0.71:8788      |
-+-------------------------------------------+
+                    Cloudflare (no port forwarding; home IP never exposed)
+          ┌───────────────────────────┴───────────────────────────┐
+  contextshrink.com, app.contextshrink.com        api.contextshrink.com, proxy.contextshrink.com
+          │ tunnel "pi4-web"                               │ tunnel "pi5-proxy"
++---------v-------------------------+    +-----------------v------------------------------+
+| Pi 4  192.168.0.64   WEB TIER     |    | Pi 5  192.168.0.71   DATA PLANE                |
+| Caddy :80   -> landing (static)   |    | Caddy gateway (horizon-dashboard-gateway):     |
+| Caddy :8080 -> dashboard (static) |    |   127.0.0.1:8791 api   -> public API routes    |
+|   /dashboard -> Advanced Analytics|    |   127.0.0.1:8790 proxy -> provider operations  |
+|   (static page)                   |    | control API (docker) 127.0.0.1:8788            |
+|                                   |    | horizon proxy        127.0.0.1:8787            |
+|                                   |    | Postgres (docker)    127.0.0.1:5432            |
++-----------------------------------+    +------------------------------------------------+
 ```
 
-- **Pi 5** runs everything with state: the proxy, Postgres, and the control
-  API. The API binds the LAN (`API_BIND=0.0.0.0` in `~/horizon/.env`) so only
-  Caddy needs to reach it. Deployed and verified — see below.
-- **Pi 4** is stateless: two static bundles served by Caddy. If it dies,
-  redeploy in minutes; nothing is lost.
+- **Pi 4** serves static files only and never connects to the Pi 5. The
+  dashboard and the Advanced Analytics page call `https://api.contextshrink.com`
+  from the browser (CORS allows `https://app.contextshrink.com`); tools and the
+  desktop app use `https://proxy.contextshrink.com`.
+- **Pi 5** runs everything with state. Every service listens on loopback; the
+  only way in is its own Cloudflare Tunnel, which targets the gateway
+  listeners, never the API or proxy directly. The gateway allowlists routes
+  (no `/internal/*`, `/docs`, `/stats`, admin or settings) and strips
+  Cloudflare/forwarding headers before provider calls.
+- If the Pi 4 dies, the API and proxy keep working; redeploy the static
+  bundles in minutes, nothing is lost.
 
-## Status
+## Build the bundles (PowerShell, not Git Bash)
 
-| Piece            | Host | Status |
-| ---------------- | ---- | ------ |
-| horizon proxy    | Pi 5 | loopback-only, with a LAN-scoped account-auth gateway |
-| Postgres + API   | Pi 5 | deployed & verified (`/healthz`, signup + login over LAN on `:8788`) |
-| Landing bundle   | PC   | built with `VITE_DASHBOARD_URL=http://192.168.0.64:8080` → `landingpage/dist` |
-| Dashboard bundle | PC   | built with `VITE_API_URL=/api`, `VITE_LANDING_URL=http://192.168.0.64` → `dashboard/dist` |
-| Caddy + bundles  | Pi 4 | **deployed & verified** — Caddy 2.6.2 on `:80`/`:8080`, enabled at boot |
-
-**Live URLs:**
-
-```
-http://192.168.0.64            -> landing page
-http://192.168.0.64:8080       -> dashboard (sign up! it hits the Pi 5 DB)
-http://192.168.0.64:8080/api/healthz -> {"ok":true,...}
-```
-
-## Pi 4 deployment (done)
-
-Bundles and Caddyfile live in `/var/www/contextshrink/{landing,dashboard}` and
-`/etc/caddy/Caddyfile`; `caddy.service` is enabled (starts on boot).
-
-### Rebuild & redeploy (from the PC)
+Git Bash rewrites values like `/api` into Windows paths, so build in PowerShell.
 
 ```powershell
-# rebuild the bundles with the env vars above, then:
-ssh raspberrypi4@192.168.0.64 "mkdir -p /tmp/cs-landing /tmp/cs-dashboard"
-scp -r landingpage\dist\* raspberrypi4@192.168.0.64:/tmp/cs-landing/
-scp -r dashboard\dist\*  raspberrypi4@192.168.0.64:/tmp/cs-dashboard/
-scp deploy\pi4-webtier\Caddyfile raspberrypi4@192.168.0.64:/tmp/cs-Caddyfile
-ssh raspberrypi4@192.168.0.64 "sudo cp -r /tmp/cs-landing/* /var/www/contextshrink/landing/ && sudo cp -r /tmp/cs-dashboard/* /var/www/contextshrink/dashboard/ && sudo cp /tmp/cs-Caddyfile /etc/caddy/Caddyfile && sudo systemctl reload caddy"
+cd landingpage
+$env:VITE_DASHBOARD_URL = "https://app.contextshrink.com"
+npm run build
+
+cd ..\dashboard
+$env:VITE_LANDING_URL = "https://contextshrink.com"
+$env:VITE_API_URL = "https://api.contextshrink.com"
+npm run build   # also copies the Advanced Analytics page to dist\dashboard\
 ```
 
-### Advanced Analytics
+## Deploy to the Pi 4
 
-The dashboard menu opens Horizon at `/dashboard` on the Pi 4 dashboard origin.
-Pi 4 Caddy forwards only the Horizon UI and its read-only analytics paths to
-Pi 5. A separate Caddy gateway on Pi 5 binds to `192.168.0.71:8787`, checks the
-signed-in dashboard account against `/auth/me`, and forwards allowed requests
-to Horizon on `127.0.0.1:8787`. The proxy data plane and its master token remain
-private to Pi 5. The settings page is not exposed through this gateway.
+Upload `dist` to a temp directory on the Pi 4 and install it with `sudo`
+(swap the directory and keep the old one in `/var/backups/contextshrink/`).
+`/etc/caddy/Caddyfile` comes from `deploy/pi4-webtier/Caddyfile`; validate it
+with `caddy validate --adapter caddyfile` before `sudo systemctl reload caddy`.
 
-The gateway is managed by the `horizon-dashboard-gateway` Compose service. It
-uses the `dashboard` profile, so other installs keep the loopback-only default:
+## Pi 5 gateway
+
+Managed by the `horizon-dashboard-gateway` Compose service (`dashboard`
+profile), config in `deploy/pi5-webtier/Caddyfile`. The Caddyfile is a
+single-file bind mount, so after `git pull` recreate the container:
 
 ```bash
-docker compose --profile dashboard up -d horizon-dashboard-gateway
+docker compose --profile dashboard up -d --force-recreate horizon-dashboard-gateway
 ```
-
-## Domain day
-
-Point `contextshrink.com` A record at Pi 4's public IP, `app.contextshrink.com`
-at it too (or a VPS), swap the Caddyfile to the commented blocks in
-`deploy/pi4-webtier/Caddyfile`, and rebuild both bundles with the HTTPS URLs.
-Caddy handles certificates automatically. The API itself never needs to change.

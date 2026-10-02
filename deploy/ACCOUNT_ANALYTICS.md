@@ -9,8 +9,7 @@
    `X-Horizon-Proxy-Token` to the account key. Keep the provider key/login in its
    usual header. All connections, including SSH tunnels to Pi 5 loopback,
    require an account key. The proxy hostname is the Pi 5's own Cloudflare
-   Tunnel to the gateway's loopback listener (127.0.0.1:8790); the gateway's
-   LAN listener serves only the Advanced Analytics page for the Pi 4.
+   Tunnel to the gateway's loopback listener (127.0.0.1:8790).
 3. The outer proxy middleware calls the control plane with a server-only
    service credential. It checks the key's current revocation state and scope
    on every HTTP request. The verified UUID follows async tasks and streaming
@@ -22,7 +21,8 @@
    requests use the same novel-conversation savings and cache-aware pricing as
    Horizon. Every event has a stable UUID; PostgreSQL ignores retries with the
    same UUID. Outbox rows are removed only after a successful API response.
-5. **Advanced Analytics** serves an account page through the LAN gateway.
+5. **Advanced Analytics** is a static page shipped with the dashboard build
+   and served by the Pi 4 at `/dashboard`; it calls `api.contextshrink.com`.
    Summary, feed, grouping and CSV queries all resolve the browser session
    server-side, then filter by that UUID before aggregating or limiting rows.
    No browser-provided user ID selects an account. Responses use `no-store`.
@@ -42,7 +42,8 @@
 - The three plans are `free`, `pro` and `team`. Free can be selected without a
   payment method. Pro starts at `POST /billing/checkout`: Stripe Checkout
   saves a card on a $0/month subscription (`STRIPE_PRO_PRICE_LOOKUP_KEY`).
-  The plan is granted only by verified webhooks at `/api/stripe/webhook`
+  The plan is granted only by verified webhooks at
+  `https://api.contextshrink.com/stripe/webhook`
   (`STRIPE_WEBHOOK_SECRET`), which sync plan, status and period from Stripe;
   a browser request cannot grant paid entitlement. Cancelling goes through the
   Customer Portal (`POST /billing/portal`, at period end). Team is "coming
@@ -107,10 +108,12 @@
   savings keys are namespaced by account UUID. Memory identity uses that UUID.
 - API keys do not authorize browser analytics or service telemetry ingestion.
   The legacy `/ingest/usage` route is disabled. `/internal/*` requires the
-  service credential even when contacted directly; Pi 4 blocks these routes.
-- The LAN gateway exposes only the account page, its authenticated reads, and
-  supported Messages, Chat Completions, Responses and Gemini inference/model
-  operations. It returns 404 for raw `/stats`, global transformation feeds,
+  service credential and is not routed publicly at all.
+- The Pi 5 gateway is the only public entry (its own Cloudflare Tunnel; every
+  service listens on loopback). `api.contextshrink.com` exposes only the public
+  API routes; `proxy.contextshrink.com` exposes only supported Messages, Chat
+  Completions, Responses and Gemini inference/model operations. Both return 404
+  for `/internal/*`, `/docs`, raw `/stats`, global transformation feeds,
   admin/settings and provider response retrieval endpoints. Other provider
   surfaces must receive an explicit identity/isolation review before exposure.
 - Revocation immediately blocks new requests/connections and the next incoming

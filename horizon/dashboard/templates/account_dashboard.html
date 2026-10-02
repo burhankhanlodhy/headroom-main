@@ -382,7 +382,12 @@
           generation = 0,
           pending = null,
           token = "";
-        const base = "/account-api";
+        // The dashboard build serves this page statically and sets the API
+        // origin in <meta name="contextshrink-api">; the proxy's own copy
+        // keeps using its /account-api gateway route.
+        const base =
+          document.querySelector('meta[name="contextshrink-api"]')?.content ||
+          "/account-api";
         try {
           token = localStorage.getItem("cs_session_token") || "";
           if (localStorage.getItem("horizon-theme") === "light")

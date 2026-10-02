@@ -2,7 +2,12 @@
 
 export const API_URL: string =
   (import.meta.env.VITE_API_URL as string | undefined) ??
-  (import.meta.env.DEV ? "http://127.0.0.1:8788" : "/api");
+  (import.meta.env.DEV ? "http://127.0.0.1:8788" : "https://api.contextshrink.com");
+
+/** Public proxy base URL users configure in their tools. */
+export const PROXY_URL: string =
+  (import.meta.env.VITE_PROXY_URL as string | undefined) ??
+  "https://proxy.contextshrink.com";
 
 const TOKEN_KEY = "cs_session_token";
 

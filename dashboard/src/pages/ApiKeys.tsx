@@ -9,7 +9,7 @@ import {
   Modal,
   SectionHeader,
 } from "../components/ui";
-import { apiFetch } from "../lib/api";
+import { apiFetch, PROXY_URL } from "../lib/api";
 
 type Key = {
   id: string;
@@ -142,15 +142,13 @@ export default function ApiKeys() {
         <SectionHeader eyebrow="Connect a tool" title="Account proxy access" />
         <p className="text-sm text-ink-3">Base URL</p>
         <div className="mt-2 flex items-center gap-2">
-          <code className="text-sm text-ink">
-            {window.location.origin}/proxy
-          </code>
-          <CopyButton text={`${window.location.origin}/proxy`} />
+          <code className="text-sm text-ink">{PROXY_URL}</code>
+          <CopyButton text={PROXY_URL} />
         </div>
         <p className="mt-4 text-sm leading-relaxed text-ink-3">
           Send your account key in <code>X-Horizon-Proxy-Token</code>. Keep your
-          provider API key or provider login in its usual header. Both LAN and
-          SSH tunnel connections require an account key. Use the responses scope
+          provider API key or provider login in its usual header. The
+          ContextShrink desktop app sets this up for you. Use the responses scope
           for OpenAI Responses and the messages scope for Messages, Chat
           Completions or Gemini. For clients that append <code>/v1</code>, use
           the base URL above; otherwise append <code>/v1</code>.

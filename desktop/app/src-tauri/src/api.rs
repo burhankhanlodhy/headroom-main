@@ -11,8 +11,12 @@ pub fn app_url() -> String {
         .to_string()
 }
 
+/// Control-plane API: its own hostname (the Pi 5 Cloudflare Tunnel).
+/// `CONTEXTSHRINK_API_URL` overrides it for testing.
 fn api_url(path: &str) -> String {
-    format!("{}/api{}", app_url(), path)
+    let base = std::env::var("CONTEXTSHRINK_API_URL")
+        .unwrap_or_else(|_| "https://api.contextshrink.com".into());
+    format!("{}{}", base.trim_end_matches('/'), path)
 }
 
 /// Hosted proxy the local forwarder relays to: its own hostname (the Pi 5

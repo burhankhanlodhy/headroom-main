@@ -1,4 +1,8 @@
 # ContextShrink web tier — Pi 4 (192.168.0.64)
+#
+# Static files only. The Pi 4 never connects to the Pi 5: the dashboard and
+# the Advanced Analytics page call https://api.contextshrink.com, and tools use
+# https://proxy.contextshrink.com; both are the Pi 5's own Cloudflare Tunnel.
 :80 {
 	encode gzip
 	root * /var/www/contextshrink/landing
@@ -8,30 +12,28 @@
 
 :8080 {
 	encode gzip
+	root * /var/www/contextshrink/dashboard
 
-	@analytics path /dashboard /dashboard/* /account-api/*
+	# Advanced Analytics: a static page shipped with the dashboard build.
+	@analytics path /dashboard /dashboard/
 	handle @analytics {
-		reverse_proxy 192.168.0.71:8787
+		header Cache-Control "no-store"
+		rewrite * /dashboard/index.html
+		file_server
 	}
 
-	# The proxy has its own hostname (proxy.contextshrink.com, the Pi 5's
-	# Cloudflare Tunnel). Answer the retired /proxy path with a clear 404
-	# instead of falling through to the dashboard app.
+	# Retired relay paths: answer clearly instead of serving the app.
 	handle /proxy/* {
 		respond "Not Found: use https://proxy.contextshrink.com" 404
 	}
-
-	@private_routes path /api/internal/* /api/ingest/* /stats /stats-lifetime /stats-history /health /transformations/* /metrics /admin/* /debug/*
-	handle @private_routes {
-		respond "Not Found" 404
+	handle /api/* {
+		respond "Not Found: use https://api.contextshrink.com" 404
 	}
-
-	handle_path /api/* {
-		reverse_proxy 192.168.0.71:8788
+	handle /account-api/* {
+		respond "Not Found: use https://api.contextshrink.com" 404
 	}
 
 	handle {
-		root * /var/www/contextshrink/dashboard
 		try_files {path} /index.html
 		file_server
 	}

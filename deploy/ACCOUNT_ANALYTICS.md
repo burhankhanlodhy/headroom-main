@@ -4,10 +4,13 @@
 
 1. Sign in on Pi 4, open **API Keys**, and create a key. PostgreSQL stores its
    SHA-256 hash, owner UUID and allowed scopes. The complete key is shown once.
-2. Point the tool at `http://192.168.0.64:8080/proxy` (append `/v1` when your
-   client requires it). Set `X-Horizon-Proxy-Token` to the account key. Keep the
-   provider key/login in its usual header. All connections, including SSH
-   tunnels to Pi 5 loopback, require an account key.
+2. Point the tool at `https://proxy.contextshrink.com` (append `/v1` when your
+   client requires it), or use the desktop app, which does this for you. Set
+   `X-Horizon-Proxy-Token` to the account key. Keep the provider key/login in its
+   usual header. All connections, including SSH tunnels to Pi 5 loopback,
+   require an account key. The proxy hostname is the Pi 5's own Cloudflare
+   Tunnel to the gateway's loopback listener (127.0.0.1:8790); the gateway's
+   LAN listener serves only the Advanced Analytics page for the Pi 4.
 3. The outer proxy middleware calls the control plane with a server-only
    service credential. It checks the key's current revocation state and scope
    on every HTTP request. The verified UUID follows async tasks and streaming

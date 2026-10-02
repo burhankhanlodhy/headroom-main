@@ -14,9 +14,11 @@
 		reverse_proxy 192.168.0.71:8787
 	}
 
-	# Separate data-plane URL; browser session tokens are not proxy keys.
-	handle_path /proxy/* {
-		reverse_proxy 192.168.0.71:8787
+	# The proxy has its own hostname (proxy.contextshrink.com, the Pi 5's
+	# Cloudflare Tunnel). Answer the retired /proxy path with a clear 404
+	# instead of falling through to the dashboard app.
+	handle /proxy/* {
+		respond "Not Found: use https://proxy.contextshrink.com" 404
 	}
 
 	@private_routes path /api/internal/* /api/ingest/* /stats /stats-lifetime /stats-history /health /transformations/* /metrics /admin/* /debug/*

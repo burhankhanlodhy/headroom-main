@@ -111,6 +111,23 @@ h1 {
   font-size: 16px;
 }
 
+.tool-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.tool-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--line);

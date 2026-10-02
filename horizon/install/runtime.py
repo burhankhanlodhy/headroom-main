@@ -95,6 +95,10 @@ def _deployment_env(manifest: DeploymentManifest) -> dict[str, str]:
 def resolve_horizon_command() -> list[str]:
     """Resolve the most reliable command to invoke horizon."""
 
+    # A frozen build (e.g. the desktop app's bundled client) is itself the CLI,
+    # and has no `-m` support; never defer to a different horizon on PATH.
+    if getattr(sys, "frozen", False):
+        return [sys.executable]
     horizon_bin = shutil.which("horizon")
     if horizon_bin:
         return [horizon_bin]

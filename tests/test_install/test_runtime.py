@@ -959,3 +959,13 @@ class TestRestartCurrentDeployment:
         assert result["restarted"] is True
         assert result["mode"] == "service"
         assert recorded["command"][-4:] == ["install", "restart", "--profile", "default"]
+
+
+def test_resolve_horizon_command_uses_the_frozen_client_itself(monkeypatch) -> None:
+    """The desktop app's bundled client must call itself, not another horizon."""
+    monkeypatch.setattr(
+        "shutil.which", lambda name: "/usr/bin/horizon" if name == "horizon" else None
+    )
+    monkeypatch.setattr("horizon.install.runtime.sys.frozen", True, raising=False)
+    monkeypatch.setattr("horizon.install.runtime.sys.executable", "C:/App/horizon/horizon.exe")
+    assert resolve_horizon_command() == ["C:/App/horizon/horizon.exe"]

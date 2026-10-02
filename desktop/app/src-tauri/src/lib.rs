@@ -16,7 +16,50 @@ use api::{Api, ApiError, User};
 use client::Client;
 use serde::Serialize;
 use serde_json::Value;
-use tauri::{AppHandle, Manager, RunEvent, State};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Manager, RunEvent, State, WindowEvent};
+
+/// Bring the main window back from the tray (or from behind other windows).
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
+/// Tray icon: left-click restores the window; the menu can also quit, which
+/// stops the forwarder like closing the window does.
+fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    let open = MenuItem::with_id(app, "open", "Open ContextShrink", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&open, &quit])?;
+    let mut tray = TrayIconBuilder::with_id("main")
+        .tooltip("ContextShrink")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "open" => show_main_window(app),
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                show_main_window(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.build(app)?;
+    Ok(())
+}
 
 struct AppState {
     api: Api,
@@ -203,7 +246,17 @@ pub fn run() {
                 client: Client::new(exe, data_dir),
                 forwarder: Mutex::new(None),
             });
+            build_tray(app)?;
             Ok(())
+        })
+        // Minimise sends the app to the tray: the window leaves the taskbar
+        // while the forwarder keeps serving the tools launched from it.
+        .on_window_event(|window, event| {
+            if let WindowEvent::Resized(_) = event {
+                if window.is_minimized().unwrap_or(false) {
+                    let _ = window.hide();
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             restore_session,

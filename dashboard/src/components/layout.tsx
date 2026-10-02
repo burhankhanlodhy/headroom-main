@@ -23,13 +23,69 @@ import {
 import { cn, fmtUsd } from "../lib/utils";
 import { EASE } from "./ui";
 import { initials, useAccount } from "../lib/account";
-import { useBillingEstimate } from "../lib/usage";
+import { openPortal } from "../lib/billing";
+import {
+  useBillingEstimate,
+  type CompressionEntitlement,
+  type PaymentIssue,
+} from "../lib/usage";
+
+/** Account-level notices: an unpaid savings fee, or the Free compression cap. */
+function AccountNotices() {
+  const { estimate } = useBillingEstimate();
+  if (!estimate) return null;
+  // A payment problem explains any cap too, so it replaces the upgrade notice.
+  if (estimate.payment_issue)
+    return <PaymentIssueNotice issue={estimate.payment_issue} />;
+  return <CompressionCapNotice cap={estimate.compression} />;
+}
+
+function PaymentIssueNotice({ issue }: { issue: PaymentIssue }) {
+  const pauseOn = new Date(issue.pause_at).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-ember/40 bg-ember-soft px-4 py-3 text-sm text-ink">
+      <CreditCard size={17} className="shrink-0 text-ember" />
+      <p className="min-w-0 flex-1">
+        {issue.paused ? (
+          <>
+            <strong>Pro features are paused.</strong> Your{" "}
+            {fmtUsd(issue.amount_usd)} savings fee is unpaid, so compression is
+            capped and Advanced Analytics is off until it is paid.
+          </>
+        ) : (
+          <>
+            <strong>Your {fmtUsd(issue.amount_usd)} savings fee payment
+            failed.</strong>{" "}
+            Pay it or update your card by {pauseOn} to keep Pro.
+          </>
+        )}
+      </p>
+      {issue.invoice_url && (
+        <a
+          href={issue.invoice_url}
+          target="_blank"
+          rel="noreferrer"
+          className="font-semibold text-ember underline-offset-2 hover:underline"
+        >
+          Pay invoice
+        </a>
+      )}
+      <button
+        onClick={() => void openPortal().catch(() => undefined)}
+        className="font-semibold text-ember underline-offset-2 hover:underline"
+      >
+        Update card
+      </button>
+    </div>
+  );
+}
 
 /** Free-plan cap notice: shown when close to, or past, the monthly cap. */
-function CompressionCapNotice() {
-  const { estimate } = useBillingEstimate();
-  const cap = estimate?.compression;
-  if (!cap?.capped || cap.cycle_savings_usd === null) return null;
+function CompressionCapNotice({ cap }: { cap: CompressionEntitlement }) {
+  if (!cap.capped || cap.cycle_savings_usd === null) return null;
   const paused = !cap.compression_allowed;
   if (!paused && cap.cycle_savings_usd < cap.cap_usd * 0.75) return null;
   const resets = new Date(cap.cycle_end).toLocaleDateString(undefined, {
@@ -299,7 +355,7 @@ export function Shell() {
 
         <main className="min-h-0 flex-1 overflow-y-auto px-6 pb-10 pt-6 lg:px-10">
           <div className="mx-auto max-w-[1180px]">
-            <CompressionCapNotice />
+            <AccountNotices />
           </div>
           <motion.div
             key={location.pathname}

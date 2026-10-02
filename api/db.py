@@ -10,6 +10,17 @@ DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgres://contextshrink:contextshrink@localhost:5432/contextshrink"
 )
 SESSION_TTL_DAYS = int(os.environ.get("SESSION_TTL_DAYS", "30"))
+# Days a savings fee may stay unpaid before paid features pause.
+FEE_GRACE_DAYS = int(os.environ.get("FEE_GRACE_DAYS", "7"))
+
+# Effective subscription status: an active plan with a savings fee unpaid past
+# the grace period behaves as past_due (Free cap, no Advanced Analytics) until
+# the invoice is paid. Expects the subscription row as "sub" and the grace
+# days as a query parameter.
+EFFECTIVE_STATUS_SQL = (
+    "CASE WHEN COALESCE(sub.status,'active')='active' AND billing.fee_overdue(sub.user_id, {grace}) "
+    "THEN 'past_due' ELSE COALESCE(sub.status,'active') END"
+)
 
 _pool: asyncpg.Pool | None = None
 
@@ -76,9 +87,10 @@ async def create_session(user_id: str, token_hash: str) -> datetime:
 
 
 async def resolve_session(token_hash: str) -> asyncpg.Record | None:
-    query = """
+    query = f"""
         SELECT u.id AS user_id, u.email, u.name, u.created_at, s.id AS session_id,
-               COALESCE(sub.plan, 'free') AS plan, COALESCE(sub.status, 'active') AS subscription_status
+               COALESCE(sub.plan, 'free') AS plan,
+               {EFFECTIVE_STATUS_SQL.format(grace="$2")} AS subscription_status
         FROM core.sessions s
         JOIN core.users u ON u.id = s.user_id
         LEFT JOIN core.subscriptions sub ON sub.user_id = u.id
@@ -86,7 +98,7 @@ async def resolve_session(token_hash: str) -> asyncpg.Record | None:
           AND s.revoked_at IS NULL
           AND s.expires_at > now()
     """
-    row = await _conn().fetchrow(query, token_hash)
+    row = await _conn().fetchrow(query, token_hash, FEE_GRACE_DAYS)
     if row:
         await _conn().execute(
             "UPDATE core.sessions SET last_used_at = now() WHERE token_hash = $1",

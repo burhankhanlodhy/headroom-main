@@ -36,6 +36,10 @@ class FakeConn:
         self.fees: dict[tuple, dict] = {}
         self.customers = {"cus_1": UID}
         self.plan_updates: list[tuple] = []
+        self.failures: list[str] = []
+
+    def _by_invoice(self, invoice_id):
+        return next((r for r in self.fees.values() if r["stripe_invoice_id"] == invoice_id), None)
 
     async def fetchval(self, sql, *args):
         if "billing.stripe_events" in sql:
@@ -54,10 +58,30 @@ class FakeConn:
             self.events.add(args[0])
         elif "INSERT INTO billing.savings_fees" in sql:
             self.fees.setdefault(
-                (args[0], args[1]), {"fee_cents": args[4], "stripe_invoice_id": None}
+                (args[0], args[1]),
+                {
+                    "fee_cents": args[4],
+                    "stripe_invoice_id": None,
+                    "payment_status": args[5],
+                    "payment_failed_at": None,
+                    "invoice_url": None,
+                },
             )
-        elif "UPDATE billing.savings_fees" in sql:
+        elif "SET stripe_invoice_id=" in sql:
             self.fees[(args[0], args[1])]["stripe_invoice_id"] = args[2]
+        elif "SET invoice_url=" in sql:
+            self._by_invoice(args[0])["invoice_url"] = args[1]
+        elif "SET payment_status='failed'" in sql:
+            row = self._by_invoice(args[0])
+            if row and row["payment_status"] not in ("paid", "void"):
+                row["payment_status"] = "failed"
+                row["payment_failed_at"] = row["payment_failed_at"] or len(self.failures) + 1
+                row["invoice_url"] = args[1] or row["invoice_url"]
+            self.failures.append(args[0])
+        elif "SET payment_status=$2" in sql:
+            row = self._by_invoice(args[0])
+            if row:
+                row.update(payment_status=args[1], payment_failed_at=None)
         elif "UPDATE core.subscriptions SET plan=" in sql:
             self.plan_updates.append(args)
         else:
@@ -65,13 +89,23 @@ class FakeConn:
 
 
 class FakeStripe:
-    def __init__(self):
+    def __init__(self, conn=None):
         self.calls: list[tuple] = []
+        self.linked_at_finalize = None
         record = self._record
+
+        def finalize(invoice_id, params=None, options=None):
+            # Payment is attempted on finalize; its webhook needs the link.
+            if conn is not None:
+                self.linked_at_finalize = conn._by_invoice(invoice_id) is not None
+            return record(
+                "finalize", invoice_id, options, SimpleNamespace(hosted_invoice_url="https://pay.test/in_fee")
+            )
+
         self.v1 = SimpleNamespace(
             invoices=SimpleNamespace(
                 create=lambda p, o=None: record("invoice", p, o, SimpleNamespace(id="in_fee")),
-                finalize_invoice=lambda i, p=None, o=None: record("finalize", i, o, None),
+                finalize_invoice=finalize,
             ),
             invoice_items=SimpleNamespace(
                 create=lambda p, o=None: record("item", p, o, None)
@@ -89,7 +123,7 @@ class FakeStripe:
 @pytest.fixture
 def env(monkeypatch):
     conn = FakeConn()
-    fake = FakeStripe()
+    fake = FakeStripe(conn)
     monkeypatch.setattr(billing.db, "_conn", lambda: conn)
     monkeypatch.setattr(billing, "_client", fake)
     return SimpleNamespace(conn=conn, stripe=fake)
@@ -122,7 +156,11 @@ def test_fee_invoiced_once_per_period(env, monkeypatch):
     assert invoice["default_payment_method"] == "pm_1"
     assert invoice["pending_invoice_items_behavior"] == "exclude"
     assert item == {**item, "amount": 500, "currency": "usd", "invoice": "in_fee"}
-    assert env.conn.fees[(UID, START)] == {"fee_cents": 500, "stripe_invoice_id": "in_fee"}
+    fee = env.conn.fees[(UID, START)]
+    assert (fee["fee_cents"], fee["stripe_invoice_id"], fee["payment_status"]) == (500, "in_fee", "pending")
+    assert fee["invoice_url"] == "https://pay.test/in_fee"
+    # Linked before finalize, so the payment webhook can find the row.
+    assert env.stripe.linked_at_finalize is True
 
 
 def test_no_invoice_when_savings_at_or_below_threshold(env, monkeypatch):
@@ -133,6 +171,47 @@ def test_no_invoice_when_savings_at_or_below_threshold(env, monkeypatch):
     asyncio.run(billing.charge_savings_fee(UID, "cus_1", START, END, None))
     assert env.stripe.calls == []
     assert env.conn.fees[(UID, START)]["fee_cents"] == 0
+    assert env.conn.fees[(UID, START)]["payment_status"] == "none"
+
+
+# ── Fee payment tracking ──────────────────────────────────────────────
+
+
+def _fee_invoice(url="https://pay.test/in_fee"):
+    return stripe.Invoice.construct_from(
+        {"id": "in_fee", "object": "invoice", "customer": "cus_1", "hosted_invoice_url": url},
+        "sk_test_x",
+    )
+
+
+@pytest.fixture
+def charged(env, monkeypatch):
+    async def savings(*_):
+        return Decimal("50")
+
+    monkeypatch.setattr(billing, "ledger_savings", savings)
+    asyncio.run(billing.charge_savings_fee(UID, "cus_1", START, END, None))
+    return env.conn.fees[(UID, START)]
+
+
+def test_failed_fee_keeps_first_failure_time_across_retries(env, charged):
+    for _ in range(3):  # Stripe retries
+        asyncio.run(billing.handle_event(_event("invoice.payment_failed", _fee_invoice())))
+    assert charged["payment_status"] == "failed"
+    assert charged["payment_failed_at"] == 1  # grace clock starts at the first failure
+
+
+@pytest.mark.parametrize("kind, status", [("invoice.paid", "paid"), ("invoice.voided", "void")])
+def test_settling_the_fee_clears_the_failure(env, charged, kind, status):
+    asyncio.run(billing.handle_event(_event("invoice.payment_failed", _fee_invoice())))
+    asyncio.run(billing.handle_event(_event(kind, _fee_invoice())))
+    assert (charged["payment_status"], charged["payment_failed_at"]) == (status, None)
+
+
+def test_late_failure_event_does_not_reopen_a_paid_fee(env, charged):
+    asyncio.run(billing.handle_event(_event("invoice.paid", _fee_invoice())))
+    asyncio.run(billing.handle_event(_event("invoice.payment_failed", _fee_invoice())))
+    assert charged["payment_status"] == "paid"
 
 
 # ── Event routing ─────────────────────────────────────────────────────

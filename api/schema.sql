@@ -91,6 +91,30 @@ CREATE TABLE IF NOT EXISTS billing.savings_fees (
     PRIMARY KEY (user_id, period_start)
 );
 
+-- Payment state of each fee invoice, from invoice.* webhooks:
+-- none (no fee), pending, paid, failed, void. payment_failed_at is the first
+-- failure and is cleared once the invoice is paid.
+ALTER TABLE billing.savings_fees
+    ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE billing.savings_fees
+    ADD COLUMN IF NOT EXISTS payment_failed_at TIMESTAMPTZ;
+ALTER TABLE billing.savings_fees
+    ADD COLUMN IF NOT EXISTS invoice_url TEXT;
+CREATE INDEX IF NOT EXISTS idx_savings_fees_invoice ON billing.savings_fees (stripe_invoice_id);
+UPDATE billing.savings_fees SET payment_status = 'none'
+    WHERE fee_cents = 0 AND payment_status = 'pending';
+
+-- True when a savings fee has stayed unpaid longer than the grace period.
+CREATE OR REPLACE FUNCTION billing.fee_overdue(p_user_id UUID, p_grace_days INTEGER)
+RETURNS boolean LANGUAGE sql STABLE AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM billing.savings_fees
+        WHERE user_id = p_user_id
+          AND payment_status = 'failed'
+          AND payment_failed_at < now() - make_interval(days => p_grace_days)
+    );
+$$;
+
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='subscriptions_plan_tier'

@@ -11,7 +11,7 @@ webhooks; the browser can never grant a paid plan.
 import asyncio
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal
 
@@ -219,13 +219,14 @@ async def charge_savings_fee(
     savings = await ledger_savings(user_id, start, end)
     fee_cents = int(savings_fee(savings) * 100)
     await db._conn().execute(
-        "INSERT INTO billing.savings_fees(user_id, period_start, period_end, savings_usd, fee_cents) "
-        "VALUES($1,$2,$3,$4,$5) ON CONFLICT (user_id, period_start) DO NOTHING",
+        "INSERT INTO billing.savings_fees(user_id, period_start, period_end, savings_usd, fee_cents, "
+        "payment_status) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT (user_id, period_start) DO NOTHING",
         user_id,
         start,
         end,
         savings,
         fee_cents,
+        "none" if fee_cents == 0 else "pending",
     )
     if fee_cents == 0:
         return
@@ -245,6 +246,14 @@ async def charge_savings_fee(
     invoice = await _call(
         client.v1.invoices.create, invoice_params, {"idempotency_key": key + "-invoice"}
     )
+    # Link the invoice before finalizing: finalizing attempts payment, and the
+    # resulting invoice.paid / invoice.payment_failed webhook looks it up.
+    await db._conn().execute(
+        "UPDATE billing.savings_fees SET stripe_invoice_id=$3 WHERE user_id=$1 AND period_start=$2",
+        user_id,
+        start,
+        invoice.id,
+    )
     await _call(
         client.v1.invoice_items.create,
         {
@@ -256,18 +265,58 @@ async def charge_savings_fee(
         },
         {"idempotency_key": key + "-item"},
     )
-    await _call(
+    finalized = await _call(
         client.v1.invoices.finalize_invoice,
         invoice.id,
         {"auto_advance": True},
         {"idempotency_key": key + "-finalize"},
     )
     await db._conn().execute(
-        "UPDATE billing.savings_fees SET stripe_invoice_id=$3 WHERE user_id=$1 AND period_start=$2",
-        user_id,
-        start,
+        "UPDATE billing.savings_fees SET invoice_url=$2 WHERE stripe_invoice_id=$1",
         invoice.id,
+        finalized.hosted_invoice_url,
     )
+
+
+async def record_fee_payment(invoice, outcome: Literal["paid", "failed", "void"]) -> None:
+    """Track a savings-fee invoice's payment; no-op for other invoices."""
+    if outcome == "failed":
+        # Keep the first failure time (the grace clock) across retries, and
+        # never let a late failure event override an invoice already paid.
+        await db._conn().execute(
+            "UPDATE billing.savings_fees SET payment_status='failed', "
+            "payment_failed_at=COALESCE(payment_failed_at, now()), "
+            "invoice_url=COALESCE($2, invoice_url) "
+            "WHERE stripe_invoice_id=$1 AND payment_status NOT IN ('paid','void')",
+            invoice.id,
+            invoice.hosted_invoice_url,
+        )
+    else:
+        await db._conn().execute(
+            "UPDATE billing.savings_fees SET payment_status=$2, payment_failed_at=NULL "
+            "WHERE stripe_invoice_id=$1",
+            invoice.id,
+            outcome,
+        )
+
+
+async def fee_payment_issue(user_id) -> dict | None:
+    """The oldest unpaid savings fee, for the dashboard; None when all are settled."""
+    row = await db._conn().fetchrow(
+        "SELECT fee_cents, invoice_url, payment_failed_at FROM billing.savings_fees "
+        "WHERE user_id=$1 AND payment_status='failed' ORDER BY payment_failed_at LIMIT 1",
+        user_id,
+    )
+    if row is None:
+        return None
+    pause_at = row["payment_failed_at"] + timedelta(days=db.FEE_GRACE_DAYS)
+    return {
+        "amount_usd": row["fee_cents"] / 100,
+        "invoice_url": row["invoice_url"],
+        "failed_at": row["payment_failed_at"].isoformat(),
+        "pause_at": pause_at.isoformat(),
+        "paused": pause_at <= datetime.now(timezone.utc),
+    }
 
 
 def _invoice_subscription_id(invoice) -> str | None:
@@ -302,7 +351,9 @@ async def handle_event(event) -> None:
                 ended,
                 _expandable_id(obj.default_payment_method),
             )
-    elif kind in ("invoice.paid", "invoice.payment_failed"):
+    elif kind in ("invoice.paid", "invoice.payment_failed", "invoice.voided"):
+        outcome = {"invoice.paid": "paid", "invoice.payment_failed": "failed"}.get(kind, "void")
+        await record_fee_payment(obj, outcome)
         sub_id = _invoice_subscription_id(obj)
         if sub_id:
             await sync_subscription(sub_id)

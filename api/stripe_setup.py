@@ -32,6 +32,7 @@ WEBHOOK_EVENTS = [
     "invoice.created",
     "invoice.paid",
     "invoice.payment_failed",
+    "invoice.voided",
 ]
 
 
@@ -89,6 +90,9 @@ def ensure_webhook(client: stripe.StripeClient, url: str, print_secret: bool) ->
     for endpoint in client.v1.webhook_endpoints.list({"limit": 100}).auto_paging_iter():
         if endpoint.url == url:
             log(f"Webhook endpoint exists: {endpoint.id} (its secret is only shown at creation)")
+            if set(endpoint.enabled_events) != set(WEBHOOK_EVENTS):
+                client.v1.webhook_endpoints.update(endpoint.id, {"enabled_events": WEBHOOK_EVENTS})
+                log("Updated its events to: " + ", ".join(WEBHOOK_EVENTS))
             return
     endpoint = client.v1.webhook_endpoints.create(
         {"url": url, "enabled_events": WEBHOOK_EVENTS, "description": "ContextShrink billing"}

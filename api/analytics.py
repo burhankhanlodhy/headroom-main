@@ -91,16 +91,19 @@ async def compression_entitlement(user_id) -> dict:
     """Whether the proxy may compress for this account right now.
 
     Active Pro/Team plans are uncapped. Everything else, including a paid plan
-    that is not active (e.g. a failed payment), gets the Free cap.
+    that is not active (e.g. a savings fee unpaid past the grace period), gets
+    the Free cap.
     """
     row = await db._conn().fetchrow(
-        """
-        SELECT COALESCE(s.plan,'free') AS plan, COALESCE(s.status,'active') AS status,
+        f"""
+        SELECT COALESCE(sub.plan,'free') AS plan,
+               {db.EFFECTIVE_STATUS_SQL.format(grace="$2")} AS status,
                date_trunc('month', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS cycle_start
-        FROM core.users u LEFT JOIN core.subscriptions s ON s.user_id=u.id
+        FROM core.users u LEFT JOIN core.subscriptions sub ON sub.user_id=u.id
         WHERE u.id=$1
         """,
         user_id,
+        db.FEE_GRACE_DAYS,
     )
     cycle_start = row["cycle_start"]
     month = cycle_start.month

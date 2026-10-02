@@ -43,6 +43,17 @@ export interface BillingEstimate {
   estimated_total_usd: number;
   currency: "USD";
   compression: CompressionEntitlement;
+  payment_issue: PaymentIssue | null;
+}
+
+/** Oldest savings-fee invoice whose payment failed and is still unpaid. */
+export interface PaymentIssue {
+  amount_usd: number;
+  invoice_url: string | null;
+  failed_at: string;
+  /** Pro features pause at this time if still unpaid. */
+  pause_at: string;
+  paused: boolean;
 }
 
 /** Free-plan compression allowance for the current UTC month. */

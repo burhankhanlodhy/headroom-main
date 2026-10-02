@@ -1,32 +1,13 @@
-# Pi 5 gateway. Account analytics never reaches Horizon's global /stats.
+# Pi 5 gateway: the only way into the Pi 5 (via its Cloudflare Tunnel). Every
+# listener is loopback-only; nothing is exposed on the LAN.
 #
-#   192.168.0.71:8787  LAN, Pi 4 web tier only: the Advanced Analytics page
-#                      and its read-only account calls. No proxy traffic.
 #   127.0.0.1:8791     loopback, Pi 5 Cloudflare Tunnel (api.contextshrink.com):
 #                      public control-plane API routes only.
 #   127.0.0.1:8790     loopback, Pi 5 Cloudflare Tunnel (proxy.contextshrink.com):
 #                      provider operations only. Never point the tunnel at the
-#                      proxy itself (127.0.0.1:8787): this gateway is what
-#                      allowlists provider operations and strips edge headers.
-
-(account_routes) {
-	@account_dashboard path /dashboard /dashboard/
-	handle @account_dashboard {
-		rewrite * /dashboard/account
-		reverse_proxy 127.0.0.1:8787 {
-			header_up Host 127.0.0.1:8787
-		}
-	}
-
-	@account_reads {
-		method GET
-		path /account-api/auth/me /account-api/analytics/summary /account-api/analytics/feed /account-api/analytics/history.csv
-	}
-	handle @account_reads {
-		uri strip_prefix /account-api
-		reverse_proxy 127.0.0.1:8788
-	}
-}
+#                      proxy itself (127.0.0.1:8787) or the API (127.0.0.1:8788):
+#                      this gateway is what allowlists routes and strips edge
+#                      headers.
 
 (proxy_routes) {
 	# Only supported provider operations may reach the data plane.
@@ -69,14 +50,7 @@
 	}
 }
 
-:8787 {
-	bind 192.168.0.71
-	import account_routes
-	handle {
-		respond "Not Found" 404
-	}
-}
-
+# proxy.contextshrink.com
 :8790 {
 	bind 127.0.0.1
 	import proxy_routes
@@ -85,8 +59,8 @@
 	}
 }
 
-# api.contextshrink.com (Pi 5 Cloudflare Tunnel): the dashboard, the Advanced
-# Analytics page and the desktop app call the control-plane API here.
+# api.contextshrink.com: the dashboard, the Advanced Analytics page and the
+# desktop app call the control-plane API here.
 :8791 {
 	bind 127.0.0.1
 	import api_routes

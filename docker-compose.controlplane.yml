@@ -1,9 +1,9 @@
 # ContextShrink control plane: Postgres + API.
 # Run on the Pi:  cp controlplane.env.example .env  -> edit secrets ->
 #                 docker compose -f docker-compose.controlplane.yml up -d
-# Postgres always binds loopback. The API binds loopback by default; on the
-# deployment Pi set API_BIND=0.0.0.0 in .env so the web tier's reverse proxy
-# (Pi 4) can reach it over the LAN.
+# Postgres and the API bind loopback. The public reaches the API only through
+# the Pi 5 gateway (deploy/pi5-webtier/Caddyfile) behind its Cloudflare Tunnel
+# (api.contextshrink.com); nothing needs LAN access.
 
 services:
   postgres:

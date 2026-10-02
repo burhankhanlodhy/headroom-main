@@ -24,6 +24,7 @@ import {
 import { cn, fmtUsd } from "../lib/utils";
 import { EASE } from "./ui";
 import { initials, useAccount } from "../lib/account";
+import { PROXY_URL } from "../lib/api";
 import { openPortal } from "../lib/billing";
 import {
   useBillingEstimate,
@@ -248,13 +249,13 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+/** Where tools connect (see Documentation); a label, not a health check. */
 function ProxyStatus() {
   return (
-    <div className="paper-panel flex items-center gap-3 rounded-lg px-3 py-2.5">
-      <span className="live-dot" />
+    <div className="paper-panel rounded-lg px-3 py-2.5">
       <div className="text-[11px] leading-tight">
-        <div className="font-semibold text-ink">Proxy live</div>
-        <div className="text-ink-3">loopback · 8787</div>
+        <div className="font-semibold text-ink">Proxy</div>
+        <div className="truncate text-ink-3">{PROXY_URL.replace(/^https?:\/\//, "")}</div>
       </div>
     </div>
   );

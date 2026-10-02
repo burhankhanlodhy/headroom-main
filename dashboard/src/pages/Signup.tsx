@@ -6,7 +6,8 @@ import { EASE, GradientButton } from "../components/ui";
 import { getPostAuthDestination, signUp } from "../lib/auth";
 
 const LANDING_URL =
-  (import.meta.env.VITE_LANDING_URL as string | undefined) ?? "http://127.0.0.1:5174";
+  (import.meta.env.VITE_LANDING_URL as string | undefined) ??
+  (import.meta.env.DEV ? "http://127.0.0.1:5174" : "https://contextshrink.com");
 
 const inputCls =
   "w-full rounded-lg border border-ink/20 bg-ink/5 px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-3 focus:border-ember/50 focus:ring-2 focus:ring-ember/20";

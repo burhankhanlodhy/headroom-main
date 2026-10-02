@@ -15,9 +15,14 @@ fn api_url(path: &str) -> String {
     format!("{}/api{}", app_url(), path)
 }
 
-/// Hosted proxy the local forwarder relays to.
+/// Hosted proxy the local forwarder relays to: its own hostname (the Pi 5
+/// Cloudflare Tunnel), separate from the dashboard origin.
+/// `CONTEXTSHRINK_PROXY_URL` overrides it for testing.
 pub fn proxy_url() -> String {
-    format!("{}/proxy", app_url())
+    std::env::var("CONTEXTSHRINK_PROXY_URL")
+        .unwrap_or_else(|_| "https://proxy.contextshrink.com".into())
+        .trim_end_matches('/')
+        .to_string()
 }
 
 #[derive(Debug)]

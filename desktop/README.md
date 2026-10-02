@@ -12,8 +12,8 @@ through the hosted ContextShrink proxy. Supported tools: Claude Code and OpenCod
    No key is embedded in the installer. Signing out revokes the device key; a
    key revoked from the dashboard is replaced automatically at next start.
 3. The app runs the Horizon forwarder in the background on `127.0.0.1:18788`.
-   It adds `X-Horizon-Proxy-Token` to every request and relays it to
-   `https://app.contextshrink.com/proxy`.
+   It adds `X-Horizon-Proxy-Token` to model requests and relays them to
+   `https://proxy.contextshrink.com` (the Pi 5's own Cloudflare Tunnel).
 4. **Launch** opens a console in the chosen project folder running the tool's
    `horizon wrap` command against the forwarder, then `horizon unwrap` when the
    tool exits, restoring the tool's own config:
@@ -58,4 +58,5 @@ Development run (uses the frozen client from `client\dist`):
 cd desktop\app; npm install; npx tauri dev
 ```
 
-Set `CONTEXTSHRINK_APP_URL` to point the app at a different dashboard origin.
+Set `CONTEXTSHRINK_APP_URL` / `CONTEXTSHRINK_PROXY_URL` to point the app at a
+different dashboard origin or proxy.

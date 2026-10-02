@@ -6,6 +6,7 @@ import ApiKeys from "./pages/ApiKeys";
 import Usage from "./pages/Usage";
 import Subscriptions from "./pages/Subscriptions";
 import Documentation from "./pages/Documentation";
+import Downloads from "./pages/Downloads";
 import SignOut from "./pages/SignOut";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -105,6 +106,7 @@ export default function App() {
             <Route path="keys" element={<ApiKeys />} />
             <Route path="usage" element={<Usage />} />
             <Route path="subscriptions" element={<Subscriptions />} />
+            <Route path="downloads" element={<Downloads />} />
             <Route path="docs" element={<Documentation />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

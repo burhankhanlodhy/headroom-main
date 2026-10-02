@@ -11,6 +11,7 @@ import {
   BarChart3,
   BookOpen,
   CreditCard,
+  Download,
   Gauge,
   LineChart,
   KeyRound,
@@ -136,6 +137,7 @@ const nav = [
   { to: "/keys", label: "API Keys", icon: KeyRound },
   { to: "/usage", label: "Usage", icon: BarChart3 },
   { to: "/subscriptions", label: "Subscriptions", icon: CreditCard },
+  { to: "/downloads", label: "Downloads", icon: Download },
   { to: "/docs", label: "Documentation", icon: BookOpen },
 ];
 
@@ -152,6 +154,10 @@ const pageMeta: Record<string, { title: string; subtitle: string }> = {
   "/subscriptions": {
     title: "Subscriptions",
     subtitle: "Providers, quotas and billing",
+  },
+  "/downloads": {
+    title: "Downloads",
+    subtitle: "The ContextShrink desktop app for your computer",
   },
   "/docs": {
     title: "Documentation",

@@ -22,6 +22,19 @@
 		file_server
 	}
 
+	# Desktop app installers and latest.json, published by
+	# desktop/publish-installer.ps1 into /var/www/contextshrink/releases
+	# (outside the dashboard folder, so dashboard deploys never remove them).
+	handle /releases/* {
+		root * /var/www/contextshrink
+		@latest path /releases/latest.json
+		header @latest Cache-Control "no-cache"
+		@installer path *.exe
+		header @installer Cache-Control "public, max-age=31536000, immutable"
+		header @installer Content-Disposition "attachment"
+		file_server
+	}
+
 	# Retired relay paths: answer clearly instead of serving the app.
 	handle /proxy/* {
 		respond "Not Found: use https://proxy.contextshrink.com" 404

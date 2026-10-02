@@ -60,3 +60,16 @@ cd desktop\app; npm install; npx tauri dev
 
 Set `CONTEXTSHRINK_APP_URL` / `CONTEXTSHRINK_PROXY_URL` to point the app at a
 different dashboard origin or proxy.
+
+## Publish to the Downloads page
+
+```powershell
+.\desktop\publish-installer.ps1
+```
+
+Uploads the installer and a `latest.json` (version, file, size, SHA-256, date)
+to the Pi 4 and prints one `ssh -t ... /tmp/cs-publish-release.sh` command that
+installs them into `/var/www/contextshrink/releases` (needs the Pi 4 sudo
+password). The dashboard's **Downloads** page reads
+`https://app.contextshrink.com/releases/latest.json`, so publishing a release
+needs no dashboard rebuild. Earlier installers stay downloadable by file name.

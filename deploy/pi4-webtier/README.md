@@ -27,6 +27,9 @@
   Cloudflare/forwarding headers before provider calls.
 - If the Pi 4 dies, the API and proxy keep working; redeploy the static
   bundles in minutes, nothing is lost.
+- Desktop installers live in `/var/www/contextshrink/releases`, served at
+  `/releases/` and listed on the dashboard's Downloads page from
+  `releases/latest.json` (published by `desktop/publish-installer.ps1`).
 
 ## Build the bundles (PowerShell, not Git Bash)
 

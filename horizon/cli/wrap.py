@@ -6463,7 +6463,8 @@ def _run_codex_wrap(
         )
         return
 
-    codex_bin = shutil.which("codex")
+    # npm's extensionless `codex` sh shim is not runnable on Windows (#WinError 193).
+    codex_bin = _resolve_windows_launcher("codex")
     if not codex_bin:
         click.echo("Error: 'codex' not found in PATH.")
         click.echo("Install Codex CLI: npm install -g @openai/codex")
@@ -7873,22 +7874,27 @@ def openclaw(
 # =============================================================================
 
 
-def _resolve_opencode_launcher() -> str | None:
-    """Resolve the opencode launcher, preferring real Windows executables.
+def _resolve_windows_launcher(tool: str) -> str | None:
+    """Resolve a CLI launcher, preferring real Windows executables.
 
-    npm installs `opencode` (POSIX sh shim), `opencode.cmd`, and `opencode.ps1`
+    npm installs `<tool>` (POSIX sh shim), `<tool>.cmd`, and `<tool>.ps1`
     side by side in the npm bin dir. On Windows, Python 3.12's shutil.which
-    can return the bare sh shim even though opencode.cmd sits in the same
+    can return the bare sh shim even though <tool>.cmd sits in the same
     directory, and CreateProcess on a sh script fails with
     "[WinError 193] %1 is not a valid Win32 application".
     """
     if os.name != "nt":
-        return shutil.which("opencode")
-    for name in ("opencode.exe", "opencode.cmd", "opencode.bat"):
+        return shutil.which(tool)
+    for name in (f"{tool}.exe", f"{tool}.cmd", f"{tool}.bat"):
         found = shutil.which(name)
         if found:
             return found
-    return shutil.which("opencode")
+    return shutil.which(tool)
+
+
+def _resolve_opencode_launcher() -> str | None:
+    """Resolve the opencode launcher (see :func:`_resolve_windows_launcher`)."""
+    return _resolve_windows_launcher("opencode")
 
 
 @wrap.command(context_settings={"ignore_unknown_options": True})

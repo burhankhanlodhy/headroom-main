@@ -1,7 +1,13 @@
-# Pi 5 LAN gateway. Account analytics never reaches Horizon's global /stats.
-:8787 {
-	bind 192.168.0.71
+# Pi 5 gateway. Account analytics never reaches Horizon's global /stats.
+#
+# Two listeners share the same routes:
+#   192.168.0.71:8787  LAN, for the Pi 4 web tier (app.contextshrink.com/proxy)
+#   127.0.0.1:8790     loopback, for the Pi 5 Cloudflare Tunnel
+#                      (proxy.contextshrink.com). Never point the tunnel at the
+#                      proxy itself (127.0.0.1:8787): this gateway is what
+#                      allowlists provider operations and strips edge headers.
 
+(gateway_routes) {
 	@account_dashboard path /dashboard /dashboard/
 	handle @account_dashboard {
 		rewrite * /dashboard/account
@@ -49,4 +55,14 @@
 	handle {
 		respond "Not Found" 404
 	}
+}
+
+:8787 {
+	bind 192.168.0.71
+	import gateway_routes
+}
+
+:8790 {
+	bind 127.0.0.1
+	import gateway_routes
 }

@@ -25,6 +25,24 @@
 	handle @proxy_operations {
 		reverse_proxy 127.0.0.1:8787 {
 			header_up Host 127.0.0.1:8787
+			# Edge headers from Cloudflare and the Caddy hops must not reach
+			# providers: many sit behind Cloudflare too, and a forwarded
+			# CDN-Loop/CF-* header makes Cloudflare refuse the request (HTML
+			# 403). They would also leak the caller's IP and country upstream.
+			header_up -Cdn-Loop
+			header_up -Cf-Connecting-Ip
+			header_up -Cf-Ipcountry
+			header_up -Cf-Ray
+			header_up -Cf-Visitor
+			header_up -Cf-Warp-Tag-Id
+			header_up -Cf-Ew-Via
+			header_up -Cf-Worker
+			header_up -True-Client-Ip
+			header_up -Via
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Proto
+			header_up -X-Real-Ip
 		}
 	}
 

@@ -225,3 +225,84 @@ def test_tag_with_unsafe_scheme_is_not_followed() -> None:
     client.get("/catalog", headers={"x-horizon-base-url": "file:///etc"})
     (req,) = seen
     assert str(req.url).startswith(REMOTE)
+
+
+# ── WebSocket relay (Codex Responses transport) ──────────────────────────────
+
+
+class FakeUpstreamWS:
+    """Stands in for a websockets client connection to the remote proxy."""
+
+    def __init__(self, frames: list, subprotocol: str | None = None) -> None:
+        self.frames = list(frames)
+        self.sent: list = []
+        self.subprotocol = subprotocol
+        self.closed = False
+        self.close_code = 1000
+        self.close_reason = ""
+
+    async def send(self, message) -> None:
+        self.sent.append(message)
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        import asyncio
+
+        # Answer only after the client spoke, like a real Responses turn.
+        while not self.sent and not self.closed:
+            await asyncio.sleep(0.01)
+        if self.closed or not self.frames:
+            raise StopAsyncIteration
+        return self.frames.pop(0)
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+def _ws_client(upstream: FakeUpstreamWS, calls: list, credential: str = "hz_feedface"):
+    async def connect(url, headers, subprotocols):
+        calls.append((url, headers, subprotocols))
+        return upstream
+
+    return TestClient(build_app(REMOTE, lambda: credential, ws_connect=connect))
+
+
+def test_websocket_relays_frames_and_injects_credential() -> None:
+    calls: list = []
+    upstream = FakeUpstreamWS(["event-1", b"\x00binary"], subprotocol="chat")
+    client = _ws_client(upstream, calls)
+    with client.websocket_connect(
+        "/v1/responses?x=1",
+        subprotocols=["chat"],
+        headers={"authorization": "Bearer provider-token", "x-horizon-proxy-token": "spoofed"},
+    ) as ws:
+        assert ws.accepted_subprotocol == "chat"
+        ws.send_text('{"type":"response.create"}')
+        assert ws.receive_text() == "event-1"
+        assert ws.receive_bytes() == b"\x00binary"
+    (url, headers, subprotocols) = calls[0]
+    assert url == "wss://remote.example.test/v1/responses?x=1"
+    assert headers["x-horizon-proxy-token"] == "hz_feedface"  # not the spoofed value
+    assert headers["authorization"] == "Bearer provider-token"
+    assert not {"sec-websocket-key", "upgrade", "connection", "host"} & set(headers)
+    assert subprotocols == ["chat"]
+    assert upstream.sent == ['{"type":"response.create"}']
+    assert upstream.closed
+
+
+def test_websocket_refused_upstream_rejects_the_handshake() -> None:
+    from starlette.websockets import WebSocketDisconnect
+
+    class Refused(Exception):
+        response = type("R", (), {"status_code": 401})()
+
+    async def connect(url, headers, subprotocols):
+        raise Refused("HTTP 401")
+
+    client = TestClient(build_app(REMOTE, lambda: "hz_x", ws_connect=connect))
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with client.websocket_connect("/v1/responses"):
+            pass
+    assert exc.value.code == 1008

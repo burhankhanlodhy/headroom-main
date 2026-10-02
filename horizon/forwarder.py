@@ -15,17 +15,22 @@ the relay, tagging the real destination with ``x-horizon-base-url``. Only model
 traffic belongs on the proxy, so a tagged request whose path the proxy does not
 serve (sign-in, model catalogues, ...) goes straight to its real destination
 instead - exactly as it would without Horizon, and without the key.
+
+WebSocket connections (e.g. Codex's Responses transport) are relayed the same
+way: the key is added to the upstream handshake and frames are piped both ways.
 """
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import Response, StreamingResponse
 
 logger = logging.getLogger(__name__)
@@ -80,17 +85,48 @@ def _direct_target(request: Request, url: str) -> str | None:
     return f"{parsed.scheme}://{parsed.netloc}{path}"
 
 
+#: Opens the upstream WebSocket: (url, headers, subprotocols) -> connection.
+WsConnect = Callable[[str, dict[str, str], list[str]], Awaitable[Any]]
+
+
+def _ws_url(base: str, path: str, query: str) -> str:
+    """ws(s):// form of the remote proxy URL for ``path``."""
+    parsed = urlparse(base)
+    scheme = {"https": "wss", "http": "ws"}.get(parsed.scheme, parsed.scheme)
+    url = f"{scheme}://{parsed.netloc}{parsed.path.rstrip('/')}/{path}"
+    return f"{url}?{query}" if query else url
+
+
+async def _connect_upstream_ws(url: str, headers: dict[str, str], subprotocols: list[str]) -> Any:
+    import websockets
+
+    return await websockets.connect(
+        url,
+        additional_headers=headers,
+        subprotocols=[websockets.Subprotocol(p) for p in subprotocols] or None,
+        open_timeout=30,
+        close_timeout=10,
+        # Keep NAT/Cloudflare paths alive, but never drop a healthy session
+        # that goes quiet for a long turn (same policy as the proxy's relay).
+        ping_interval=20,
+        ping_timeout=None,
+        # Large single frames (e.g. inline images) must pass through.
+        max_size=None,
+    )
+
+
 def build_app(
     remote_url: str,
     credential_provider: Callable[[], str],
     transport: httpx.AsyncBaseTransport | None = None,
+    ws_connect: WsConnect | None = None,
 ) -> FastAPI:
     """Build the relay app.
 
     ``credential_provider`` is called once per request (not at startup) so a
     rotated key stored mid-session is picked up without a restart. It should
     return the raw ``hz_...`` key and may raise :class:`horizon.vault.VaultError`.
-    ``transport`` exists for tests (inject ``httpx.MockTransport``).
+    ``transport`` and ``ws_connect`` exist for tests (inject fakes).
     """
 
     base = remote_url.rstrip("/")
@@ -151,6 +187,75 @@ def build_app(
             status_code=upstream_resp.status_code,
             headers=resp_headers,
         )
+
+    @app.websocket("/{path:path}")
+    async def relay_ws(websocket: WebSocket, path: str) -> None:
+        from websockets.exceptions import ConnectionClosed
+
+        from horizon.proxy.ws_headers import WS_HOP_BY_HOP_HEADERS
+
+        headers = {
+            name: value
+            for name, value in websocket.headers.items()
+            if name.lower() not in WS_HOP_BY_HOP_HEADERS and name.lower() != CREDENTIAL_HEADER
+        }
+        headers[CREDENTIAL_HEADER] = credential_provider()
+        subprotocols = list(websocket.scope.get("subprotocols") or [])
+        url = _ws_url(base, path, websocket.url.query)
+        try:
+            upstream = await (ws_connect or _connect_upstream_ws)(url, headers, subprotocols)
+        except Exception as exc:  # noqa: BLE001 - refuse the handshake, log why
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            logger.warning("forwarder websocket upstream refused path=%s status=%s: %s", path, status, exc)
+            # Closing before accept answers the client's handshake with 403.
+            await websocket.close(code=1008 if status in (401, 403) else 1011)
+            return
+
+        await websocket.accept(subprotocol=getattr(upstream, "subprotocol", None))
+
+        async def client_to_upstream() -> None:
+            while True:
+                message = await websocket.receive()
+                if message["type"] == "websocket.disconnect":
+                    return
+                if message.get("text") is not None:
+                    await upstream.send(message["text"])
+                elif message.get("bytes") is not None:
+                    await upstream.send(message["bytes"])
+
+        async def upstream_to_client() -> None:
+            try:
+                async for frame in upstream:
+                    if isinstance(frame, str):
+                        await websocket.send_text(frame)
+                    else:
+                        await websocket.send_bytes(frame)
+            except ConnectionClosed:
+                pass
+
+        tasks = [
+            asyncio.ensure_future(client_to_upstream()),
+            asyncio.ensure_future(upstream_to_client()),
+        ]
+        try:
+            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+            for task in done:
+                if task.exception() is not None:
+                    logger.warning("forwarder websocket relay ended: %s", task.exception())
+        finally:
+            await upstream.close()
+            code = getattr(upstream, "close_code", None) or 1000
+            # 1005/1006/1015 describe a missing or broken close and may not be
+            # sent in a close frame; report them as normal / internal error.
+            code = {1005: 1000, 1006: 1011, 1015: 1011}.get(code, code)
+            reason = getattr(upstream, "close_reason", None) or ""
+            try:
+                await websocket.close(code=code, reason=reason)
+            except RuntimeError:
+                pass  # the client already closed
 
     @app.api_route(
         "/{path:path}",

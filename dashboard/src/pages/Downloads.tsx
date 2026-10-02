@@ -20,6 +20,11 @@ const TOOLS = [
     url: "https://docs.anthropic.com/en/docs/claude-code/setup",
   },
   {
+    name: "Codex",
+    note: "OpenAI's coding agent for the terminal",
+    url: "https://github.com/openai/codex",
+  },
+  {
     name: "OpenCode",
     note: "Open-source AI coding agent for the terminal",
     url: "https://opencode.ai/download",
@@ -30,7 +35,7 @@ const STEPS = [
   "Run the installer. It installs for your Windows user only; no administrator rights needed.",
   "Open ContextShrink and sign in with this account. The app creates a key for this computer automatically; it appears on API Keys as “Desktop: <your PC name>”.",
   "Choose your project folder.",
-  "Click Launch next to an installed tool. It opens in a new window, routed through ContextShrink. Closing it restores the tool's own settings.",
+  "Click Launch next to an installed tool (Claude Code, Codex or OpenCode). It opens in a new window, routed through ContextShrink. Closing it restores the tool's own settings.",
 ];
 
 const fmtSize = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(0)} MB`;

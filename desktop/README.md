@@ -1,7 +1,7 @@
 # ContextShrink desktop launcher (Windows)
 
 A Tauri app users download from the dashboard to run their own coding tools
-through the hosted ContextShrink proxy. Supported tools: Claude Code and OpenCode.
+through the hosted ContextShrink proxy. Supported tools: Claude Code, Codex and OpenCode.
 
 ## How it works
 
@@ -20,6 +20,11 @@ through the hosted ContextShrink proxy. Supported tools: Claude Code and OpenCod
    - Claude Code: `wrap claude --no-proxy --no-mcp --code-memory none` (base URL
      in the project's `.claude/settings.local.json` for the session; unwrap uses
      `--keep-mcp` so the user's own MCP registrations are never removed).
+   - Codex: `wrap codex --no-proxy --no-mcp --code-memory none` (base URL on the
+     command line and in the environment; `~/.codex/config.toml` is never touched,
+     and there is deliberately no unwrap: `unwrap codex` would strip the user's own
+     marker-delimited Horizon MCP block). HTTP and WebSocket Responses are both
+     relayed by the forwarder.
    - OpenCode: `wrap opencode --no-proxy --no-mcp --no-serena`, plus the bundled
      transport plugin, which reroutes every provider. The forwarder sends model
      calls to the proxy and everything else (sign-in, catalogues) direct.

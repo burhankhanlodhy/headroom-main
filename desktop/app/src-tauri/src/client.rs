@@ -49,6 +49,20 @@ pub const TOOLS: &[Tool] = &[
         unwrap: &["unwrap", "claude", "--no-stop-proxy", "--keep-mcp"],
     },
     Tool {
+        id: "codex",
+        name: "Codex",
+        description: "OpenAI's coding agent for the terminal",
+        command: "codex",
+        install_url: "https://github.com/openai/codex",
+        // With --no-mcp the wrap only passes the base URL on the command line
+        // and in the environment; ~/.codex/config.toml is never touched (HTTP
+        // and WebSocket Responses are both relayed by the forwarder). No
+        // unwrap: `unwrap codex` would strip the user's own marker-delimited
+        // Horizon MCP block from that file.
+        wrap: &["wrap", "codex", "--no-proxy", "--no-mcp", "--code-memory", "none"],
+        unwrap: &[],
+    },
+    Tool {
         id: "opencode",
         name: "OpenCode",
         description: "Open-source AI coding agent for the terminal",
@@ -186,17 +200,22 @@ impl Client {
         }
         let port = FORWARDER_PORT.to_string();
         let quote = |args: &[&str]| args.join(" ");
+        // Tools whose wrap leaves their config untouched have no unwrap step.
+        let unwrap_line = if tool.unwrap.is_empty() {
+            String::new()
+        } else {
+            format!("\"%CS_HORIZON%\" {} --port {port} >nul 2>&1\r\n", quote(tool.unwrap))
+        };
         let script = format!(
             "@echo off\r\n\
              title ContextShrink - {name}\r\n\
              echo Starting {name} through ContextShrink...\r\n\
              \"%CS_HORIZON%\" {wrap} --port {port}\r\n\
              set CS_EXIT=%ERRORLEVEL%\r\n\
-             \"%CS_HORIZON%\" {unwrap} --port {port} >nul 2>&1\r\n\
+             {unwrap_line}\
              if not \"%CS_EXIT%\"==\"0\" (echo. & echo {name} exited with an error. & pause)\r\n",
             name = tool.name,
             wrap = quote(tool.wrap),
-            unwrap = quote(tool.unwrap),
         );
         std::fs::create_dir_all(&self.data_dir).map_err(|e| e.to_string())?;
         let path = self.data_dir.join(format!("launch-{}.cmd", tool.id));

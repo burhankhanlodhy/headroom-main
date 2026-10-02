@@ -116,7 +116,7 @@ export default function Documentation() {
               </Link>
               ) and keeps it in Windows Credential Manager.
             </li>
-            <li>Choose your project folder and click Launch next to Claude Code or OpenCode.</li>
+            <li>Choose your project folder and click Launch next to Claude Code, Codex or OpenCode.</li>
           </ol>
           <p className="mt-4 text-xs leading-relaxed text-ink-3">
             The tool opens in its own window, pointed at ContextShrink for that session
@@ -132,6 +132,11 @@ export default function Documentation() {
               <strong className="text-ink">Claude Code</strong> is started with its API
               address set to the app, which adds your key and forwards model calls to
               ContextShrink. It keeps your Claude subscription or API key.
+            </li>
+            <li>
+              <strong className="text-ink">Codex</strong> is started with its OpenAI
+              address set to the app, for both API keys and a ChatGPT sign-in. Its
+              settings file is left untouched.
             </li>
             <li>
               <strong className="text-ink">OpenCode</strong> gets a small plugin that

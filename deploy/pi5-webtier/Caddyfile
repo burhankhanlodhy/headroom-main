@@ -2,6 +2,8 @@
 #
 #   192.168.0.71:8787  LAN, Pi 4 web tier only: the Advanced Analytics page
 #                      and its read-only account calls. No proxy traffic.
+#   127.0.0.1:8791     loopback, Pi 5 Cloudflare Tunnel (api.contextshrink.com):
+#                      public control-plane API routes only.
 #   127.0.0.1:8790     loopback, Pi 5 Cloudflare Tunnel (proxy.contextshrink.com):
 #                      provider operations only. Never point the tunnel at the
 #                      proxy itself (127.0.0.1:8787): this gateway is what
@@ -55,6 +57,18 @@
 	}
 }
 
+(api_routes) {
+	# Public control-plane routes only; /internal/* (service token), the
+	# legacy /ingest and FastAPI's /docs and /openapi.json stay private.
+	@public_api path_regexp api ^/(healthz|auth/(signup|login|logout|me)|subscription|billing/(estimate|checkout|portal|renew|invoices)|usage/summary|keys(/[^/]+)?|analytics/(summary|feed|history\.csv)|stripe/webhook)$
+	handle @public_api {
+		reverse_proxy 127.0.0.1:8788 {
+			header_up -Cdn-Loop
+			header_up -Via
+		}
+	}
+}
+
 :8787 {
 	bind 192.168.0.71
 	import account_routes
@@ -66,6 +80,16 @@
 :8790 {
 	bind 127.0.0.1
 	import proxy_routes
+	handle {
+		respond "Not Found" 404
+	}
+}
+
+# api.contextshrink.com (Pi 5 Cloudflare Tunnel): the dashboard, the Advanced
+# Analytics page and the desktop app call the control-plane API here.
+:8791 {
+	bind 127.0.0.1
+	import api_routes
 	handle {
 		respond "Not Found" 404
 	}

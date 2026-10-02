@@ -50,6 +50,7 @@ sudo chown -R root:root "$DEST"
 sudo chmod -R u=rwX,go=rX "$DEST"
 rm -rf "$SRC"
 echo "Published $(grep -o '"file": *"[^"]*"' "$DEST/latest.json")"
+rm -f -- "$0"
 '@ -replace "__SRC__", $remote
 # Windows PowerShell 5.1 prefixes piped text with a UTF-8 BOM, which breaks the
 # shebang: send BOM-less UTF-8, and strip CRs and any BOM on arrival as well.
